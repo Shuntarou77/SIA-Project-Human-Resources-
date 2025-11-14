@@ -34,8 +34,8 @@ bld/
 # NuGet Packages
 *.nupkg
 *.snupkg
-**/packages/*
-!**/packages/build/
+# **/packages/* - Commented out to include packages folder
+# !**/packages/build/
 *.nuget.props
 *.nuget.targets
 
@@ -84,7 +84,7 @@ publish/
 *.publishproj
 
 # NuGet Packages Directory
-packages/
+# packages/ - Commented out to include packages folder
 *.nupkg
 *.snupkg
 
