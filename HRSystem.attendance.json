@@ -1,0 +1,61 @@
+[{
+  "_id": {
+    "$oid": "69105c3966042fb1700ba806"
+  },
+  "employeeId": "25-2211",
+  "employeeName": "test, test test",
+  "department": "Research & Development",
+  "date": {
+    "$date": "2025-11-09T00:00:00.000Z"
+  },
+  "timeIn": {
+    "$date": "2025-11-09T09:17:45.222Z"
+  },
+  "timeOut": {
+    "$date": "2025-11-09T09:18:28.254Z"
+  },
+  "createdAt": {
+    "$date": "2025-11-09T09:17:45.222Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "69105c8566042fb1700ba807"
+  },
+  "employeeId": "25-2212",
+  "employeeName": "Loreño, Jhon Ray Monterde",
+  "department": "Quality Control",
+  "date": {
+    "$date": "2025-11-09T00:00:00.000Z"
+  },
+  "timeIn": {
+    "$date": "2025-11-09T09:19:01.168Z"
+  },
+  "timeOut": null,
+  "createdAt": {
+    "$date": "2025-11-09T09:19:01.168Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "69158169ea43faa347c214b0"
+  },
+  "employeeId": "25-2212",
+  "employeeName": "Loreño, Jhon Ray Monterde",
+  "department": "Quality Control",
+  "date": {
+    "$date": "2025-11-13T00:00:00.000Z"
+  },
+  "timeIn": {
+    "$date": "2025-11-13T06:57:45.467Z"
+  },
+  "timeOut": {
+    "$date": "2025-11-13T06:57:47.669Z"
+  },
+  "createdAt": {
+    "$date": "2025-11-13T06:57:45.467Z"
+  },
+  "isActive": true
+}]

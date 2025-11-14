@@ -1,0 +1,111 @@
+[{
+  "_id": {
+    "$oid": "68f1bdfba009caeaf8f6c174"
+  },
+  "username": "admin",
+  "password": "vkdoZEG2gX41KNQtf2rOcUAdJieTTlI9V1kmfkAIe0k=:4JlwtqcvJZ47Po1t+CG0wGIlyjlLFyeelLS04PZBmSQ=",
+  "role": "Admin",
+  "email": "admin@company.com",
+  "createdAt": {
+    "$date": "2025-10-17T03:54:35.255Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "68f1bdfba009caeaf8f6c175"
+  },
+  "username": "employee",
+  "password": "L27HwHH+kqhmr0UuWEbzSVwovVttDGrvcJ0jVB8Tp/Y=:lyvGZNEKfE+NQw68P1wPZEdxnPFmS3WwiNX08A4okVk=",
+  "role": "Employee",
+  "email": "employee@company.com",
+  "createdAt": {
+    "$date": "2025-10-17T03:54:35.352Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "68f1bf7e15e108bb2599cc1c"
+  },
+  "username": "hrmanager",
+  "password": "fEVifUU2o8CJEK6HYLssYrTCMz7IfVxJaZx8A9gkYII=:KeGQq9Femrcf93tLffw7q4CSP0yhlSN+kE30VoJqKXQ=",
+  "role": "Admin",
+  "email": "hrmanager@company.com",
+  "createdAt": "2025-01-17T03:54:35.255Z",
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "68f1c25315e108bb2599cc1e"
+  },
+  "username": "johnsmith",
+  "password": "Fj6ZZKs9HVQ9wDWQDhHZmDiZevHnZTtd+2tGhoU2k2M=:1rjilELB0f5aYwZYDdLliXWOLL9WXGOl5p7qXwM70iQ=",
+  "role": "Employee",
+  "email": "john.smith@company.com",
+  "createdAt": "2025-01-17T03:54:35.255Z",
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "6701bf7e15e108bb2599cc1d"
+  },
+  "username": "test",
+  "password": "ZwrjQ8iVGUbbfOFCH95ArW3i2TAbypHwlLF9xtrvr+c=:jWjTCNzsnEEYmiZwgaOgGBMkLFZCs3M6L6hRL+MMV6Q=",
+  "role": "Admin",
+  "email": "superadmin@company.com",
+  "createdAt": "2025-10-17T00:00:00.000Z",
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "690dfdc624477392b29f7f37"
+  },
+  "username": "test@gmail.com",
+  "password": "Nqd19aLqZnmNmSB7mxvHK4udhQ0yOTR1UQBRR4tUPlg=:6s0sJqGVQ4ZNycmG3q/NIrxRtedNQHsLYRbhJwV9lCo=",
+  "role": "Employee",
+  "email": "test@gmail.com",
+  "createdAt": {
+    "$date": "2025-11-07T14:10:14.428Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "691051301f4eec614aa3a29c"
+  },
+  "username": "jhonrey.loreno77@gmail.com",
+  "password": "znDpLz95xs1cCz7DLvaPc1+wAL4wuyWdgcmhv5sugaw=:leeXAcUn1n+28KQJqAA257oq6MIl7yNaLFtkzEHD3LQ=",
+  "role": "Employee",
+  "email": "jhonrey.loreno77@gmail.com",
+  "createdAt": {
+    "$date": "2025-11-09T08:30:40.196Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "6915b16be65b63bc489ca9b7"
+  },
+  "username": "manager@gmail.com",
+  "password": "5KLfhtJ1ZrPtbGZB4q9+yDkyeq5u7lJPm7v1sMCRIyY=:6pT9um4lEFvhrioYHy+GA9FcnFG+xrM4R3s8gVVMVAw=",
+  "role": "Manager",
+  "email": "manager@gmail.com",
+  "createdAt": {
+    "$date": "2025-11-13T10:22:35.814Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "6915b1a4e65b63bc489ca9bb"
+  },
+  "username": "ok@gmail.com",
+  "password": "SMfHVyq6rZYUCo/ygviS6TACTfDfqW4Ng6QrmS4mqiY=:H71AKsrTz/+LE/8c+pzf1JTaKNRcwOe1FVBTAD7G+3c=",
+  "role": "Manager",
+  "email": "ok@gmail.com",
+  "createdAt": {
+    "$date": "2025-11-13T10:23:32.046Z"
+  },
+  "isActive": true
+}]

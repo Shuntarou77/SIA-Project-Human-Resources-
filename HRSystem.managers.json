@@ -1,0 +1,40 @@
+[{
+  "_id": {
+    "$oid": "6915b16be65b63bc489ca9b6"
+  },
+  "managerId": "MN-2211",
+  "firstName": "manager",
+  "middleName": "manager",
+  "lastName": "manager",
+  "email": "manager@gmail.com",
+  "contactNo": "test",
+  "address": "test",
+  "department": "Research & Development",
+  "role": "Senior Formulation Chemist",
+  "hiredDate": {
+    "$date": "2025-11-13T10:22:35.799Z"
+  },
+  "applicantId": "6915b160e65b63bc489ca9b4",
+  "contractType": "Regular",
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "6915b1a4e65b63bc489ca9ba"
+  },
+  "managerId": "MN-2212",
+  "firstName": "ok",
+  "middleName": "ok",
+  "lastName": "ok",
+  "email": "ok@gmail.com",
+  "contactNo": "re",
+  "address": "re",
+  "department": "Finance",
+  "role": "Finance Director/CFO",
+  "hiredDate": {
+    "$date": "2025-11-13T10:23:32.036Z"
+  },
+  "applicantId": "6915b197e65b63bc489ca9b8",
+  "contractType": "Contractual",
+  "isActive": true
+}]

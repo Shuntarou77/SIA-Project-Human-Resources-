@@ -1,0 +1,20 @@
+[{
+  "_id": {
+    "$oid": "6915bf50014cfb6981629850"
+  },
+  "employeeId": "25-2212",
+  "leaveType": "Vacation Leave",
+  "startDate": {
+    "$date": "2025-11-19T16:00:00.000Z"
+  },
+  "endDate": {
+    "$date": "2025-11-20T16:00:00.000Z"
+  },
+  "reason": "test",
+  "status": "Pending",
+  "submittedDate": {
+    "$date": "2025-11-13T11:21:52.768Z"
+  },
+  "attachmentPath": null,
+  "isActive": true
+}]

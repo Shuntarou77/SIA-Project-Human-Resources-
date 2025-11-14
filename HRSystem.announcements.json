@@ -1,0 +1,98 @@
+[{
+  "_id": {
+    "$oid": "68f20dc185295d6d610d3eba"
+  },
+  "content": "First announcement from PS",
+  "postedBy": "Admin",
+  "department": "General",
+  "postedDate": {
+    "$date": "2025-10-17T09:34:57.953Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "68f21344227a8f8c736cab4d"
+  },
+  "content": "test",
+  "postedBy": "test",
+  "department": "HR Department",
+  "postedDate": {
+    "$date": "2025-10-17T09:58:28.766Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "68f21b45d61e9a95367dde78"
+  },
+  "content": "sana gumana",
+  "postedBy": "test",
+  "department": "HR Department",
+  "postedDate": {
+    "$date": "2025-10-17T10:32:37.089Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "68f21b61d61e9a95367dde79"
+  },
+  "content": "wow",
+  "postedBy": "hrmanager",
+  "department": "HR Department",
+  "postedDate": {
+    "$date": "2025-10-17T10:33:05.291Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "691584918703e6e56acfb18c"
+  },
+  "content": "test",
+  "postedBy": "admin",
+  "department": "HR Department",
+  "postedDate": {
+    "$date": "2025-11-13T07:11:13.840Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "691584988703e6e56acfb18d"
+  },
+  "content": "hello",
+  "postedBy": "admin",
+  "department": "HR Department",
+  "postedDate": {
+    "$date": "2025-11-13T07:11:20.233Z"
+  },
+  "isActive": true
+},
+{
+  "_id": {
+    "$oid": "69158c207630a2cfce2e8faa"
+  },
+  "content": "test",
+  "postedBy": "admin",
+  "department": "HR Department",
+  "postedDate": {
+    "$date": "2025-11-13T07:43:28.534Z"
+  },
+  "isActive": true,
+  "isPinned": false
+},
+{
+  "_id": {
+    "$oid": "691591fa4b582ea81d04055b"
+  },
+  "content": "hello",
+  "postedBy": "admin",
+  "department": "HR Department",
+  "postedDate": {
+    "$date": "2025-11-13T08:08:26.282Z"
+  },
+  "isActive": true,
+  "isPinned": false
+}]
