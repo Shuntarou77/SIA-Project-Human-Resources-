@@ -1,0 +1,310 @@
+﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="HR.master.cs" Inherits="ExWebAppSia.webpage.HR" %>
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>HR Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👔</text></svg>" />
+    <style type="text/css">
+        /* Global Reset */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* ✅ FULL-PAGE GRADIENT BACKGROUND — FIXED FOR SCROLLING */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(180deg, #F5DDD8 0%, #D4999C 50%, #A85B5B 100%);
+            color: #333;
+            overflow-x: hidden;
+            min-height: 100vh;
+            height: auto !important;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 260px;
+            height: 100vh;
+            background: linear-gradient(180deg, #A85B5B 0%, #D4999C 50%, #F5DDD8 100%);
+            display: flex;
+            flex-direction: column;
+            padding: 20px 0;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+
+        /* Logo Section */
+        .logo-section {
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .logo-section img {
+            width: 180px;
+            height: auto;
+        }
+
+        /* Navigation Menu */
+        .nav-menu {
+            flex: 1;
+            padding: 20px 15px;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            margin-bottom: 10px;
+            background-color: rgba(255, 255, 255, 0.4);
+            border-radius: 25px;
+            text-decoration: none;
+            color: #6B3838;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            background-color: rgba(255, 255, 255, 0.6);
+            transform: translateX(5px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .nav-item i {
+            margin-right: 12px;
+            font-size: 20px;
+            width: 24px;
+            text-align: center;
+        }
+
+        /* User Profile Section — NOW A LOGOUT BUTTON */
+        .user-profile {
+            padding: 15px 20px;
+            margin: 20px 15px;
+            background-color: rgba(255, 255, 255, 0.4);
+            border-radius: 25px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .user-profile:hover {
+            background-color: rgba(255, 255, 255, 0.6);
+            transform: translateX(3px);
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background-color: #6B3838;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .user-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #6B3838;
+            font-size: 14px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .user-id {
+            font-size: 11px;
+            color: #8B5858;
+            margin-top: 2px;
+        }
+
+        /* Logout Button */
+        .logout-btn {
+            width: calc(100% - 30px);
+            margin: 10px 15px;
+            padding: 12px 20px;
+            background-color: rgba(255, 255, 255, 0.4);
+            color: #6B3838;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+        }
+
+        .logout-btn:hover {
+            background-color: rgba(255, 255, 255, 0.6);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .logout-btn i {
+            font-size: 18px;
+        }
+
+        /* Main Content Area */
+        .main-content {
+            margin-left: 260px;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 70px;
+            }
+
+            .logo-section img {
+                width: 40px;
+            }
+
+            .nav-item span {
+                display: none;
+            }
+
+            .nav-item {
+                justify-content: center;
+                padding: 10px;
+            }
+
+            .nav-item i {
+                margin-right: 0;
+            }
+
+            .user-details {
+                display: none;
+            }
+
+            .user-profile {
+                justify-content: center;
+                padding: 10px;
+            }
+
+            .main-content {
+                margin-left: 70px;
+                padding: 15px;
+            }
+        }
+
+        /* Scrollbar Styling */
+        .nav-menu::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .nav-menu::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .nav-menu::-webkit-scrollbar-thumb {
+            background: rgba(107, 56, 56, 0.3);
+            border-radius: 10px;
+        }
+
+        .nav-menu::-webkit-scrollbar-thumb:hover {
+            background: rgba(107, 56, 56, 0.5);
+        }
+    </style>
+    <asp:ContentPlaceHolder ID="head" runat="server">
+    </asp:ContentPlaceHolder>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- Logo Section -->
+            <div class="logo-section">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 60'%3E%3Ctext x='10' y='40' font-family='Arial, sans-serif' font-size='28' fill='white' font-weight='300'%3ESheecessentials%3C/text%3E%3C/svg%3E" alt="Sheecessentials Logo" />
+            </div>
+
+            <!-- Navigation Menu -->
+            <div class="nav-menu">
+                <a runat="server" href="~/webpage/Dashboard.aspx" class="nav-item">
+                    <i>📊</i><span>Dashboard</span>
+                </a>
+                <a runat="server" href="~/webpage/Employee.aspx" class="nav-item">
+                    <i>👤</i><span>Employee</span>
+                </a>
+                <a runat="server" href="~/webpage/Attendance.aspx" class="nav-item">
+                    <i>✓</i><span>Attendance</span>
+                </a>
+                <a runat="server" href="~/webpage/Announcement.aspx" class="nav-item">
+                    <i>💬</i><span>Announcement</span>
+                </a>
+                <a runat="server" href="~/webpage/Recruitment.aspx" class="nav-item">
+                    <i>👥</i><span>Recruitment</span>
+                </a>
+                <a runat="server" href="~/webpage/Payroll.aspx" class="nav-item">
+                    <i>💰</i><span>Payroll</span>
+                </a>
+            </div>
+
+            <!-- User Profile Section -->
+            <div class="user-profile">
+                <div class="user-avatar">
+                    <asp:Literal ID="litUserInitials" runat="server" Text="JK"></asp:Literal>
+                </div>
+                <div class="user-details">
+                    <div class="user-name">
+                        <asp:Literal ID="litUsername" runat="server" Text="admin"></asp:Literal>
+                    </div>
+                    <div class="user-id">
+                        <asp:Literal ID="litUserId" runat="server" Text="00-SH23456"></asp:Literal>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logout Button -->
+            <asp:LinkButton 
+                ID="btnLogout" 
+                runat="server" 
+                CssClass="logout-btn"
+                OnClick="btnLogout_Click">
+                <i>🚪</i>
+                <span>Logout</span>
+            </asp:LinkButton>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
+            <div class="container">
+                <asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server">
+                </asp:ContentPlaceHolder>
+            </div>
+        </div>
+    </form>
+</body>
+</html>

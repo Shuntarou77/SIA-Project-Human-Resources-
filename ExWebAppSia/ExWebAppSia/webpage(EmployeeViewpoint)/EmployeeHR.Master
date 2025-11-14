@@ -1,0 +1,261 @@
+﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="EmployeeHR.master.cs" Inherits="ExWebAppSia.webpage_EmployeeViewpoint_.EmployeeHR" %>
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>Employee Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style type="text/css">
+        /* Global Styles */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(180deg, #F5DDD8 0%, #D4999C 50%, #A85B5B 100%);
+            color: #333;
+        }
+
+        /* Layout Container */
+        .layout-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: 280px;
+            background: linear-gradient(to bottom, 
+                #A44F56 0%, 
+                #DE9D9D 62%, 
+                #FFE8E8 87%, 
+                #FFE8E8 100%);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            left: 0;
+            top: 0;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        /* Logo Section */
+        .logo-section {
+            background-color: transparent;
+            padding: 30px 20px;
+            text-align: center;
+        }
+
+        .logo-placeholder {
+            background-color: rgba(164, 79, 86, 0.3);
+            padding: 20px;
+            border-radius: 8px;
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+        }
+
+        /* Navigation Menu */
+        .nav-menu {
+            flex: 1;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 20px;
+            background-color: #E8C4C4;
+            color: #6B4545;
+            text-decoration: none;
+            border-radius: 25px;
+            transition: all 0.3s ease;
+            font-weight: 500;
+            font-size: 15px;
+        }
+
+        .nav-item:hover {
+            background-color: #F5D4D4;
+            transform: translateX(5px);
+        }
+
+        .nav-item.active {
+            background-color: #D4A8A8;
+            color: #4A2E2E;
+        }
+
+        .nav-item i {
+            font-size: 18px;
+        }
+
+        /* User Section */
+        .user-section {
+            padding: 20px;
+            margin-top: auto;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            background-color: rgba(255, 255, 255, 0.3);
+            border-radius: 25px;
+            margin-bottom: 15px;
+        }
+
+        .user-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background-color: #6B4545;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 18px;
+        }
+
+        .user-details {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #4A2E2E;
+            font-size: 14px;
+        }
+
+        .user-id {
+            font-size: 12px;
+            color: #6B4545;
+        }
+
+        .logout-btn {
+            width: 100%;
+            padding: 12px 20px;
+            background-color: #E8C4C4;
+            color: #6B4545;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .logout-btn:hover {
+            background-color: #D4A8A8;
+            transform: translateY(-2px);
+        }
+
+        /* Main Content Area */
+        .main-content {
+            margin-left: 280px;
+            flex: 1;
+            padding: 30px;
+            width: calc(100% - 280px);
+            /* ✅ background removed to reveal body gradient */
+            min-height: 100vh;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 250px;
+            }
+
+            .main-content {
+                margin-left: 250px;
+                width: calc(100% - 250px);
+            }
+
+            .logo-section {
+                padding: 20px 15px;
+            }
+
+            .nav-menu {
+                padding: 20px 15px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .sidebar {
+                width: 100%;
+                position: relative;
+                height: auto;
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+        }
+    </style>
+    <asp:ContentPlaceHolder ID="head" runat="server">
+    </asp:ContentPlaceHolder>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <div class="layout-container">
+            <!-- Sidebar Navigation -->
+            <div class="sidebar">
+                <!-- Logo Section -->
+                <div class="logo-section">
+                    <div class="logo-placeholder">ESSENTIALS LOGO</div>
+                </div>
+
+                <!-- Navigation Menu -->
+                <div class="nav-menu">
+                    <a runat="server" href="~/webpage(EmployeeViewpoint)/Dashboard.aspx" class="nav-item">
+                        <i>🏠</i>
+                        <span>Dashboard</span>
+                    </a>
+                    <a runat="server" href="~/webpage(EmployeeViewpoint)/Attendance.aspx" class="nav-item">
+                        <i>📅</i>
+                        <span>Attendance</span>
+                    </a>
+                    <a runat="server" href="~/webpage(EmployeeViewpoint)/Profile.aspx" class="nav-item">
+                        <i>👤</i>
+                        <span>Profile</span>
+                    </a>
+                </div>
+
+                <!-- User Section -->
+                <div class="user-section">
+                    <div class="user-info">
+                        <div class="user-avatar"><%= GetEmployeeInitials() %></div>
+                        <div class="user-details">
+                            <div class="user-name"><%= GetEmployeeName() %></div>
+                            <div class="user-id"><%= GetEmployeeId() %></div>
+                        </div>
+                    </div>
+                    <button type="button" class="logout-btn" onclick="location.href='../LoginFolder/Login.aspx'">
+                        <i>🚪</i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="main-content">
+                <asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server">
+                </asp:ContentPlaceHolder>
+            </div>
+        </div>
+    </form>
+</body>
+</html>
