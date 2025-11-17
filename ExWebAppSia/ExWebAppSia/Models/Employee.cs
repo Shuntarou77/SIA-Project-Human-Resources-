@@ -31,6 +31,15 @@ namespace ExWebAppSia.Models
         [BsonElement("address")]
         public string Address { get; set; }
 
+        [BsonElement("age")]
+        public int? Age { get; set; }
+
+        [BsonElement("birthDate")]
+        public DateTime? BirthDate { get; set; }
+
+        [BsonElement("gender")]
+        public string Gender { get; set; }
+
         [BsonElement("department")]
         public string Department { get; set; } // The position/department they were hired for
 

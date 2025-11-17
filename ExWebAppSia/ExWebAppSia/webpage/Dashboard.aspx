@@ -2,456 +2,524 @@
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <style type="text/css">
-        /* Dashboard Content Styles */
-        .dashboard-content {
+       .dashboard-wrapper {
+            background-color: white; /* kept white as requested */
+            min-height: 100vh;
+            padding: 30px 20px;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .dashboard-header {
+            color: #333;
+            margin-bottom: 30px;
+        }
+
+        .dashboard-header h1 {
+            font-size: 32px;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #A36A66; /* updated to match theme */
+        }
+
+        .dashboard-header p {
+            opacity: 0.8;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .top-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            grid-template-columns: repeat(3, 1fr);
             gap: 20px;
-            margin-top: 20px;
+            margin-bottom: 25px;
         }
 
-        .card {
-            background-color: #FFFFFF;
-            border-radius: 15px;
+        .dashboard-card {
+            background: white;
+            border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-            transition: transform 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #eee;
         }
 
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
         }
 
         .card-title {
-            font-size: 16px;
-            font-weight: 600;
-            color: #A85B5B;
-            margin-bottom: 15px;
-        }
-
-        /* Stat Cards */
-        .stat-card {
-            text-align: center;
-            padding: 20px;
-        }
-
-        .stat-number {
-            font-size: 36px;
-            font-weight: bold;
-            color: #A85B5B;
-            margin: 10px 0;
-        }
-
-        .stat-label {
             font-size: 14px;
-            color: #6B3838;
+            color: #555;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .card-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            background-color: #A36A66; /* unified accent */
+            color: white;
+        }
+
+        /* Removed old gradient icon backgrounds — now all use #A36A66 */
+        /* .icon-employees, .icon-applicants, .icon-announcement — all use same style above */
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #A36A66; /* updated */
             margin-bottom: 5px;
         }
 
-        .stat-badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 12px;
+        .stat-label {
             font-size: 12px;
-            font-weight: bold;
-            color: white;
-            margin: 0 5px;
+            color: #777;
         }
 
-        .badge-in-progress {
-            background-color: #D4999C;
+        .announcement-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
         }
 
-        .badge-progress {
-            background-color: #A85B5B;
-        }
-
-        .gender-stats {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .gender-stat {
-            background-color: #F5DDD8;
-            padding: 5px 10px;
-            border-radius: 8px;
-            font-size: 14px;
-            font-weight: bold;
-            color: #6B3838;
-        }
-
-        /* Announcement Card */
         .announcement-item {
-            display: flex;
-            align-items: flex-start;
-            padding: 10px 0;
-            border-bottom: 1px solid #FFCCCC;
+            padding: 12px 0;
+            border-bottom: 1px solid #eee;
         }
 
-        .announcement-avatar {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            overflow: hidden;
-            margin-right: 10px;
-        }
-
-        .announcement-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-
-        .announcement-content {
-            flex: 1;
+        .announcement-item:last-child {
+            border-bottom: none;
         }
 
         .announcement-title {
-            font-weight: bold;
-            margin-bottom: 2px;
-            color: #6B3838;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 3px;
         }
 
-        .announcement-time {
-            font-size: 11px;
-            color: #8B5858;
-        }
-
-        /* Attendance Overview */
-        .attendance-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .legend {
-            display: flex;
-            gap: 15px;
-            margin-top: 10px;
+        .announcement-date {
             font-size: 12px;
-            color: #6B3838;
+            color: #999;
         }
 
-        .legend-item {
+        .bottom-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        .large-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #eee;
+        }
+
+        .card-title-main {
+            font-size: 18px;
+            font-weight: 600;
+            color: #A36A66; /* updated */
+            margin-bottom: 20px;
+        }
+
+        .attendance-stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .attendance-stat {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            background: #fafafa;
+        }
+
+        .attendance-stat.present {
+            background: #fde8e5; /* soft tint of #A36A66 */
+            color: #A36A66;
+        }
+
+        .attendance-stat.absent {
+            background: #A36A66;
+            color: white;
+        }
+
+        .attendance-stat.absent .attendance-value,
+        .attendance-stat.absent .attendance-label {
+            color: white;
+        }
+
+        .attendance-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #A36A66; /* default — overridden in .absent above */
+            margin-bottom: 5px;
+        }
+
+        .attendance-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+
+        .attendance-chart {
+            height: 200px;
+            background: #fafafa;
+            border-radius: 8px;
             display: flex;
             align-items: center;
-            gap: 5px;
+            justify-content: center;
+            color: #999;
+            font-size: 14px;
+            border: 1px dashed #ddd;
         }
 
-        .legend-color {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-
-        .legend-on-time {
-            background-color: #8B0000;
-        }
-
-        .legend-late {
-            background-color: #FFD700;
-        }
-
-        .legend-absent {
-            background-color: #D4999C;
-        }
-
-        .bar-chart {
-            display: flex;
-            align-items: flex-end;
-            height: 150px;
-            gap: 10px;
-            padding: 10px 0;
-        }
-
-        .bar-group {
+        .right-column {
             display: flex;
             flex-direction: column;
-            align-items: center;
-            width: 20px;
+            gap: 20px;
         }
 
-        .bar-day {
-            font-size: 10px;
-            margin-top: 5px;
-            color: #6B3838;
+        .table-container {
+            overflow-x: auto;
         }
 
-        .bar-stack {
-            display: flex;
-            flex-direction: column-reverse;
-            width: 100%;
-            height: 100%;
-        }
-
-        .bar-segment {
-            width: 100%;
-            border: 1px solid rgba(0,0,0,0.1);
-        }
-
-        .bar-on-time {
-            background-color: #8B0000;
-        }
-
-        .bar-late {
-            background-color: #FFD700;
-        }
-
-        .bar-absent {
-            background-color: #D4999C;
-        }
-
-        /* Employee Summary */
         .employee-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            font-size: 13px;
         }
 
-        .employee-table th,
-        .employee-table td {
-            padding: 8px 10px;
-            text-align: left;
-            border-bottom: 1px solid #FFCCCC;
+        .employee-table thead {
+            background-color: #A36A66; /* unified header bg */
         }
 
         .employee-table th {
+            padding: 12px 8px;
+            text-align: left;
             font-weight: 600;
-            color: #A85B5B;
-            font-size: 14px;
+            color: white; /* high contrast */
+            font-size: 11px;
+            text-transform: uppercase;
         }
 
-        .employee-row {
-            display: flex;
-            align-items: center;
-            padding: 8px 0;
-            border-bottom: 1px solid #FFCCCC;
+        .employee-table td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #f0f0f0;
         }
 
-        .employee-avatar {
-            width: 30px;
-            height: 30px;
+        .employee-img {
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
-            overflow: hidden;
-            margin-right: 10px;
+            background-color: #A36A66; /* unified */
+            display: inline-block;
+            vertical-align: middle;
         }
 
-        .employee-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+        .employee-info {
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 8px;
+        }
+
+        .employee-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .employee-role {
+            font-size: 11px;
+            color: #888;
         }
 
         .status-badge {
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: bold;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            display: inline-block;
         }
 
         .status-paid {
-            background-color: #CCFFCC;
-            color: #006600;
+            background: #e8f5e9;
+            color: #2e7d32;
         }
 
-        .status-pending {
-            background-color: #FFFFCC;
-            color: #666600;
+        .status-unpaid {
+            background: #ffebee;
+            color: #c62828;
         }
 
-        /* Working Format */
-        .working-format {
+        .chart-container {
             display: flex;
-            justify-content: space-around;
-            align-items: center;
-            margin-top: 15px;
-            padding: 15px 0;
-            border-top: 1px solid #FFCCCC;
+            gap: 20px;
+            align-items: flex-end;
+            height: 150px;
         }
 
-        .format-item {
+        .chart-bar {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bar-wrapper {
+            width: 100%;
+            height: 120px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .chart-fill {
+            width: 100%;
+            border-radius: 6px 6px 0 0;
+            transition: height 0.3s ease;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 10px;
+        }
+
+        /* Unified fill color for both bars */
+        .chart-regular .chart-fill,
+        .chart-contractual .chart-fill {
+            background-color: #A36A66;
+        }
+
+        .chart-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .chart-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
             text-align: center;
         }
 
-        .format-percent {
-            font-size: 32px;
-            font-weight: bold;
-            color: #A85B5B;
-            margin: 5px 0;
-        }
-
-        .format-label {
-            font-size: 14px;
-            color: #6B3838;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .dashboard-content {
+        @media (max-width: 1200px) {
+            .top-cards {
                 grid-template-columns: 1fr;
             }
-            
-            .card {
-                padding: 15px;
+
+            .bottom-section {
+                grid-template-columns: 1fr;
             }
-            
-            .stat-number {
-                font-size: 28px;
+
+            .attendance-stats {
+                grid-template-columns: repeat(2, 1fr);
             }
-            
-            .bar-chart {
-                height: 120px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
-            
-            .working-format {
-                flex-direction: column;
-                gap: 15px;
+
+            .attendance-stats {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
-    <h1 style="text-align: center; color: #A85B5B; margin: 20px 0; font-weight: 600;"></h1>
-    
-    <div class="dashboard-content">
-        <!-- Total Employee Card -->
-        <div class="card stat-card">
-            <div class="card-title">Total Employee</div>
-            <div class="stat-number"><asp:Literal ID="litTotalEmployees" runat="server" Text="0" /></div>
-            <div class="gender-stats">
-                <div class="gender-stat">Female <asp:Literal ID="litFemaleCount" runat="server" Text="0" /></div>
-                <div class="gender-stat">Male <asp:Literal ID="litMaleCount" runat="server" Text="0" /></div>
-            </div>
-        </div>
+    <div class="dashboard-wrapper">
+        <div class="dashboard-container">
+           
 
-        <!-- Total Applicant Card -->
-        <div class="card stat-card">
-            <div class="card-title">Total Applicant</div>
-            <div class="stat-number"><asp:Literal ID="litTotalApplicants" runat="server" Text="0" /></div>
-            <div style="display: flex; justify-content: center; gap: 10px;">
-                <span class="stat-badge badge-in-progress">IN PROGRESS <asp:Literal ID="litInProgressApplicants" runat="server" Text="0" /></span>
-                <span class="stat-badge badge-progress">NEW <asp:Literal ID="litNewApplicants" runat="server" Text="0" /></span>
-            </div>
-        </div>
+            <div class="top-cards">
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <span class="card-title">Total Employees</span>
+                        <div class="card-icon icon-employees">👥</div>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">164</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">65</div>
+                            <div class="stat-label">Female</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">99</div>
+                            <div class="stat-label">Male</div>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Recent Announcement Card -->
-        <div class="card">
-            <div class="card-title">Recent Announcement</div>
-            <asp:PlaceHolder ID="phAnnouncements" runat="server" />
-        </div>
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <span class="card-title">Applicants</span>
+                        <div class="card-icon icon-applicants">📋</div>
+                    </div>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-value">537</div>
+                            <div class="stat-label">Total</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">231</div>
+                            <div class="stat-label">In Progress</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">306</div>
+                            <div class="stat-label">Completed</div>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Attendance Overview Card -->
-        <div class="card">
-            <div class="card-title">Attendance Overview</div>
-            <div class="attendance-header">
-                <div>Attendance</div>
-                <div class="legend">
-                    <div class="legend-item"><div class="legend-color legend-on-time"></div> On Time</div>
-                    <div class="legend-item"><div class="legend-color legend-late"></div> Late</div>
-                    <div class="legend-item"><div class="legend-color legend-absent"></div> Absent</div>
-                </div>
-            </div>
-            <div class="bar-chart">
-                <div class="bar-group">
-                    <div class="bar-stack">
-                        <div class="bar-segment bar-on-time" style="height: 30%;"></div>
-                        <div class="bar-segment bar-late" style="height: 30%;"></div>
-                        <div class="bar-segment bar-absent" style="height: 40%;"></div>
+                <div class="dashboard-card">
+                    <div class="card-header">
+                        <span class="card-title">Recent Announcements</span>
+                        <div class="card-icon icon-announcement">📢</div>
                     </div>
-                    <div class="bar-day">MON</div>
-                </div>
-                <div class="bar-group">
-                    <div class="bar-stack">
-                        <div class="bar-segment bar-on-time" style="height: 40%;"></div>
-                        <div class="bar-segment bar-late" style="height: 20%;"></div>
-                        <div class="bar-segment bar-absent" style="height: 40%;"></div>
-                    </div>
-                    <div class="bar-day">TUES</div>
-                </div>
-                <div class="bar-group">
-                    <div class="bar-stack">
-                        <div class="bar-segment bar-on-time" style="height: 20%;"></div>
-                        <div class="bar-segment bar-late" style="height: 50%;"></div>
-                        <div class="bar-segment bar-absent" style="height: 30%;"></div>
-                    </div>
-                    <div class="bar-day">WED</div>
-                </div>
-                <div class="bar-group">
-                    <div class="bar-stack">
-                        <div class="bar-segment bar-on-time" style="height: 30%;"></div>
-                        <div class="bar-segment bar-late" style="height: 40%;"></div>
-                        <div class="bar-segment bar-absent" style="height: 30%;"></div>
-                    </div>
-                    <div class="bar-day">THURS</div>
-                </div>
-                <div class="bar-group">
-                    <div class="bar-stack">
-                        <div class="bar-segment bar-on-time" style="height: 20%;"></div>
-                        <div class="bar-segment bar-late" style="height: 30%;"></div>
-                        <div class="bar-segment bar-absent" style="height: 50%;"></div>
-                    </div>
-                    <div class="bar-day">FRI</div>
-                </div>
-                <div class="bar-group">
-                    <div class="bar-stack">
-                        <div class="bar-segment bar-on-time" style="height: 30%;"></div>
-                        <div class="bar-segment bar-late" style="height: 20%;"></div>
-                        <div class="bar-segment bar-absent" style="height: 50%;"></div>
-                    </div>
-                    <div class="bar-day">SAT</div>
-                </div>
-                <div class="bar-group">
-                    <div class="bar-stack">
-                        <div class="bar-segment bar-on-time" style="height: 40%;"></div>
-                        <div class="bar-segment bar-late" style="height: 30%;"></div>
-                        <div class="bar-segment bar-absent" style="height: 30%;"></div>
-                    </div>
-                    <div class="bar-day">SUN</div>
+                    <ul class="announcement-list">
+                        <asp:PlaceHolder ID="phAnnouncements" runat="server" />
+                    </ul>
                 </div>
             </div>
-        </div>
 
-        <!-- Employee Summary Card -->
-        <div class="card">
-            <div class="card-title">Employee Summary</div>
-            <table class="employee-table">
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Job Title</th>
-                        <th>Net Salary</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <asp:PlaceHolder ID="phEmployeeSummary" runat="server">
-                        <tr>
-                            <td colspan="4" style="text-align: center; padding: 20px; color: #999;">
-                                No employees found
-                            </td>
-                        </tr>
-                    </asp:PlaceHolder>
-                </tbody>
-            </table>
-        </div>
-
-        <!-- Working Format Card -->
-        <div class="card">
-            <div class="card-title">Working Format</div>
-            <div class="working-format">
-                <div class="format-item">
-                    <div class="format-percent"><asp:Literal ID="litContractualPercentage" runat="server" Text="0%" /></div>
-                    <div class="format-label">Contractual</div>
+            <div class="bottom-section">
+                <div class="large-card">
+                    <h2 class="card-title-main">Attendance Overview - Today</h2>
+                    <div class="attendance-stats">
+                        <div class="attendance-stat present">
+                            <div class="attendance-value">138</div>
+                            <div class="attendance-label">Present</div>
+                        </div>
+                        <div class="attendance-stat absent">
+                            <div class="attendance-value">8</div>
+                            <div class="attendance-label">Absent</div>
+                        </div>
+                        <div class="attendance-stat">
+                            <div class="attendance-value">12</div>
+                            <div class="attendance-label">On Leave</div>
+                        </div>
+                        <div class="attendance-stat">
+                            <div class="attendance-value">6</div>
+                            <div class="attendance-label">Late</div>
+                        </div>
+                    </div>
+                    <div class="attendance-chart">
+                        📊 Attendance Chart Visualization
+                    </div>
                 </div>
-                <div style="border-left: 1px solid #FFCCCC; height: 40px;"></div>
-                <div class="format-item">
-                    <div class="format-percent"><asp:Literal ID="litRegularPercentage" runat="server" Text="0%" /></div>
-                    <div class="format-label">Regular</div>
+
+                <div class="right-column">
+                    <div class="large-card">
+                        <h2 class="card-title-main">Employee Summary</h2>
+                        <div class="table-container">
+                            <table class="employee-table">
+                                <thead>
+                                    <tr>
+                                        <th>Employee</th>
+                                        <th>Salary</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>
+                                            <div class="employee-img"></div>
+                                            <div class="employee-info">
+                                                <div class="employee-name">John Doe</div>
+                                                <div class="employee-role">Software Engineer</div>
+                                            </div>
+                                        </td>
+                                        <td style="font-weight: 600;">₱45,000</td>
+                                        <td><span class="status-badge status-paid">Paid</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="employee-img"></div>
+                                            <div class="employee-info">
+                                                <div class="employee-name">Jane Smith</div>
+                                                <div class="employee-role">Project Manager</div>
+                                            </div>
+                                        </td>
+                                        <td style="font-weight: 600;">₱38,500</td>
+                                        <td><span class="status-badge status-unpaid">Unpaid</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <div class="employee-img"></div>
+                                            <div class="employee-info">
+                                                <div class="employee-name">Mike Johnson</div>
+                                                <div class="employee-role">UI/UX Designer</div>
+                                            </div>
+                                        </td>
+                                        <td style="font-weight: 600;">₱42,000</td>
+                                        <td><span class="status-badge status-paid">Paid</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="large-card">
+                        <h2 class="card-title-main">Working Format</h2>
+                        <div class="chart-container">
+                            <div class="chart-bar chart-regular">
+                                <div class="bar-wrapper">
+                                    <div class="chart-fill" style="height: 70%;">
+                                        <span class="chart-value">70%</span>
+                                    </div>
+                                </div>
+                                <div class="chart-label">Regular</div>
+                            </div>
+                            <div class="chart-bar chart-contractual">
+                                <div class="bar-wrapper">
+                                    <div class="chart-fill" style="height: 30%;">
+                                        <span class="chart-value">30%</span>
+                                    </div>
+                                </div>
+                                <div class="chart-label">Contractual</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

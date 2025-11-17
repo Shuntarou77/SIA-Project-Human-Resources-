@@ -9,9 +9,10 @@
 
 namespace ExWebAppSia.webpage
 {
-
-
     public partial class WebForm3
     {
+        protected global::System.Web.UI.WebControls.Repeater rptAttendance;
+        protected global::System.Web.UI.HtmlControls.HtmlTableRow noRecordsRow;
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl attendanceTableBody;
     }
 }

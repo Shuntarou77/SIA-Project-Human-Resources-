@@ -68,50 +68,130 @@ namespace ExWebAppSia.webpage
         {
             try
             {
-                // Use the new method that handles timezone conversion properly
-                System.Diagnostics.Debug.WriteLine($"Loading attendance for local date: {SelectedDate:yyyy-MM-dd}");
+                // Convert local date to UTC date for querying
+                // The attendance records are stored with UTC dates
+                var localDate = SelectedDate.Date;
+                var utcDate = localDate.ToUniversalTime().Date;
                 
-                // Also check yesterday and tomorrow in case of timezone issues
-                var yesterday = SelectedDate.AddDays(-1);
-                var tomorrow = SelectedDate.AddDays(1);
+                System.Diagnostics.Debug.WriteLine($"=== Loading Attendance Data ===");
+                System.Diagnostics.Debug.WriteLine($"Selected local date: {localDate:yyyy-MM-dd}");
+                System.Diagnostics.Debug.WriteLine($"UTC date for query: {utcDate:yyyy-MM-dd}");
+                System.Diagnostics.Debug.WriteLine($"Current UTC time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}");
+                System.Diagnostics.Debug.WriteLine($"Current local time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
                 
-                var todayRecords = await _attendanceService.GetAttendanceByLocalDateAsync(SelectedDate);
-                var yesterdayRecords = await _attendanceService.GetAttendanceByLocalDateAsync(yesterday);
-                var tomorrowRecords = await _attendanceService.GetAttendanceByLocalDateAsync(tomorrow);
+                // Query using UTC date directly
+                var records = await _attendanceService.GetAttendanceByDateAsync(utcDate);
+                System.Diagnostics.Debug.WriteLine($"Records for UTC date {utcDate:yyyy-MM-dd}: {records.Count}");
+                foreach (var r in records)
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - EmployeeId: {r.EmployeeId}, Date: {r.Date:yyyy-MM-dd}, TimeIn: {r.TimeIn?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}");
+                }
                 
-                System.Diagnostics.Debug.WriteLine($"Found {todayRecords?.Count ?? 0} records for today");
-                System.Diagnostics.Debug.WriteLine($"Found {yesterdayRecords?.Count ?? 0} records for yesterday");
-                System.Diagnostics.Debug.WriteLine($"Found {tomorrowRecords?.Count ?? 0} records for tomorrow");
+                // Also check the day before and after in UTC to catch timezone edge cases
+                var recordsBefore = await _attendanceService.GetAttendanceByDateAsync(utcDate.AddDays(-1));
+                var recordsAfter = await _attendanceService.GetAttendanceByDateAsync(utcDate.AddDays(1));
                 
-                AttendanceRecords = todayRecords;
+                System.Diagnostics.Debug.WriteLine($"Records for UTC date {utcDate.AddDays(-1):yyyy-MM-dd}: {recordsBefore.Count}");
+                System.Diagnostics.Debug.WriteLine($"Records for UTC date {utcDate.AddDays(1):yyyy-MM-dd}: {recordsAfter.Count}");
+                
+                // Filter records to only include those where TimeIn falls on the selected local date
+                var allRecords = new List<Attendance>();
+                allRecords.AddRange(records);
+                allRecords.AddRange(recordsBefore);
+                allRecords.AddRange(recordsAfter);
+                
+                System.Diagnostics.Debug.WriteLine($"Total records before filtering: {allRecords.Count}");
+                
+                // Filter by local time to ensure we show records for the correct local day
+                AttendanceRecords = allRecords.Where(a =>
+                {
+                    if (a.TimeIn == null) 
+                    {
+                        System.Diagnostics.Debug.WriteLine($"  Skipping record (no TimeIn): EmployeeId={a.EmployeeId}");
+                        return false;
+                    }
+                    var localTimeIn = a.TimeIn.Value.ToLocalTime();
+                    bool matches = localTimeIn.Date == localDate;
+                    if (matches)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"  Match found: EmployeeId={a.EmployeeId}, LocalTimeIn={localTimeIn:yyyy-MM-dd HH:mm:ss}");
+                    }
+                    return matches;
+                }).ToList();
+                
+                System.Diagnostics.Debug.WriteLine($"Found {AttendanceRecords.Count} attendance records for local date {localDate:yyyy-MM-dd}");
                 
                 // Calculate statistics
-                var presentCount = AttendanceRecords?.Count(a => a.TimeIn != null) ?? 0;
+                var presentCount = AttendanceRecords.Count(a => a.TimeIn != null);
                 var absentCount = 0; // This would need total employees count - attendance records
-                // Count as late if time in is after 9:00 AM local time (convert UTC time to local for comparison)
-                var lateCount = AttendanceRecords?.Count(a => 
+                // Count as late if time in is after 9:00 AM local time
+                var lateCount = AttendanceRecords.Count(a => 
                     {
                         if (a.TimeIn == null) return false;
                         var localTime = a.TimeIn.Value.ToLocalTime();
                         return localTime.Hour > 9 || (localTime.Hour == 9 && localTime.Minute > 0);
-                    }) ?? 0;
+                    });
 
                 ViewState["PresentCount"] = presentCount;
                 ViewState["AbsentCount"] = absentCount;
                 ViewState["LateCount"] = lateCount;
+
+                // Bind the Repeater
+                if (rptAttendance != null)
+                {
+                    rptAttendance.DataSource = AttendanceRecords;
+                    rptAttendance.DataBind();
+                    System.Diagnostics.Debug.WriteLine($"Repeater bound with {AttendanceRecords.Count} items");
+                }
+
+                // Show/hide no records message
+                if (noRecordsRow != null)
+                {
+                    noRecordsRow.Style["display"] = AttendanceRecords.Count == 0 ? "table-row" : "none";
+                    System.Diagnostics.Debug.WriteLine($"No records row display: {noRecordsRow.Style["display"]}");
+                }
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error loading attendance data: {ex.Message}\n{ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Inner exception: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
+                }
                 AttendanceRecords = new List<Attendance>();
+                
+                if (rptAttendance != null)
+                {
+                    rptAttendance.DataSource = AttendanceRecords;
+                    rptAttendance.DataBind();
+                }
+                
+                if (noRecordsRow != null)
+                {
+                    noRecordsRow.Style["display"] = "table-row";
+                }
             }
         }
 
         protected string FormatTime(DateTime? time)
         {
-            if (time == null) return "-";
+            if (time == null) return "<span class=\"time-empty\">-</span>";
             // Convert UTC time to local time for display
             return time.Value.ToLocalTime().ToString("h:mm tt");
+        }
+
+        protected string FormatTimeIn(DateTime? time)
+        {
+            if (time == null) return "<span class=\"time-empty\">-</span>";
+            string timeStr = time.Value.ToLocalTime().ToString("h:mm tt");
+            return $"<span class=\"time-in-box\">{Server.HtmlEncode(timeStr)}</span>";
+        }
+
+        protected string FormatTimeOut(DateTime? time)
+        {
+            if (time == null) return "<span class=\"time-empty\">-</span>";
+            string timeStr = time.Value.ToLocalTime().ToString("h:mm tt");
+            return $"<span class=\"time-out-box\">{Server.HtmlEncode(timeStr)}</span>";
         }
 
         protected string GetDateDisplay()

@@ -210,6 +210,7 @@
     <Content Include="webpage\EmployeeReport.aspx" />
     <Content Include="webpage\Attendance.aspx" />
     <Content Include="webpage\Announcement.aspx" />
+    <Content Include="webpage\Payroll.aspx" />
     <Content Include="webpage\Recruitment.aspx" />
     <Content Include="webpage\UserManagement.aspx" />
   </ItemGroup>
@@ -373,6 +374,13 @@
     </Compile>
     <Compile Include="webpage\Recruitment.aspx.designer.cs">
       <DependentUpon>Recruitment.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage\Payroll.aspx.cs">
+      <DependentUpon>Payroll.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage\Payroll.aspx.designer.cs">
+      <DependentUpon>Payroll.aspx</DependentUpon>
     </Compile>
     <Compile Include="webpage\UserManagement.aspx.cs">
       <DependentUpon>UserManagement.aspx</DependentUpon>

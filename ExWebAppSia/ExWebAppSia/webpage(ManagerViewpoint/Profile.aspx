@@ -2,8 +2,9 @@
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <style>
+        /* ✅ Pure white background — no gradient */
         .profile-wrapper {
-            background: linear-gradient(135deg, #A44F56 0%, #723E43 100%);
+            background-color: white;
             min-height: 100vh;
             padding: 30px 20px;
         }
@@ -14,7 +15,7 @@
         }
 
         .profile-header {
-            color: white;
+            color: #333;
             margin-bottom: 30px;
         }
 
@@ -22,11 +23,13 @@
             font-size: 32px;
             margin-bottom: 5px;
             font-weight: 600;
+            color: #A36A66; /* ✅ Brand color */
         }
 
         .profile-header p {
-            opacity: 0.9;
+            opacity: 0.8;
             font-size: 14px;
+            color: #666;
         }
 
         /* Top Section - Manager Info Card */
@@ -35,6 +38,7 @@
             border-radius: 12px;
             padding: 30px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #eee;
             margin-bottom: 25px;
         }
 
@@ -49,13 +53,13 @@
             width: 150px;
             height: 150px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #FDBFC3, #F2C2C6);
+            background-color: #A36A66; /* ✅ Unified avatar */
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 60px;
             font-weight: bold;
-            color: #A44F56;
+            color: white;
             border: 5px solid #f0f0f0;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
@@ -87,20 +91,21 @@
             display: flex;
             align-items: center;
             padding: 12px 15px;
-            background: #f8f9fa;
+            background: #fafafa;
             border-radius: 8px;
-            border-left: 4px solid #A44F56;
+            border-left: 4px solid #A36A66; /* ✅ Brand accent */
         }
 
         .info-icon {
             width: 35px;
             height: 35px;
             border-radius: 8px;
-            background: linear-gradient(135deg, #FDBFC3, #F2C2C6);
+            background-color: #A36A66; /* ✅ Unified icon bg */
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 18px;
+            color: white;
             margin-right: 12px;
         }
 
@@ -123,7 +128,7 @@
         }
 
         .department-badge {
-            background: linear-gradient(135deg, #A44F56, #723E43);
+            background-color: #A36A66; /* ✅ Solid brand badge */
             color: white;
             padding: 8px 15px;
             border-radius: 20px;
@@ -145,12 +150,13 @@
             border-radius: 12px;
             padding: 25px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #eee;
         }
 
         .card-title {
             font-size: 18px;
             font-weight: 600;
-            color: #333;
+            color: #A36A66; /* ✅ Brand header */
             margin-bottom: 20px;
             display: flex;
             align-items: center;
@@ -161,11 +167,12 @@
             width: 35px;
             height: 35px;
             border-radius: 8px;
-            background: linear-gradient(135deg, #FDBFC3, #F2C2C6);
+            background-color: #A36A66;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 18px;
+            color: white;
         }
 
         /* Attendance Log Table */
@@ -176,14 +183,14 @@
         }
 
         .attendance-table thead {
-            background: linear-gradient(135deg, #F2C2C6, #FDBFC3);
+            background-color: #A36A66; /* ✅ Solid header */
         }
 
         .attendance-table th {
             padding: 12px 10px;
             text-align: left;
             font-weight: 600;
-            color: #723E43;
+            color: white;
             font-size: 11px;
             text-transform: uppercase;
         }
@@ -194,7 +201,7 @@
         }
 
         .attendance-table tbody tr:hover {
-            background: #f8f9fa;
+            background: #f9f9f9;
         }
 
         .time-badge {
@@ -225,13 +232,9 @@
         .leave-item {
             padding: 15px;
             margin-bottom: 10px;
-            background: #f8f9fa;
+            background: #fafafa;
             border-radius: 8px;
-            border-left: 4px solid #A44F56;
-        }
-
-        .leave-item:last-child {
-            margin-bottom: 0;
+            border-left: 4px solid #A36A66;
         }
 
         .leave-type {
@@ -267,16 +270,22 @@
 
         /* Forms Section */
         .forms-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
             gap: 20px;
+            margin: 0 auto;
+            max-width: 1400px;
         }
 
         .form-card {
+            flex: 0 1 calc(50% - 10px);
+            max-width: 600px;
             background: white;
             border-radius: 12px;
             padding: 25px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #eee;
             text-align: center;
             transition: transform 0.3s ease;
         }
@@ -290,11 +299,12 @@
             width: 80px;
             height: 80px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #FDBFC3, #F2C2C6);
+            background-color: #A36A66; /* ✅ Unified form icon */
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 40px;
+            color: white;
             margin: 0 auto 15px;
         }
 
@@ -312,7 +322,7 @@
         }
 
         .form-button {
-            background: linear-gradient(135deg, #A44F56, #723E43);
+            background: linear-gradient(135deg, #A36A66, #8B5A58); /* ✅ Gradient to darker */
             color: white;
             padding: 10px 25px;
             border-radius: 20px;
@@ -325,9 +335,10 @@
 
         .form-button:hover {
             transform: scale(1.05);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 8px rgba(163, 106, 102, 0.3);
         }
 
+        /* Scrollbar */
         .table-scroll {
             max-height: 300px;
             overflow-y: auto;
@@ -343,21 +354,27 @@
         }
 
         .table-scroll::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #A44F56, #723E43);
+            background: #A36A66;
             border-radius: 10px;
         }
 
+        /* Responsive */
         @media (max-width: 1200px) {
             .content-grid {
                 grid-template-columns: 1fr;
             }
-
             .forms-section {
-                grid-template-columns: 1fr;
+                flex-direction: column;
+                align-items: center;
             }
-
             .info-grid {
                 grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .form-card {
+                flex: 0 1 100%;
             }
         }
     </style>
@@ -498,19 +515,22 @@
                 </div>
             </div>
 
-            <!-- Forms Section -->
+            <!-- Forms Section - Now only 2 cards -->
             <div class="forms-section">
+                <!-- Leave Application -->
                 <div class="form-card">
                     <div class="form-icon">📄</div>
                     <h4 class="form-title">Leave Application</h4>
                     <p class="form-description">Submit a request for vacation, sick, or emergency leave.</p>
-                    <button class="form-button" onclick="alert('Leave application form opened!')">Apply Now</button>
+                    <button class="form-button" onclick="window.location='LeaveApplication.aspx'">Apply Now</button>
                 </div>
+
+                <!-- Admin Concern -->
                 <div class="form-card">
-                    <div class="form-icon">🛠️</div>
-                    <h4 class="form-title">Profile Update</h4>
-                    <p class="form-description">Update your contact info, emergency contacts, or profile photo.</p>
-                    <button class="form-button" onclick="alert('Profile update form opened!')">Edit Profile</button>
+                    <div class="form-icon">📢</div>
+                    <h4 class="form-title">Admin Concern</h4>
+                    <p class="form-description">Submit issues, requests, or concerns to HR administration.</p>
+                    <button class="form-button" onclick="window.location='AdminConcern.aspx'">Concern</button>
                 </div>
             </div>
         </div>

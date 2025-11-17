@@ -132,15 +132,6 @@ namespace ExWebAppSia.webpage
         protected global::System.Web.UI.WebControls.Button btnViewEmployeeDetails;
 
         /// <summary>
-        /// employeeDetailsContent control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.HtmlControls.HtmlGenericControl employeeDetailsContent;
-
-        /// <summary>
         /// btnViewLeaveHistory control.
         /// </summary>
         /// <remarks>
@@ -157,6 +148,15 @@ namespace ExWebAppSia.webpage
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.Button btnViewConcernHistory;
+
+        /// <summary>
+        /// employeeDetailsContent control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl employeeDetailsContent;
 
         /// <summary>
         /// leaveHistoryContent control.

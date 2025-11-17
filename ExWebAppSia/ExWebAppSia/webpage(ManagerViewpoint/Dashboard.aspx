@@ -1,9 +1,10 @@
-﻿<%@ Page Title="" Language="C#" MasterPageFile="~/webpage(ManagerViewpoint/ManagerHR.Master" AutoEventWireup="true" CodeBehind="Dashboard.aspx.cs" Inherits="ExWebAppSia.webpage_ManagerViewpoint.WebForm1" %>
+﻿<%@ Page Title="" Language="C#" MasterPageFile="~/webpage(ManagerViewpoint/ManagerHR.Master" AutoEventWireup="true" CodeBehind="WebForm1.aspx.cs" Inherits="ExWebAppSia.webpage_ManagerViewpoint.WebForm1" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <style>
+        /* ✅ Pure white background — no gradient */
         .dashboard-wrapper {
-            background: linear-gradient(135deg, #A44F56 0%, #723E43 100%);
+            background-color: white;
             min-height: 100vh;
             padding: 30px 20px;
         }
@@ -14,7 +15,7 @@
         }
 
         .dashboard-header {
-            color: white;
+            color: #333;
             margin-bottom: 30px;
         }
 
@@ -22,16 +23,18 @@
             font-size: 32px;
             margin-bottom: 5px;
             font-weight: 600;
+            color: #A36A66; /* ✅ Brand color */
         }
 
         .dashboard-header p {
-            opacity: 0.9;
+            opacity: 0.8;
             font-size: 14px;
+            color: #666;
         }
 
         .top-cards {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: 2fr 1fr;
             gap: 20px;
             margin-bottom: 25px;
         }
@@ -41,6 +44,7 @@
             border-radius: 12px;
             padding: 20px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #eee;
         }
 
         .card-header {
@@ -52,7 +56,7 @@
 
         .card-title {
             font-size: 14px;
-            color: #666;
+            color: #555;
             font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
@@ -66,22 +70,11 @@
             align-items: center;
             justify-content: center;
             font-size: 20px;
-        }
-
-        .icon-employees {
-            background: linear-gradient(135deg, #FDBFC3, #F2C2C6);
-            color: #A44F56;
-        }
-
-        .icon-applicants {
-            background: linear-gradient(135deg, #F2C2C6, #FDBFC3);
-            color: #723E43;
-        }
-
-        .icon-announcement {
-            background: linear-gradient(135deg, #A44F56, #723E43);
+            background-color: #A36A66; /* ✅ Unified icon bg */
             color: white;
         }
+
+        /* Removed old icon-specific classes — all use same style above */
 
         .stats-grid {
             display: grid;
@@ -92,20 +85,20 @@
         .stat-item {
             text-align: center;
             padding: 10px;
-            background: #f8f9fa;
+            background: #fafafa;
             border-radius: 8px;
         }
 
         .stat-value {
             font-size: 24px;
             font-weight: bold;
-            color: #723E43;
+            color: #A36A66; /* ✅ Brand color */
             margin-bottom: 5px;
         }
 
         .stat-label {
             font-size: 12px;
-            color: #666;
+            color: #777;
         }
 
         .announcement-list {
@@ -116,7 +109,7 @@
 
         .announcement-item {
             padding: 12px 0;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid #eee;
         }
 
         .announcement-item:last-child {
@@ -146,12 +139,13 @@
             border-radius: 12px;
             padding: 25px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #eee;
         }
 
         .card-title-main {
             font-size: 18px;
             font-weight: 600;
-            color: #333;
+            color: #A36A66; /* ✅ Brand color */
             margin-bottom: 20px;
         }
 
@@ -166,15 +160,16 @@
             text-align: center;
             padding: 15px;
             border-radius: 8px;
-            background: #f8f9fa;
+            background: #fafafa;
         }
 
         .attendance-stat.present {
-            background: linear-gradient(135deg, #FDBFC3, #F2C2C6);
+            background: #fde8e5; /* soft tint of #A36A66 */
+            color: #A36A66;
         }
 
         .attendance-stat.absent {
-            background: linear-gradient(135deg, #A44F56, #723E43);
+            background: #A36A66;
             color: white;
         }
 
@@ -186,7 +181,7 @@
         .attendance-value {
             font-size: 28px;
             font-weight: bold;
-            color: #723E43;
+            color: #A36A66; /* default — overridden in .absent */
             margin-bottom: 5px;
         }
 
@@ -198,19 +193,24 @@
 
         .attendance-chart {
             height: 200px;
-            background: #f8f9fa;
+            background: #fafafa;
             border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #999;
             font-size: 14px;
+            border: 1px dashed #ddd;
         }
 
         .right-column {
             display: flex;
             flex-direction: column;
             gap: 20px;
+        }
+
+        .right-column .large-card {
+            min-height: auto;
         }
 
         .table-container {
@@ -224,14 +224,14 @@
         }
 
         .employee-table thead {
-            background: linear-gradient(135deg, #F2C2C6, #FDBFC3);
+            background-color: #A36A66; /* ✅ Solid brand header */
         }
 
         .employee-table th {
             padding: 12px 8px;
             text-align: left;
             font-weight: 600;
-            color: #723E43;
+            color: white;
             font-size: 11px;
             text-transform: uppercase;
         }
@@ -245,7 +245,7 @@
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #FDBFC3, #F2C2C6);
+            background-color: #A36A66; /* ✅ Unified avatar bg */
             display: inline-block;
             vertical-align: middle;
         }
@@ -264,7 +264,7 @@
 
         .employee-role {
             font-size: 11px;
-            color: #999;
+            color: #888;
         }
 
         .status-badge {
@@ -303,7 +303,7 @@
         .bar-wrapper {
             width: 100%;
             height: 120px;
-            background: #f8f9fa;
+            background: #f5f5f5;
             border-radius: 8px;
             display: flex;
             flex-direction: column;
@@ -320,14 +320,7 @@
             align-items: flex-start;
             justify-content: center;
             padding-top: 10px;
-        }
-
-        .chart-regular .chart-fill {
-            background: linear-gradient(to top, #723E43, #A44F56);
-        }
-
-        .chart-contractual .chart-fill {
-            background: linear-gradient(to top, #F2C2C6, #FDBFC3);
+            background-color: #A36A66; /* ✅ Unified fill */
         }
 
         .chart-value {
@@ -336,14 +329,10 @@
             color: white;
         }
 
-        .chart-contractual .chart-value {
-            color: #723E43;
-        }
-
         .chart-label {
             font-size: 13px;
             font-weight: 600;
-            color: #666;
+            color: #555;
             text-align: center;
         }
 
@@ -362,6 +351,10 @@
         }
 
         @media (max-width: 768px) {
+            .top-cards {
+                grid-template-columns: 1fr;
+            }
+
             .stats-grid {
                 grid-template-columns: 1fr;
             }
@@ -405,28 +398,7 @@
 
                 <div class="dashboard-card">
                     <div class="card-header">
-                        <span class="card-title">Applicants</span>
-                        <div class="card-icon icon-applicants">📋</div>
-                    </div>
-                    <div class="stats-grid">
-                        <div class="stat-item">
-                            <div class="stat-value">24</div>
-                            <div class="stat-label">Total</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">8</div>
-                            <div class="stat-label">New</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">16</div>
-                            <div class="stat-label">In Progress</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="dashboard-card">
-                    <div class="card-header">
-                        <span class="card-title">Recent Announcements</span>
+                        <span class="card-title">Announcements from admin</span>
                         <div class="card-icon icon-announcement">📢</div>
                     </div>
                     <ul class="announcement-list">
@@ -520,28 +492,6 @@
                                     </tr>
                                 </tbody>
                             </table>
-                        </div>
-                    </div>
-
-                    <div class="large-card">
-                        <h2 class="card-title-main">Working Format</h2>
-                        <div class="chart-container">
-                            <div class="chart-bar chart-regular">
-                                <div class="bar-wrapper">
-                                    <div class="chart-fill" style="height: 65%;">
-                                        <span class="chart-value">65%</span>
-                                    </div>
-                                </div>
-                                <div class="chart-label">Regular</div>
-                            </div>
-                            <div class="chart-bar chart-contractual">
-                                <div class="bar-wrapper">
-                                    <div class="chart-fill" style="height: 35%;">
-                                        <span class="chart-value">35%</span>
-                                    </div>
-                                </div>
-                                <div class="chart-label">Contractual</div>
-                            </div>
                         </div>
                     </div>
                 </div>

@@ -1,21 +1,21 @@
 ﻿<%@ Page Title="Time Tracking" Language="C#" MasterPageFile="~/webpage(ManagerViewpoint/ManagerHR.Master" AutoEventWireup="true" CodeBehind="WebForm3.aspx.cs" Inherits="ExWebAppSia.webpage_ManagerViewpoint.WebForm3" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <style>
-        :root {
-            --primary-color: #A44F56;
-            --secondary-color: #DE9D9D;
-            --accent-color: #FFE8E8;
-            --card-shadow: 0 10px 30px rgba(164, 79, 86, 0.15);
-            --hover-shadow: 0 15px 40px rgba(164, 79, 86, 0.25);
-            --border-radius: 20px;
-            --text-primary: #4A2E2E;
-            --text-secondary: #6B4545;
-            --text-muted: #9B7B7B;
-            --success-color: #10b981;
-            --warning-color: #f59e0b;
-            --danger-color: #ef4444;
-            --border-color: #E8C4C4;
-        }
+       :root {
+    --primary-color: #A36A66;          /* ✅ Main brand */
+    --secondary-color: #C49A99;        /* Lighter tint */
+    --accent-color: #F8ECEB;           /* Soft warm neutral */
+    --card-shadow: 0 10px 30px rgba(163, 106, 102, 0.15);
+    --hover-shadow: 0 15px 40px rgba(163, 106, 102, 0.25);
+    --border-radius: 20px;
+    --text-primary: #4A3534;           /* Warmer dark */
+    --text-secondary: #6B4F4E;
+    --text-muted: #9B7D7B;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --danger-color: #ef4444;
+    --border-color: #D8BFBF;           /* Harmonious neutral */
+}
 
         * { 
             box-sizing: border-box; 
@@ -592,8 +592,8 @@
             <!-- Right: Current Status Card -->
             <div class="status-card">
                 <div class="status-header">
-                    <h2 class="card-title">⏱️ Time Tracking</h2>
-                    <span class="status-badge clocked-in" id="statusBadge">Clocked In</span>
+                   <h2 class="card-title">⏱️ Time In / Time Out</h2>
+                   <span class="status-badge clocked-in" id="statusBadge">Time In</span>
                 </div>
 
                 <div class="time-display">
@@ -621,12 +621,12 @@
                 </div>
 
                 <div class="action-buttons">
-                    <button class="btn-clock btn-clock-in" id="btnClockIn" onclick="clockIn()" disabled>
-                        ▶️ Clock In
-                    </button>
-                    <button class="btn-clock btn-clock-out" id="btnClockOut" onclick="clockOut()">
-                        ⏹️ Clock Out
-                    </button>
+                   <button class="btn-clock btn-clock-in" id="btnClockIn" onclick="clockIn()" disabled>
+    ▶️ Time In
+</button>
+<button class="btn-clock btn-clock-out" id="btnClockOut" onclick="clockOut()">
+    ⏹️ Time Out
+</button>
                     <button class="btn-clock" style="background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); grid-column: 1 / -1;" onclick="openHistoryModal()">
                         📊 View History
                     </button>
@@ -760,28 +760,28 @@
         setInterval(updateTime, 1000);
         updateTime();
 
-        // Clock In Function
+        // Time In Function
         function clockIn() {
             const now = new Date();
             const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
             document.getElementById('timeIn').textContent = timeString;
-            document.getElementById('statusBadge').textContent = 'Clocked In';
+            document.getElementById('statusBadge').textContent = 'Time In';
             document.getElementById('statusBadge').className = 'status-badge clocked-in';
             document.getElementById('btnClockIn').disabled = true;
             document.getElementById('btnClockOut').disabled = false;
-            alert('✅ Successfully clocked in at ' + timeString);
+            alert('✅ Successfully recorded Time In at ' + timeString);
         }
 
-        // Clock Out Function
+        // Time Out Function
         function clockOut() {
             const now = new Date();
             const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
             document.getElementById('timeOut').textContent = timeString;
-            document.getElementById('statusBadge').textContent = 'Clocked Out';
+            document.getElementById('statusBadge').textContent = 'Time Out';
             document.getElementById('statusBadge').className = 'status-badge clocked-out';
             document.getElementById('btnClockIn').disabled = false;
             document.getElementById('btnClockOut').disabled = true;
-            alert('✅ Successfully clocked out at ' + timeString);
+            alert('✅ Successfully recorded Time Out at ' + timeString);
         }
 
         // Break Functions

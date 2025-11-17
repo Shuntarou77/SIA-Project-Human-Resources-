@@ -3,14 +3,16 @@
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <style>
         :root {
-            --bg-color: #f9e6eb;
+            --bg-color: #ffffff;                /* ✅ Pure white background */
             --panel-bg: #ffffff;
             --text-dark: #333333;
-            --border-color: #e0e0e0;
-            --hover-bg: #fafafa;
-            --accent: #8B0000;
-            --admin-bg: #FFF5F5;
-            --admin-border: #FF9999;
+            --border-color: #e8e8e8;
+            --hover-bg: #f9f9f9;
+            --accent: #A36A66;                 /* ✅ Unified brand color */
+            --accent-light: #C49A99;           /* Lighter tint */
+            --accent-dark: #8B5A58;            /* Darker on hover/active */
+            --admin-bg: #F8ECEB;               /* Soft warm tint (replaces #FFF5F5) */
+            --admin-border: #D8BFBF;           /* Harmonious border */
         }
 
         html, body {
@@ -40,6 +42,7 @@
             border-radius: 12px;
             padding: 20px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
         }
 
         .create-header {
@@ -74,29 +77,66 @@
         }
 
         .create-input::placeholder {
-            color: #888;
+            color: #aaa;
         }
 
-        /* Post Button */
+        /* Post Button — ✅ Updated to #A36A66 */
         .post-button {
-            background-color: var(--accent);
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
             color: white;
             border: none;
             border-radius: 24px;
             padding: 8px 24px;
             font-size: 14px;
-            font-weight: bold;
+            font-weight: 600;
             cursor: pointer;
             margin-top: 10px;
             align-self: flex-end;
-            transition: background 0.2s;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 4px rgba(163, 106, 102, 0.2);
         }
 
         .post-button:hover {
-            background-color: #a00000;
+            background: linear-gradient(135deg, var(--accent-dark), #7A4F4D);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(163, 106, 102, 0.3);
         }
 
-        /* Filter Tabs */
+        /* Action Icons */
+        .action-icons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .action-icon-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 8px 12px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+
+        .action-icon-item:hover {
+            background-color: var(--hover-bg);
+        }
+
+        .action-icon {
+            width: 20px;
+            height: 20px;
+            fill: #666; /* neutral */
+        }
+
+        .action-label {
+            font-size: 14px;
+            color: var(--text-dark);
+        }
+
+        /* Filter Tabs — ✅ Active tab uses #A36A66 */
         .filter-tabs {
             display: flex;
             gap: 16px;
@@ -113,20 +153,26 @@
             border-radius: 20px;
             cursor: pointer;
             font-size: 14px;
-            color: var(--text-dark);
-            transition: background 0.2s;
+            color: #777;
+            transition: all 0.2s ease;
+        }
+
+        .filter-tab:hover {
+            background-color: #f5f5f5;
+            color: var(--accent-dark);
         }
 
         .filter-tab.active {
-            background-color: #e0e0e0;
-            color: var(--accent);
-            font-weight: bold;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light));
+            color: white;
+            font-weight: 600;
+            box-shadow: 0 2px 6px rgba(163, 106, 102, 0.2);
         }
 
         .filter-icon {
             width: 18px;
             height: 18px;
-            fill: var(--text-dark);
+            fill: currentColor;
         }
 
         /* Announcement Cards */
@@ -142,9 +188,15 @@
             padding: 16px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             border: 1px solid var(--border-color);
+            transition: transform 0.2s, box-shadow 0.2s;
         }
 
-        /* Admin Card Highlight */
+        .announcement-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        /* Admin Card Highlight — ✅ Warmer, more elegant */
         .announcement-card.admin {
             background-color: var(--admin-bg);
             border: 1px solid var(--admin-border);
@@ -182,21 +234,23 @@
             margin: 0;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
         }
 
+        /* Admin Badge — ✅ #A36A66 */
         .admin-badge {
             background-color: var(--accent);
             color: white;
             font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 12px;
+            padding: 2px 8px;
+            border-radius: 14px;
             font-weight: bold;
+            letter-spacing: 0.5px;
         }
 
         .card-role {
             font-size: 12px;
-            color: #888;
+            color: #777;
             margin: 2px 0 0;
         }
 
@@ -245,6 +299,27 @@
                 <input type="text" id="txtAnnouncement" class="create-input" placeholder="Create announcement..." maxlength="300" />
             </div>
             <button type="button" class="post-button" onclick="postAnnouncement(); return false;">Post</button>
+
+            <div class="action-icons">
+                <div class="action-icon-item">
+                    <svg class="action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-4 6h-4v6h4v-6z"/>
+                    </svg>
+                    <span class="action-label">Photo</span>
+                </div>
+                <div class="action-icon-item">
+                    <svg class="action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+                    </svg>
+                    <span class="action-label">Video</span>
+                </div>
+                <div class="action-icon-item">
+                    <svg class="action-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M17 12h-5v6h5v-6zm2-5H7v2h12V7zM14 15h2v6h-2v-6z"/>
+                    </svg>
+                    <span class="action-label">Events</span>
+                </div>
+            </div>
         </div>
 
         <!-- Filter Tabs -->
@@ -254,6 +329,18 @@
                     <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10-18h8v10h-8V3zm0 14h8v-6h-8v6z"/>
                 </svg>
                 <span>All</span>
+            </div>
+            <div class="filter-tab">
+                <svg class="filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-2-2 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
+                </svg>
+                <span>New</span>
+            </div>
+            <div class="filter-tab">
+                <svg class="filter-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 11h2v2h-2v-2zm0-8h2v6h-2V6z"/>
+                </svg>
+                <span>Pinned</span>
             </div>
         </div>
 
@@ -361,4 +448,3 @@
         }
     </script>
 </asp:Content>
-

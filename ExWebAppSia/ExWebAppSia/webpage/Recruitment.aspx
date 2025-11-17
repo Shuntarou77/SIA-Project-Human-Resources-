@@ -2,404 +2,460 @@
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <style>
-        :root {
-            --bg-color: #f9e6eb;
-            --panel-bg: #ffffff;
-            --accent: #b85c6a;
-            --text-dark: #333333;
-            --border-color: #e0e0e0;
-            --hover-bg: #fafafa;
-        }
+    :root {
+        --bg-color: #ffffff;                /* ✅ Pure white background */
+        --panel-bg: #ffffff;
+        --accent: #A36A66;                 /* ✅ Unified brand color */
+        --accent-light: #C49A99;           /* Lighter tint for gradients */
+        --accent-dark: #8B5A58;            /* Darker for hover/active */
+        --text-dark: #333333;
+        --text-light: #ffffff;
+        --border-color: #e8e8e8;
+        --hover-bg: #fafafa;
+    }
 
-        html, body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            height: 100%;
-            width: 100%;
-            box-sizing: border-box;
-        }
+    html, body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: var(--bg-color);
+        height: 100%;
+        width: 100%;
+        box-sizing: border-box;
+    }
 
+    .recruitment-container {
+        width: 100%;
+        min-height: 100vh;
+        padding: 20px;
+        background-color: var(--bg-color);
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* Stat Cards — ✅ Gradient + hover */
+    .stat-cards {
+        display: flex;
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .stat-card {
+        background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+        color: var(--text-light);
+        border-radius: 12px;
+        padding: 16px 24px;
+        text-align: center;
+        min-width: 150px;
+        box-shadow: 0 2px 8px rgba(163, 106, 102, 0.15);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(163, 106, 102, 0.25);
+    }
+
+    .stat-number {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 0;
+        line-height: 1;
+    }
+
+    .stat-label {
+        font-size: 12px;
+        margin: 4px 0 0;
+        opacity: 0.95;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Main Panels */
+    .main-panels {
+        display: flex;
+        gap: 20px;
+        flex: 1;
+    }
+
+    .panel {
+        background-color: var(--panel-bg);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border: 1px solid var(--border-color);
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Panel Header — ✅ #A36A66 background, white text */
+    .panel-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding: 10px 16px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-light));
+        color: white;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .panel-title {
+        font-size: 20px;
+        font-weight: 600;
+        color: var(--accent);
+        margin: 0;
+        text-align: center;
+    }
+
+    /* Table Styles — ✅ Header accent enhancement (optional but recommended) */
+    .applicant-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0;
+    }
+
+    .applicant-table th {
+        padding: 10px 12px;
+        text-align: left;
+        font-weight: 700;
+        color: #555;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-light));
+        color: white;
+        border-bottom: 2px solid var(--accent-dark);
+    }
+
+    .applicant-table td {
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border-color);
+        color: var(--text-dark);
+        font-size: 13px;
+    }
+
+    .applicant-table tr:hover {
+        background-color: var(--hover-bg);
+    }
+
+    .checkbox-cell {
+        width: 40px;
+    }
+
+    /* Status Links & Buttons — ✅ Unified styling */
+    .status-link {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+        transition: color 0.2s;
+    }
+
+    .status-link:hover {
+        text-decoration: underline;
+        color: var(--accent-dark);
+    }
+
+    .btn-hire, .btn-not-hire {
+        padding: 6px 16px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .btn-hire {
+        background-color: #4CAF50;
+        color: white;
+    }
+
+    .btn-hire:hover {
+        background-color: #45a049;
+    }
+
+    .btn-not-hire {
+        background-color: #f44336;
+        color: white;
+    }
+
+    .btn-not-hire:hover {
+        background-color: #da190b;
+    }
+
+    /* Select All */
+    .select-all {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .select-all input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+    }
+
+    /* Action Buttons — ✅ #A36A66 */
+    .schedule-button,
+    .add-applicant-button {
+        background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+        color: white;
+        border: none;
+        border-radius: 24px;
+        padding: 8px 24px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 2px 4px rgba(163, 106, 102, 0.2);
+    }
+
+    .schedule-button:hover,
+    .add-applicant-button:hover {
+        background: linear-gradient(135deg, var(--accent-dark), #7A4F4D);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(163, 106, 102, 0.3);
+    }
+
+    .add-applicant-button {
+        border-radius: 8px;
+        align-self: flex-start;
+        margin-bottom: 20px;
+    }
+
+    /* Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 2000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+        background-color: #fefefe;
+        margin: 5% auto;
+        padding: 30px;
+        border: none;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 500px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .modal-title {
+        font-size: 24px;
+        font-weight: 600;
+        color: var(--accent);
+        margin: 0;
+    }
+
+    .close {
+        color: #aaa;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        line-height: 20px;
+    }
+
+    .close:hover,
+    .close:focus {
+        color: var(--accent);
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: var(--text-dark);
+        font-size: 14px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        font-size: 14px;
+        box-sizing: border-box;
+        font-family: inherit;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(163, 106, 102, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    .form-group input[type="radio"] {
+        width: auto;
+        margin-right: 8px;
+        margin-left: 0;
+        cursor: pointer;
+    }
+
+    .form-group input[type="radio"]:checked {
+        accent-color: var(--accent);
+    }
+
+    .form-group span {
+        margin-right: 20px;
+        font-size: 14px;
+        cursor: pointer;
+    }
+
+    .contract-type-radio {
+        width: 100%;
+    }
+
+    .contract-type-radio table {
+        width: 100%;
+        border: none;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .contract-type-radio tr {
+        display: flex;
+        gap: 30px;
+    }
+
+    .contract-type-radio td {
+        padding: 0;
+        border: none;
+        display: flex;
+        align-items: center;
+    }
+
+    .contract-type-radio td label {
+        margin-left: 8px;
+        cursor: pointer;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        margin-top: 24px;
+    }
+
+    .btn {
+        padding: 10px 24px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, var(--accent-dark), #7A4F4D);
+    }
+
+    .btn-secondary {
+        background-color: #6c757d;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background-color: #5a6268;
+    }
+
+    .message {
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: none;
+    }
+
+    .message.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+
+    .message.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
         .recruitment-container {
-            width: 100%;
-            min-height: 100vh;
-            padding: 20px;
-            background-color: var(--bg-color);
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
+            padding: 12px;
         }
 
-        /* Stat Cards */
         .stat-cards {
-            display: flex;
-            gap: 20px;
-            margin-bottom: 20px;
+            flex-direction: column;
+            gap: 12px;
         }
 
-        .stat-card {
-            background-color: var(--accent);
-            color: white;
-            border-radius: 12px;
-            padding: 16px 24px;
-            text-align: center;
-            min-width: 150px;
-        }
-
-        .stat-number {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 0;
-            line-height: 1;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            margin: 4px 0 0;
-            opacity: 0.9;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        /* Main Panels */
         .main-panels {
-            display: flex;
-            gap: 20px;
-            flex: 1;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .panel {
-            background-color: var(--panel-bg);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            flex: 1;
-            display: flex;
-            flex-direction: column;
+            padding: 16px;
         }
 
-        .panel-header {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-            padding: 8px 12px;
-            background-color: var(--accent);
-            color: white;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 14px;
-        }
-
-        .panel-title {
-            font-size: 20px;
-            font-weight: 600;
-            color: var(--accent);
-            margin: 0;
-            text-align: center;
-        }
-
-        /* Table Styles */
-        .applicant-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 0;
-        }
-
-        .applicant-table th {
-            padding: 10px 12px;
-            text-align: left;
-            font-weight: 600;
-            color: var(--text-dark);
-            font-size: 13px;
-            border-bottom: 2px solid var(--border-color);
-        }
-
+        .applicant-table th,
         .applicant-table td {
-            padding: 10px 12px;
-            border-bottom: 1px solid var(--border-color);
-            color: var(--text-dark);
-            font-size: 13px;
-        }
-
-        .applicant-table tr:hover {
-            background-color: var(--hover-bg);
-        }
-
-        .checkbox-cell {
-            width: 40px;
-        }
-
-        .status-link {
-            color: var(--accent);
-            text-decoration: none;
-            font-weight: 500;
-        }
-
-        .status-link:hover {
-            text-decoration: underline;
-        }
-
-        .btn-hire, .btn-not-hire {
-            padding: 6px 16px;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-        }
-
-        .btn-hire {
-            background-color: #4CAF50;
-            color: white;
-        }
-
-        .btn-hire:hover {
-            background-color: #45a049;
-        }
-
-        .btn-not-hire {
-            background-color: #f44336;
-            color: white;
-        }
-
-        .btn-not-hire:hover {
-            background-color: #da190b;
-        }
-
-        /* Select All Checkbox */
-        .select-all {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 12px;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .select-all input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            cursor: pointer;
-        }
-
-        /* Schedule Interview Button */
-        .schedule-button {
-            background-color: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 24px;
-            padding: 8px 24px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-top: 20px;
-            align-self: center;
-            transition: background 0.2s;
-        }
-
-        .schedule-button:hover {
-            background-color: #a00000;
-        }
-
-        /* Add Applicant Button */
-        .add-applicant-button {
-            background-color: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 24px;
-            font-size: 14px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 20px;
-            transition: background 0.2s;
-            align-self: flex-start;
-        }
-
-        .add-applicant-button:hover {
-            background-color: #a04a56;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 2000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.5);
+            padding: 8px 10px;
+            font-size: 12px;
         }
 
         .modal-content {
-            background-color: #fefefe;
-            margin: 5% auto;
-            padding: 30px;
-            border: none;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 500px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            width: 95%;
+            margin: 10% auto;
+            padding: 20px;
         }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 2px solid var(--border-color);
-        }
-
-        .modal-title {
-            font-size: 24px;
-            font-weight: 600;
-            color: var(--accent);
-            margin: 0;
-        }
-
-        .close {
-            color: #aaa;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            line-height: 20px;
-        }
-
-        .close:hover,
-        .close:focus {
-            color: var(--accent);
-        }
-
-        .form-group {
-            margin-bottom: 20px;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: var(--text-dark);
-            font-size: 14px;
-        }
-
-        .form-group input,
-        .form-group select,
-        .form-group textarea {
-            width: 100%;
-            padding: 10px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            font-size: 14px;
-            box-sizing: border-box;
-            font-family: inherit;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            outline: none;
-            border-color: var(--accent);
-        }
-
-        .form-group textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        .form-actions {
-            display: flex;
-            gap: 12px;
-            justify-content: flex-end;
-            margin-top: 24px;
-        }
-
-        .btn {
-            padding: 10px 24px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .btn-primary {
-            background-color: var(--accent);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: #a04a56;
-        }
-
-        .btn-secondary {
-            background-color: #6c757d;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background-color: #5a6268;
-        }
-
-        .message {
-            padding: 12px;
-            border-radius: 6px;
-            margin-bottom: 20px;
-            display: none;
-        }
-
-        .message.success {
-            background-color: #d4edda;
-            color: #155724;
-            border: 1px solid #c3e6cb;
-        }
-
-        .message.error {
-            background-color: #f8d7da;
-            color: #721c24;
-            border: 1px solid #f5c6cb;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .recruitment-container {
-                padding: 12px;
-            }
-
-            .stat-cards {
-                flex-direction: column;
-                gap: 12px;
-            }
-
-            .main-panels {
-                flex-direction: column;
-                gap: 12px;
-            }
-
-            .panel {
-                padding: 16px;
-            }
-
-            .applicant-table th,
-            .applicant-table td {
-                padding: 8px 10px;
-                font-size: 12px;
-            }
-
-            .modal-content {
-                width: 95%;
-                margin: 10% auto;
-                padding: 20px;
-            }
-        }
-    </style>
+    }
+</style>
     <script type="text/javascript">
         function openModal() {
             document.getElementById('addApplicantModal').style.display = 'block';
@@ -412,7 +468,57 @@
 
         function openDetailsModal(applicantId) {
             // Load applicant details via AJAX or server-side
-            __doPostBack('btnViewDetails', applicantId);
+            var hiddenField = document.getElementById('<%= hdnApplicantId.ClientID %>');
+            if (hiddenField) {
+                hiddenField.value = applicantId;
+            }
+            var btn = document.getElementById('<%= btnViewDetails.ClientID %>');
+            if (btn) {
+                btn.click();
+            }
+        }
+
+        function viewApplicantDetails(applicantId) {
+            var hiddenField = document.getElementById('<%= hdnApplicantId.ClientID %>');
+            if (hiddenField) {
+                hiddenField.value = applicantId;
+            }
+            var btn = document.getElementById('<%= btnViewDetails.ClientID %>');
+            if (btn) {
+                btn.click();
+            }
+        }
+
+        function hireApplicant(applicantId, buttonElement) {
+            if (buttonElement) {
+                buttonElement.disabled = true;
+                buttonElement.textContent = 'Processing...';
+            }
+            var hiddenField = document.getElementById('<%= hdnApplicantId.ClientID %>');
+            if (hiddenField) {
+                hiddenField.value = applicantId;
+            }
+            var hireBtn = document.getElementById('<%= btnHireApplicant.ClientID %>');
+            if (hireBtn) {
+                hireBtn.click();
+            }
+            return false;
+        }
+
+        function notHireApplicant(applicantId, buttonElement) {
+            if (buttonElement) {
+                buttonElement.disabled = true;
+                buttonElement.textContent = 'Processing...';
+            }
+            var hiddenField = document.getElementById('<%= hdnApplicantId.ClientID %>');
+            if (hiddenField) {
+                hiddenField.value = applicantId;
+            }
+            var notHireBtn = document.getElementById('<%= btnNotHireApplicant.ClientID %>');
+            if (notHireBtn) {
+                notHireBtn.click();
+            }
+            return false;
         }
 
         function togglePreviousCompany() {
@@ -880,7 +986,6 @@
                         <asp:ListItem Value="Male">Male</asp:ListItem>
                         <asp:ListItem Value="Female">Female</asp:ListItem>
                         <asp:ListItem Value="Other">Other</asp:ListItem>
-                        <asp:ListItem Value="Prefer not to say">Prefer not to say</asp:ListItem>
                     </asp:DropDownList>
                 </div>
                 <div class="form-group">
@@ -986,26 +1091,13 @@
                         <asp:TextBox ID="txtReferralName" runat="server" CssClass="form-control"></asp:TextBox>
                     </div>
                 </div>
+
+                <h4 style="color: var(--accent); margin: 20px 0 15px 0;">Contract Type</h4>
                 <div class="form-group">
-                    <label>Contract Type *</label>
-                    <div style="display: flex; gap: 20px; margin-top: 8px;">
-                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
-                            <asp:RadioButton ID="rbRegular" runat="server" GroupName="ContractType" Checked="true" />
-                            <span>Regular</span>
-                        </label>
-                        <label style="display: flex; align-items: center; gap: 8px; font-weight: normal; cursor: pointer;">
-                            <asp:RadioButton ID="rbContractual" runat="server" GroupName="ContractType" />
-                            <span>Contractual</span>
-                        </label>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="<%= ddlHiringType.ClientID %>">Hiring Type *</label>
-                    <asp:DropDownList ID="ddlHiringType" runat="server" CssClass="form-control">
-                        <asp:ListItem Value="">-- Select Hiring Type --</asp:ListItem>
-                        <asp:ListItem Value="Employee" Selected="True">Employee</asp:ListItem>
-                        <asp:ListItem Value="Manager">Manager</asp:ListItem>
-                    </asp:DropDownList>
+                    <asp:RadioButtonList ID="rblContractType" runat="server" RepeatDirection="Horizontal" RepeatLayout="Table" CssClass="contract-type-radio">
+                        <asp:ListItem Value="Regular" Selected="True">Regular</asp:ListItem>
+                        <asp:ListItem Value="Contractual">Contractual</asp:ListItem>
+                    </asp:RadioButtonList>
                 </div>
 
                 <div class="form-actions" style="margin-top: 30px;">

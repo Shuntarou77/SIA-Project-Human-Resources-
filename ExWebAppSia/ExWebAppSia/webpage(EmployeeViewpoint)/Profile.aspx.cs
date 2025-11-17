@@ -4,6 +4,7 @@ using System.Linq;
 using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
+using System.Threading.Tasks;
 using ExWebAppSia.Models;
 using System.Net;
 using System.Net.Mail;
@@ -14,6 +15,10 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
 {
     public partial class WebForm2 : System.Web.UI.Page
     {
+        private readonly AttendanceService _attendanceService = new AttendanceService();
+        private List<Attendance> _employeeAttendanceRecords = null;
+        private Dictionary<string, object> _attendanceStats = null;
+
         protected void Page_Load(object sender, EventArgs e)
         {
             // Disable HTML5 validation to prevent "invalid form control is not focusable" error
@@ -22,15 +27,20 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 ClientScript.RegisterStartupScript(this.GetType(), "DisableValidation", 
                     "if (document.forms[0]) { document.forms[0].noValidate = true; }", true);
             }
-            else
+            
+            // Always load attendance statistics (both on initial load and postback)
+            // This ensures the stats are available even after form submissions
+            RegisterAsyncTask(new PageAsyncTask(LoadAttendanceStatisticsAsync));
+            
+            // After postback, if there's a message, keep the modal open
+            if (IsPostBack)
             {
-                // After postback, if there's a message, keep the modal open
-                if (lblConcernMessage.Text != "")
+                if (lblConcernMessage != null && !string.IsNullOrEmpty(lblConcernMessage.Text))
                 {
                     ClientScript.RegisterStartupScript(this.GetType(), "KeepConcernModalOpen", 
                         "var modal = document.getElementById('concernModal'); if (modal) { modal.style.display = 'block'; }", true);
                 }
-                if (lblLeaveMessage.Text != "")
+                if (lblLeaveMessage != null && !string.IsNullOrEmpty(lblLeaveMessage.Text))
                 {
                     ClientScript.RegisterStartupScript(this.GetType(), "KeepLeaveModalOpen", 
                         "var modal = document.getElementById('leaveModal'); if (modal) { modal.style.display = 'block'; }", true);
@@ -104,6 +114,148 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
             return employee?.Department ?? "N/A";
         }
 
+        protected string GetEmployeeBirthdate()
+        {
+            var employee = CurrentEmployee;
+            if (employee == null || !employee.BirthDate.HasValue) return "N/A";
+            return employee.BirthDate.Value.ToLocalTime().ToString("MMM dd, yyyy");
+        }
+
+        protected string GetEmployeeAge()
+        {
+            var employee = CurrentEmployee;
+            if (employee == null || !employee.Age.HasValue) return "N/A";
+            return employee.Age.Value.ToString();
+        }
+
+        protected string GetEmployeeSex()
+        {
+            var employee = CurrentEmployee;
+            if (employee == null || string.IsNullOrEmpty(employee.Gender)) return "N/A";
+            return employee.Gender;
+        }
+
+        protected string GetEmployeeStatus()
+        {
+            var employee = CurrentEmployee;
+            if (employee == null) return "N/A";
+            // Return ContractType instead of Active/Inactive status
+            return string.IsNullOrEmpty(employee.ContractType) ? "Regular" : employee.ContractType;
+        }
+
+        private async Task LoadAttendanceStatisticsAsync()
+        {
+            try
+            {
+                var employee = CurrentEmployee;
+                if (employee == null || string.IsNullOrEmpty(employee.EmployeeId))
+                {
+                    _employeeAttendanceRecords = new List<Attendance>();
+                    _attendanceStats = GetDefaultStats();
+                    return;
+                }
+
+                // Get all attendance records for this employee
+                _employeeAttendanceRecords = await _attendanceService.GetEmployeeAttendanceAsync(employee.EmployeeId);
+                
+                // Calculate statistics
+                CalculateAttendanceStatistics();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading attendance statistics: {ex.Message}");
+                _employeeAttendanceRecords = new List<Attendance>();
+                _attendanceStats = GetDefaultStats();
+            }
+        }
+
+        private void CalculateAttendanceStatistics()
+        {
+            if (_employeeAttendanceRecords == null || _employeeAttendanceRecords.Count == 0)
+            {
+                _attendanceStats = GetDefaultStats();
+                return;
+            }
+
+            var now = DateTime.Now;
+            var today = now.Date;
+            var currentMonth = new DateTime(now.Year, now.Month, 1);
+
+            // Current month records - filter by local time
+            var currentMonthRecords = _employeeAttendanceRecords
+                .Where(a => a.TimeIn.HasValue)
+                .Select(a => new { Record = a, LocalTime = a.TimeIn.Value.ToLocalTime() })
+                .Where(x => x.LocalTime >= currentMonth && x.LocalTime < currentMonth.AddMonths(1))
+                .ToList();
+
+            // Calculate current month stats - count UNIQUE days
+            var currentMonthPresentDays = currentMonthRecords
+                .Select(x => x.LocalTime.Date)
+                .Distinct()
+                .ToList();
+            var currentMonthPresent = currentMonthPresentDays.Count;
+
+            // Count past weekdays only (exclude weekends and future days)
+            var pastWeekdays = Enumerable.Range(0, (today - currentMonth).Days + 1)
+                .Select(i => currentMonth.AddDays(i))
+                .Where(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                .Count();
+            var currentMonthAbsent = Math.Max(0, pastWeekdays - currentMonthPresent);
+
+            // Calculate late count - use first time-in per day
+            var currentMonthLate = currentMonthRecords
+                .GroupBy(x => x.LocalTime.Date)
+                .Count(g => g.OrderBy(x => x.LocalTime).First().LocalTime.Hour >= 9);
+
+            var currentMonthAttendancePercent = pastWeekdays > 0 
+                ? (int)Math.Round((double)currentMonthPresent / pastWeekdays * 100) 
+                : 0;
+
+            _attendanceStats = new Dictionary<string, object>
+            {
+                { "daysPresent", currentMonthPresent },
+                { "daysAbsent", currentMonthAbsent },
+                { "daysLate", currentMonthLate },
+                { "attendanceRate", currentMonthAttendancePercent }
+            };
+        }
+
+        private Dictionary<string, object> GetDefaultStats()
+        {
+            return new Dictionary<string, object>
+            {
+                { "daysPresent", 0 },
+                { "daysAbsent", 0 },
+                { "daysLate", 0 },
+                { "attendanceRate", 0 }
+            };
+        }
+
+        // Public methods for ASPX page
+        protected string GetDaysPresent()
+        {
+            if (_attendanceStats == null) return "0";
+            return _attendanceStats["daysPresent"].ToString();
+        }
+
+        protected string GetDaysAbsent()
+        {
+            if (_attendanceStats == null) return "0";
+            return _attendanceStats["daysAbsent"].ToString();
+        }
+
+        protected string GetDaysLate()
+        {
+            if (_attendanceStats == null) return "0";
+            return _attendanceStats["daysLate"].ToString();
+        }
+
+        protected string GetAttendanceRate()
+        {
+            if (_attendanceStats == null) return "0";
+            return _attendanceStats["attendanceRate"].ToString();
+        }
+
         protected void btnSubmitConcern_Click(object sender, EventArgs e)
         {
             System.Diagnostics.Debug.WriteLine("btnSubmitConcern_Click called");
@@ -164,8 +316,8 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 ddlPriorityLevel.SelectedValue = "medium";
                 fileSupportingDocs.Attributes.Clear();
 
-                // Show success message immediately (before any DB or email operations)
-                lblConcernMessage.Text = "✓ Your concern has been submitted successfully! An email will be sent to HR.";
+                // Show initial success message
+                lblConcernMessage.Text = $"✓ Your concern has been submitted successfully! Sending confirmation email to {employee.Email}...";
                 lblConcernMessage.Style["display"] = "block";
                 lblConcernMessage.Style["color"] = "#155724";
                 lblConcernMessage.Style["backgroundColor"] = "#d4edda";
@@ -174,51 +326,78 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 lblConcernMessage.Style["borderRadius"] = "8px";
                 lblConcernMessage.Style["fontWeight"] = "600";
 
-                // Keep modal open and close after 3 seconds
-                ClientScript.RegisterStartupScript(this.GetType(), "showSuccessAndClose", 
-                    "var modal = document.getElementById('concernModal'); if (modal) { modal.style.display = 'block'; setTimeout(function() { closeModal('concernModal'); }, 3000); }", true);
+                // Keep modal open
+                ClientScript.RegisterStartupScript(this.GetType(), "showModal", 
+                    "var modal = document.getElementById('concernModal'); if (modal) { modal.style.display = 'block'; }", true);
 
-                // Save to database and send email in background (don't wait)
-                System.Threading.Tasks.Task.Run(() => {
-                    bool saved = false;
-                    try
+                // Save to database and send email synchronously so we can update the message
+                bool emailSent = false;
+                string emailError = null;
+                
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("Starting database save...");
+                    var concernService = new EmployeeConcernService();
+                    
+                    // Try to save with a short timeout
+                    var saveTask = concernService.CreateConcernAsync(concern);
+                    if (saveTask.Wait(TimeSpan.FromSeconds(5))) // 5 second timeout
                     {
-                        System.Diagnostics.Debug.WriteLine("Starting database save in background...");
-                        var concernService = new EmployeeConcernService();
-                        
-                        // Try to save with a short timeout
-                        var saveTask = concernService.CreateConcernAsync(concern);
-                        if (saveTask.Wait(TimeSpan.FromSeconds(5))) // 5 second timeout
-                        {
-                            saved = saveTask.Result;
-                            System.Diagnostics.Debug.WriteLine($"Database save completed: {saved}");
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine("Database save timed out");
-                        }
+                        bool saved = saveTask.Result;
+                        System.Diagnostics.Debug.WriteLine($"Database save completed: {saved}");
                     }
-                    catch (Exception dbEx)
+                    else
                     {
-                        System.Diagnostics.Debug.WriteLine($"Database error: {dbEx.Message}");
+                        System.Diagnostics.Debug.WriteLine("Database save timed out");
                     }
+                }
+                catch (Exception dbEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Database error: {dbEx.Message}");
+                }
 
-                    // Send email regardless of DB save result
-                    try
+                // Send email
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("Starting email send...");
+                    SendConcernEmail(concern, employee);
+                    emailSent = true;
+                    System.Diagnostics.Debug.WriteLine("Email sent successfully");
+                }
+                catch (Exception emailEx)
+                {
+                    emailSent = false;
+                    emailError = emailEx.Message;
+                    System.Diagnostics.Debug.WriteLine($"Email error: {emailEx.Message}");
+                    if (emailEx.InnerException != null)
                     {
-                        System.Diagnostics.Debug.WriteLine("Starting email send...");
-                        SendConcernEmail(concern, employee);
-                        System.Diagnostics.Debug.WriteLine("Email sent successfully");
+                        System.Diagnostics.Debug.WriteLine($"Email inner exception: {emailEx.InnerException.Message}");
                     }
-                    catch (Exception emailEx)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Email error: {emailEx.Message}");
-                        if (emailEx.InnerException != null)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Email inner exception: {emailEx.InnerException.Message}");
-                        }
-                    }
-                });
+                }
+                
+                // Update success message with email status
+                if (emailSent)
+                {
+                    lblConcernMessage.Text = $"✓ Your concern has been submitted successfully! A confirmation email has been sent to {employee.Email}.";
+                    lblConcernMessage.Style["color"] = "#155724";
+                    lblConcernMessage.Style["backgroundColor"] = "#d4edda";
+                    lblConcernMessage.Style["border"] = "1px solid #c3e6cb";
+                }
+                else
+                {
+                    lblConcernMessage.Text = $"✓ Your concern has been submitted successfully! However, the email could not be sent. {emailError ?? "Please contact HR."}";
+                    lblConcernMessage.Style["color"] = "#856404";
+                    lblConcernMessage.Style["backgroundColor"] = "#fff3cd";
+                    lblConcernMessage.Style["border"] = "1px solid #ffc107";
+                }
+                lblConcernMessage.Style["display"] = "block";
+                lblConcernMessage.Style["padding"] = "15px";
+                lblConcernMessage.Style["borderRadius"] = "8px";
+                lblConcernMessage.Style["fontWeight"] = "600";
+                
+                // Close modal after 3 seconds
+                ClientScript.RegisterStartupScript(this.GetType(), "closeModalAfterDelay", 
+                    "setTimeout(function() { closeModal('concernModal'); }, 3000);", true);
             }
             catch (Exception ex)
             {
@@ -246,7 +425,8 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 string hrEmail = ConfigurationManager.AppSettings["HREmail"] ?? "hr@company.com"; // Default HR email
                 bool enableSsl = bool.Parse(ConfigurationManager.AppSettings["EnableSsl"] ?? "true");
 
-                System.Diagnostics.Debug.WriteLine($"SMTP Config - Server: {smtpServer}, Port: {smtpPort}, From: {fromEmail}, To: {hrEmail}, SSL: {enableSsl}");
+                string employeeEmail = employee.Email ?? "";
+                System.Diagnostics.Debug.WriteLine($"Concern Email SMTP Config - Server: {smtpServer}, Port: {smtpPort}, From: {fromEmail}, To Employee: {employeeEmail}, CC HR: {hrEmail}");
 
                 // Skip email if credentials are not configured
                 if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
@@ -259,28 +439,50 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 // Create email message
                 mail = new MailMessage();
                 mail.From = new MailAddress(fromEmail, "Employee Concern System");
-                mail.To.Add(hrEmail);
-                mail.Subject = concern.Subject; // Use the subject from the form
+                
+                // Send to employee's email (the person submitting the concern) for confirmation
+                if (string.IsNullOrEmpty(employee.Email))
+                {
+                    System.Diagnostics.Debug.WriteLine("Employee email is empty, cannot send confirmation email");
+                    throw new Exception("Employee email address is not available. Cannot send confirmation email.");
+                }
+                
+                mail.To.Add(employee.Email);
+                System.Diagnostics.Debug.WriteLine($"Sending concern confirmation email to employee: {employee.Email}");
+                
+                // Also send a copy to HR
+                if (!string.IsNullOrEmpty(hrEmail))
+                {
+                    mail.CC.Add(hrEmail);
+                    System.Diagnostics.Debug.WriteLine($"CC'ing HR: {hrEmail}");
+                }
+                
+                mail.Subject = $"Concern Submission Confirmation - {concern.Subject}";
                 mail.IsBodyHtml = true;
 
-                // Build email body with concern details
+                // Build email body with concern details - confirmation email for employee
                 StringBuilder body = new StringBuilder();
                 body.AppendLine("<html><body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>");
                 body.AppendLine("<div style='max-width: 600px; margin: 0 auto; padding: 20px;'>");
-                body.AppendLine("<h2 style='color: #A44F56;'>Employee Concern Submission</h2>");
+                body.AppendLine("<h2 style='color: #A44F56;'>Concern Submission Confirmation</h2>");
                 body.AppendLine("<hr style='border: 1px solid #E8C4C4; margin: 20px 0;'>");
+                
+                body.AppendLine("<div style='background-color: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #28a745;'>");
+                body.AppendLine("<p style='margin: 0; color: #155724; font-weight: bold;'>✓ Your concern has been successfully submitted!</p>");
+                body.AppendLine("</div>");
                 
                 body.AppendLine("<div style='background-color: #FFE8E8; padding: 15px; border-radius: 8px; margin-bottom: 20px;'>");
                 body.AppendLine($"<p><strong>Employee Name:</strong> {employee.FullName}</p>");
                 body.AppendLine($"<p><strong>Employee ID:</strong> {employee.EmployeeId}</p>");
-                body.AppendLine($"<p><strong>Employee Email:</strong> {employee.Email}</p>");
                 body.AppendLine($"<p><strong>Department:</strong> {employee.Department ?? "N/A"}</p>");
                 body.AppendLine("</div>");
 
                 body.AppendLine("<div style='margin-bottom: 20px;'>");
+                body.AppendLine($"<p><strong>Subject:</strong> <span style='color: #A44F56; font-weight: bold;'>{HttpUtility.HtmlEncode(concern.Subject)}</span></p>");
                 body.AppendLine($"<p><strong>Concern Type:</strong> {concern.ConcernType}</p>");
                 body.AppendLine($"<p><strong>Priority Level:</strong> <span style='color: #A44F56; font-weight: bold;'>{concern.PriorityLevel}</span></p>");
                 body.AppendLine($"<p><strong>Submitted Date:</strong> {concern.SubmittedDate.ToLocalTime():MMM dd, yyyy HH:mm}</p>");
+                body.AppendLine($"<p><strong>Status:</strong> <span style='color: #f59e0b; font-weight: bold;'>Under Review</span></p>");
                 body.AppendLine("</div>");
 
                 body.AppendLine("<div style='background-color: #f9f9f9; padding: 15px; border-left: 4px solid #A44F56; margin-bottom: 20px;'>");
@@ -288,8 +490,13 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 body.AppendLine($"<p style='white-space: pre-wrap;'>{HttpUtility.HtmlEncode(concern.Description)}</p>");
                 body.AppendLine("</div>");
 
+                body.AppendLine("<div style='background-color: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;'>");
+                body.AppendLine("<p style='margin: 0; color: #856404;'><strong>Note:</strong> Your concern has been forwarded to HR for review. You will be contacted if additional information is needed.</p>");
+                body.AppendLine("</div>");
+
                 body.AppendLine("<div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #E8C4C4; font-size: 12px; color: #9B7B7B;'>");
-                body.AppendLine("<p>This is an automated email from the Employee Concern System.</p>");
+                body.AppendLine("<p>This is an automated confirmation email from the Employee Concern System.</p>");
+                body.AppendLine("<p>If you have any questions, please contact HR.</p>");
                 body.AppendLine("</div>");
                 body.AppendLine("</div></body></html>");
 
@@ -302,7 +509,17 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 smtpClient.UseDefaultCredentials = false;
                 smtpClient.Timeout = 30000; // 30 second timeout (increased for Gmail)
                 smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
+                
+                // Set credentials before enabling SSL
                 smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+                
+                // For Gmail, ensure we're using the correct security settings
+                if (smtpServer.Contains("gmail.com"))
+                {
+                    // Gmail requires SSL/TLS
+                    smtpClient.EnableSsl = true;
+                    System.Diagnostics.Debug.WriteLine("Gmail detected - SSL enabled");
+                }
 
                 System.Diagnostics.Debug.WriteLine("Attempting to send email...");
                 // Send email
@@ -417,8 +634,8 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 txtLeaveReason.Text = "";
                 fileLeaveAttachment.Attributes.Clear();
 
-                // Show success message immediately
-                lblLeaveMessage.Text = "✓ Your leave request has been submitted successfully! An email will be sent to HR.";
+                // Show initial success message
+                lblLeaveMessage.Text = $"✓ Your leave request has been submitted successfully! Sending confirmation email to {employee.Email}...";
                 lblLeaveMessage.Style["display"] = "block";
                 lblLeaveMessage.Style["color"] = "#155724";
                 lblLeaveMessage.Style["backgroundColor"] = "#d4edda";
@@ -427,51 +644,76 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 lblLeaveMessage.Style["borderRadius"] = "8px";
                 lblLeaveMessage.Style["fontWeight"] = "600";
 
-                // Keep modal open and close after 3 seconds
-                ClientScript.RegisterStartupScript(this.GetType(), "showLeaveSuccessAndClose", 
-                    "var modal = document.getElementById('leaveModal'); if (modal) { modal.style.display = 'block'; setTimeout(function() { closeModal('leaveModal'); }, 3000); }", true);
+                // Keep modal open
+                ClientScript.RegisterStartupScript(this.GetType(), "showLeaveModal", 
+                    "var modal = document.getElementById('leaveModal'); if (modal) { modal.style.display = 'block'; }", true);
 
-                // Save to database and send email in background
-                System.Threading.Tasks.Task.Run(() => {
-                    bool saved = false;
-                    try
+                // Save to database and send email synchronously so we can update the message
+                bool emailSent = false;
+                string emailError = null;
+                
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("Starting database save for leave request...");
+                    var leaveService = new LeaveService();
+                    var saveTask = leaveService.CreateLeaveAsync(leave);
+                    if (saveTask.Wait(TimeSpan.FromSeconds(5))) // 5 second timeout
                     {
-                        System.Diagnostics.Debug.WriteLine("Starting database save for leave request...");
-                        var leaveService = new LeaveService();
-                        
-                        // Try to save with a short timeout
-                        var saveTask = leaveService.CreateLeaveAsync(leave);
-                        if (saveTask.Wait(TimeSpan.FromSeconds(5))) // 5 second timeout
-                        {
-                            saved = saveTask.Result;
-                            System.Diagnostics.Debug.WriteLine($"Leave database save completed: {saved}");
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine("Leave database save timed out");
-                        }
+                        bool saved = saveTask.Result;
+                        System.Diagnostics.Debug.WriteLine($"Leave database save completed: {saved}");
                     }
-                    catch (Exception dbEx)
+                    else
                     {
-                        System.Diagnostics.Debug.WriteLine($"Leave database error: {dbEx.Message}");
+                        System.Diagnostics.Debug.WriteLine("Leave database save timed out");
                     }
+                }
+                catch (Exception dbEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Leave database error: {dbEx.Message}");
+                }
 
-                    // Send email regardless of DB save result
-                    try
+                // Send email
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("Starting leave request email send...");
+                    SendLeaveEmail(employee, leaveType, startDateStr, endDateStr, reason);
+                    emailSent = true;
+                    System.Diagnostics.Debug.WriteLine("Leave email sent successfully");
+                }
+                catch (Exception emailEx)
+                {
+                    emailSent = false;
+                    emailError = emailEx.Message;
+                    System.Diagnostics.Debug.WriteLine($"Leave email error: {emailEx.Message}");
+                    if (emailEx.InnerException != null)
                     {
-                        System.Diagnostics.Debug.WriteLine("Starting leave request email send...");
-                        SendLeaveEmail(employee, leaveType, startDateStr, endDateStr, reason);
-                        System.Diagnostics.Debug.WriteLine("Leave email sent successfully");
+                        System.Diagnostics.Debug.WriteLine($"Leave email inner exception: {emailEx.InnerException.Message}");
                     }
-                    catch (Exception emailEx)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Leave email error: {emailEx.Message}");
-                        if (emailEx.InnerException != null)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Leave email inner exception: {emailEx.InnerException.Message}");
-                        }
-                    }
-                });
+                }
+                
+                // Update success message with email status
+                if (emailSent)
+                {
+                    lblLeaveMessage.Text = $"✓ Your leave request has been submitted successfully! A confirmation email has been sent to {employee.Email}.";
+                    lblLeaveMessage.Style["color"] = "#155724";
+                    lblLeaveMessage.Style["backgroundColor"] = "#d4edda";
+                    lblLeaveMessage.Style["border"] = "1px solid #c3e6cb";
+                }
+                else
+                {
+                    lblLeaveMessage.Text = $"✓ Your leave request has been submitted successfully! However, the confirmation email could not be sent. {emailError ?? "Please contact HR."}";
+                    lblLeaveMessage.Style["color"] = "#856404";
+                    lblLeaveMessage.Style["backgroundColor"] = "#fff3cd";
+                    lblLeaveMessage.Style["border"] = "1px solid #ffc107";
+                }
+                lblLeaveMessage.Style["display"] = "block";
+                lblLeaveMessage.Style["padding"] = "15px";
+                lblLeaveMessage.Style["borderRadius"] = "8px";
+                lblLeaveMessage.Style["fontWeight"] = "600";
+                
+                // Close modal after 3 seconds
+                ClientScript.RegisterStartupScript(this.GetType(), "closeLeaveModalAfterDelay", 
+                    "setTimeout(function() { closeModal('leaveModal'); }, 3000);", true);
             }
             catch (Exception ex)
             {
@@ -499,7 +741,8 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 string hrEmail = ConfigurationManager.AppSettings["HREmail"] ?? "hr@company.com";
                 bool enableSsl = bool.Parse(ConfigurationManager.AppSettings["EnableSsl"] ?? "true");
 
-                System.Diagnostics.Debug.WriteLine($"Leave Email SMTP Config - Server: {smtpServer}, Port: {smtpPort}, From: {fromEmail}, To: {hrEmail}");
+                string employeeEmail = employee.Email ?? "";
+                System.Diagnostics.Debug.WriteLine($"Leave Email SMTP Config - Server: {smtpServer}, Port: {smtpPort}, From: {fromEmail}, To Employee: {employeeEmail}, CC HR: {hrEmail}");
 
                 // Skip email if credentials are not configured
                 if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
@@ -511,21 +754,41 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 // Create email message
                 mail = new MailMessage();
                 mail.From = new MailAddress(fromEmail, "Employee Leave System");
-                mail.To.Add(hrEmail);
-                mail.Subject = $"Leave Request - {employee.FullName} ({leaveType})";
+                
+                // Send to employee's email (the person submitting the request)
+                if (string.IsNullOrEmpty(employee.Email))
+                {
+                    System.Diagnostics.Debug.WriteLine("Employee email is empty, cannot send confirmation email");
+                    throw new Exception("Employee email address is not available. Cannot send confirmation email.");
+                }
+                
+                mail.To.Add(employee.Email);
+                System.Diagnostics.Debug.WriteLine($"Sending leave confirmation email to employee: {employee.Email}");
+                
+                // Also send a copy to HR
+                if (!string.IsNullOrEmpty(hrEmail))
+                {
+                    mail.CC.Add(hrEmail);
+                    System.Diagnostics.Debug.WriteLine($"CC'ing HR: {hrEmail}");
+                }
+                
+                mail.Subject = $"Leave Request Confirmation - {employee.FullName} ({leaveType})";
                 mail.IsBodyHtml = true;
 
-                // Build email body with leave details
+                // Build email body with leave details - confirmation email for employee
                 StringBuilder body = new StringBuilder();
                 body.AppendLine("<html><body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>");
                 body.AppendLine("<div style='max-width: 600px; margin: 0 auto; padding: 20px;'>");
-                body.AppendLine("<h2 style='color: #A44F56;'>Leave of Absence Request</h2>");
+                body.AppendLine("<h2 style='color: #A44F56;'>Leave Request Confirmation</h2>");
                 body.AppendLine("<hr style='border: 1px solid #E8C4C4; margin: 20px 0;'>");
+                
+                body.AppendLine("<div style='background-color: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #28a745;'>");
+                body.AppendLine("<p style='margin: 0; color: #155724; font-weight: bold;'>✓ Your leave request has been successfully submitted!</p>");
+                body.AppendLine("</div>");
                 
                 body.AppendLine("<div style='background-color: #FFE8E8; padding: 15px; border-radius: 8px; margin-bottom: 20px;'>");
                 body.AppendLine($"<p><strong>Employee Name:</strong> {employee.FullName}</p>");
                 body.AppendLine($"<p><strong>Employee ID:</strong> {employee.EmployeeId}</p>");
-                body.AppendLine($"<p><strong>Employee Email:</strong> {employee.Email}</p>");
                 body.AppendLine($"<p><strong>Department:</strong> {employee.Department ?? "N/A"}</p>");
                 body.AppendLine("</div>");
 
@@ -539,6 +802,7 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 int days = duration.Days + 1; // Include both start and end date
                 body.AppendLine($"<p><strong>Duration:</strong> {days} day(s)</p>");
                 body.AppendLine($"<p><strong>Submitted Date:</strong> {DateTime.Now:MMM dd, yyyy HH:mm}</p>");
+                body.AppendLine($"<p><strong>Status:</strong> <span style='color: #f59e0b; font-weight: bold;'>Pending Approval</span></p>");
                 body.AppendLine("</div>");
 
                 body.AppendLine("<div style='background-color: #f9f9f9; padding: 15px; border-left: 4px solid #A44F56; margin-bottom: 20px;'>");
@@ -546,8 +810,13 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 body.AppendLine($"<p style='white-space: pre-wrap;'>{HttpUtility.HtmlEncode(reason)}</p>");
                 body.AppendLine("</div>");
 
+                body.AppendLine("<div style='background-color: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;'>");
+                body.AppendLine("<p style='margin: 0; color: #856404;'><strong>Note:</strong> Your leave request has been forwarded to HR for review. You will be notified once a decision has been made.</p>");
+                body.AppendLine("</div>");
+
                 body.AppendLine("<div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #E8C4C4; font-size: 12px; color: #9B7B7B;'>");
-                body.AppendLine("<p>This is an automated email from the Employee Leave System.</p>");
+                body.AppendLine("<p>This is an automated confirmation email from the Employee Leave System.</p>");
+                body.AppendLine("<p>If you have any questions, please contact HR.</p>");
                 body.AppendLine("</div>");
                 body.AppendLine("</div></body></html>");
 
@@ -560,7 +829,17 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 smtpClient.UseDefaultCredentials = false;
                 smtpClient.Timeout = 30000; // 30 second timeout
                 smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
+                
+                // Set credentials before enabling SSL
                 smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+                
+                // For Gmail, ensure we're using the correct security settings
+                if (smtpServer.Contains("gmail.com"))
+                {
+                    // Gmail requires SSL/TLS
+                    smtpClient.EnableSsl = true;
+                    System.Diagnostics.Debug.WriteLine("Gmail detected - SSL enabled");
+                }
 
                 System.Diagnostics.Debug.WriteLine("Attempting to send leave email...");
                 smtpClient.Send(mail);

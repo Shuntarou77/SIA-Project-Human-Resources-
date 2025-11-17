@@ -92,10 +92,10 @@ namespace ExWebAppSia.webpage
                     ReferralName = txtReferralName.Text.Trim(),
                     
                     // Contract Type
-                    ContractType = rbContractual.Checked ? "Contractual" : "Regular",
+                    ContractType = rblContractType.SelectedValue ?? "Regular",
                     
-                    // Hiring Type
-                    HiringType = ddlHiringType.SelectedValue
+                    // Hiring Type (default to Employee if control doesn't exist)
+                    HiringType = "Employee" // Default hiring type
                 };
 
                 // Add applicant to database
@@ -246,9 +246,7 @@ namespace ExWebAppSia.webpage
             hdnSelectedRole.Value = "";
             ddlHowDidYouHearUs.SelectedIndex = 0;
             txtReferralName.Text = "";
-            rbRegular.Checked = true;
-            rbContractual.Checked = false;
-            ddlHiringType.SelectedIndex = 1; // Default to Employee
+            rblContractType.SelectedIndex = 0; // Default to Regular
         }
 
         private async Task LoadApplicantsData()
@@ -298,6 +296,8 @@ namespace ExWebAppSia.webpage
                 string position = Server.HtmlEncode(applicant.AppliedPosition ?? "");
                 string applicantId = Server.HtmlEncode(applicant.Id);
 
+                string viewDetailsOnclickNew = $"viewApplicantDetails('{applicantId}'); return false;";
+
                 sb.Append($@"
                     <tr>
                         <td class=""checkbox-cell"">
@@ -306,7 +306,7 @@ namespace ExWebAppSia.webpage
                         <td>{fullName}</td>
                         <td>{position}</td>
                         <td>
-                            <a href=""#"" class=""status-link"" onclick=""document.getElementById('{hdnApplicantId.ClientID}').value = '{applicantId}'; __doPostBack('{btnViewDetails.UniqueID}', ''); return false;"">View Details</a>
+                            <a href=""#"" class=""status-link"" onclick=""{viewDetailsOnclickNew}"">View Details</a>
                         </td>
                     </tr>");
             }
@@ -343,18 +343,20 @@ namespace ExWebAppSia.webpage
                 string hireButtonDisabled = isHired ? "disabled" : "";
                 string hireButtonText = isHired ? "Already Hired" : "Hire";
                 string hireButtonStyle = isHired ? "opacity: 0.6; cursor: not-allowed; margin-right: 5px;" : "margin-right: 5px;";
-                string hireButtonOnclick = isHired ? "" : $"var btn = this; btn.disabled = true; btn.textContent = 'Processing...'; document.getElementById('{hdnApplicantId.ClientID}').value = '{applicantId}'; __doPostBack('{btnHireApplicant.UniqueID}', ''); return false;";
+                string hireButtonOnclick = isHired ? "" : $"hireApplicant('{applicantId}', this); return false;";
+                string notHireButtonOnclick = $"notHireApplicant('{applicantId}', this); return false;";
+                string viewDetailsOnclick = $"viewApplicantDetails('{applicantId}'); return false;";
 
                 sb.Append($@"
                     <tr>
                         <td>{fullName}</td>
                         <td>{position}</td>
                         <td style=""text-align: center;"">
-                            <a href=""#"" class=""status-link"" onclick=""document.getElementById('{hdnApplicantId.ClientID}').value = '{applicantId}'; __doPostBack('{btnViewDetails.UniqueID}', ''); return false;"">View Details</a>
+                            <a href=""#"" class=""status-link"" onclick=""{viewDetailsOnclick}"">View Details</a>
                         </td>
                         <td style=""text-align: center;"">
                             <button type=""button"" class=""btn-hire"" {hireButtonDisabled} onclick=""{hireButtonOnclick}"" style=""{hireButtonStyle}"">{hireButtonText}</button>
-                            <button type=""button"" class=""btn-not-hire"" onclick=""var btn = this; btn.disabled = true; btn.textContent = 'Processing...'; document.getElementById('{hdnApplicantId.ClientID}').value = '{applicantId}'; __doPostBack('{btnNotHireApplicant.UniqueID}', ''); return false;"">Not Hired</button>
+                            <button type=""button"" class=""btn-not-hire"" onclick=""{notHireButtonOnclick}"">Not Hired</button>
                         </td>
                     </tr>");
             }
@@ -670,6 +672,9 @@ namespace ExWebAppSia.webpage
                         Email = applicant.Email,
                         ContactNo = applicant.ContactNo,
                         Address = applicant.Address,
+                        Age = applicant.Age,
+                        BirthDate = applicant.BirthDate,
+                        Gender = applicant.Gender,
                         Department = applicant.AppliedPosition,
                         Role = applicant.Role,
                         ContractType = applicant.ContractType ?? "Regular",

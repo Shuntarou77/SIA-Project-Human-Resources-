@@ -5,9 +5,9 @@ using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 
-namespace ExWebAppSia.webpage_EmployeeViewpoint_
+namespace ExWebAppSia.webpage
 {
-    public partial class EmployeeHR : System.Web.UI.MasterPage
+    public partial class WebForm6 : System.Web.UI.Page
     {
         protected void Page_Load(object sender, EventArgs e)
         {

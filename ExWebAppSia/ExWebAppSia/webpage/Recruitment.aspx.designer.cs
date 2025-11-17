@@ -13,6 +13,7 @@ namespace ExWebAppSia.webpage
 
     public partial class WebForm5
     {
+
         /// <summary>
         /// litNewCount control.
         /// </summary>
@@ -275,31 +276,13 @@ namespace ExWebAppSia.webpage
         protected global::System.Web.UI.WebControls.TextBox txtReferralName;
 
         /// <summary>
-        /// rbRegular control.
+        /// rblContractType control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.RadioButton rbRegular;
-
-        /// <summary>
-        /// rbContractual control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.RadioButton rbContractual;
-
-        /// <summary>
-        /// ddlHiringType control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.DropDownList ddlHiringType;
+        protected global::System.Web.UI.WebControls.RadioButtonList rblContractType;
 
         /// <summary>
         /// btnCancel control.
@@ -327,24 +310,6 @@ namespace ExWebAppSia.webpage
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.HtmlControls.HtmlGenericControl applicantDetailsContent;
-
-        /// <summary>
-        /// btnViewDetails control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.Button btnViewDetails;
-
-        /// <summary>
-        /// hdnApplicantId control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.HiddenField hdnApplicantId;
 
         /// <summary>
         /// scheduleMessageDiv control.
@@ -419,6 +384,15 @@ namespace ExWebAppSia.webpage
         protected global::System.Web.UI.WebControls.Button btnScheduleInterview;
 
         /// <summary>
+        /// btnViewDetails control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Button btnViewDetails;
+
+        /// <summary>
         /// btnHireApplicant control.
         /// </summary>
         /// <remarks>
@@ -435,6 +409,15 @@ namespace ExWebAppSia.webpage
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.Button btnNotHireApplicant;
+
+        /// <summary>
+        /// hdnApplicantId control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hdnApplicantId;
 
         /// <summary>
         /// hdnSelectedApplicantIds control.

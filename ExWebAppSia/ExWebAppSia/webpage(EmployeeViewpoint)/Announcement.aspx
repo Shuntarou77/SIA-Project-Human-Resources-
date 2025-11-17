@@ -1,6 +1,8 @@
 ﻿<%@ Page Title="Announcements" Language="C#" MasterPageFile="~/webpage(EmployeeViewpoint)/EmployeeHR.Master" AutoEventWireup="true" CodeBehind="Announcement.aspx.cs" Inherits="ExWebAppSia.webpage_EmployeeViewpoint_.WebForm4" %>
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
         :root {
             --primary-pink: #ff6b8b;
             --light-pink: #ffe6ee;
@@ -16,6 +18,7 @@
             padding: 0; 
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
         }
+
 
         .announcements-container {
             max-width: 1200px;

@@ -2,9 +2,9 @@
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <style>
-        /* Inherit base reset & fonts from master */
+        /* ✅ Pure white background — no gradient */
         .attendance-wrapper {
-            background: linear-gradient(135deg, #A44F56 0%, #723E43 100%);
+            background-color: white;
             min-height: 100vh;
             padding: 30px 20px;
         }
@@ -15,7 +15,7 @@
         }
 
         .page-header {
-            color: white;
+            color: #333;
             margin-bottom: 30px;
         }
 
@@ -23,21 +23,23 @@
             font-size: 32px;
             margin-bottom: 5px;
             font-weight: 600;
+            color: #A36A66; /* ✅ Brand header */
+        }
+
+        .page-header p {
+            opacity: 0.8;
+            font-size: 14px;
+            color: #666;
         }
 
         /* Payment Status */
-.status-paid {
-    color: #28a745;
-    font-weight: 600;
-}
-.status-unpaid {
-    color: #dc3545;
-    font-weight: 600;
-}
-
-        .page-header p {
-            opacity: 0.9;
-            font-size: 14px;
+        .status-paid {
+            color: #28a745;
+            font-weight: 600;
+        }
+        .status-unpaid {
+            color: #dc3545;
+            font-weight: 600;
         }
 
         /* Stats Cards */
@@ -53,13 +55,14 @@
             border-radius: 12px;
             padding: 20px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #eee;
             text-align: center;
         }
 
         .stat-value {
             font-size: 32px;
             font-weight: 700;
-            color: #A44F56;
+            color: #A36A66; /* ✅ Brand color */
             margin-bottom: 5px;
         }
 
@@ -73,7 +76,7 @@
         .stat-icon {
             font-size: 24px;
             margin-bottom: 10px;
-            color: #723E43;
+            color: #A36A66; /* ✅ Unified icon */
         }
 
         /* Controls Bar */
@@ -82,6 +85,7 @@
             border-radius: 12px;
             padding: 20px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #eee;
             margin-bottom: 25px;
             display: flex;
             flex-wrap: wrap;
@@ -109,8 +113,9 @@
             font-size: 14px;
         }
 
+        /* Buttons — ✅ #A36A66 theme */
         .btn {
-            background: linear-gradient(135deg, #A44F56, #723E43);
+            background: linear-gradient(135deg, #A36A66, #8B5A58);
             color: white;
             padding: 10px 20px;
             border-radius: 6px;
@@ -123,17 +128,17 @@
 
         .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 8px rgba(163, 106, 102, 0.3);
         }
 
         .btn-outline {
             background: transparent;
-            border: 2px solid #A44F56;
-            color: #A44F56;
+            border: 2px solid #A36A66;
+            color: #A36A66;
         }
 
         .btn-outline:hover {
-            background: rgba(164, 79, 86, 0.1);
+            background: rgba(163, 106, 102, 0.1);
         }
 
         /* Attendance & Leave Tables */
@@ -142,13 +147,14 @@
             border-radius: 12px;
             padding: 25px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid #eee;
             margin-bottom: 30px;
         }
 
         .table-title {
             font-size: 18px;
             font-weight: 600;
-            color: #333;
+            color: #A36A66; /* ✅ Brand header */
             margin-bottom: 20px;
             display: flex;
             align-items: center;
@@ -162,14 +168,14 @@
         }
 
         .attendance-table thead {
-            background: linear-gradient(135deg, #F2C2C6, #FDBFC3);
+            background-color: #A36A66; /* ✅ Solid header */
         }
 
         .attendance-table th {
             padding: 14px 12px;
             text-align: left;
             font-weight: 600;
-            color: #723E43;
+            color: white;
             font-size: 12px;
             text-transform: uppercase;
         }
@@ -191,15 +197,8 @@
             display: inline-block;
         }
 
-        .time-in {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .time-out {
-            background: #cce5ff;
-            color: #004085;
-        }
+        .time-in { background: #d4edda; color: #155724; }
+        .time-out { background: #cce5ff; color: #004085; }
 
         .status-present { color: #28a745; font-weight: 600; }
         .status-late { color: #ffc107; font-weight: 600; }
@@ -209,13 +208,13 @@
             width: 36px;
             height: 36px;
             border-radius: 50%;
-            background: linear-gradient(135deg, #FDBFC3, #F2C2C6);
+            background-color: #A36A66; /* ✅ Unified avatar */
             display: inline-flex;
             align-items: center;
             justify-content: center;
             font-size: 14px;
             font-weight: bold;
-            color: #A44F56;
+            color: white;
             margin-right: 10px;
         }
 
@@ -228,22 +227,11 @@
             display: inline-block;
         }
 
-        .status-pending {
-            background: #fff3cd;
-            color: #856404;
-        }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-approved { background: #d4edda; color: #155724; }
+        .status-declined { background: #f8d7da; color: #721c24; }
 
-        .status-approved {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .status-declined {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        /* Scrollable container */
+        /* Scrollbar */
         .table-scroll {
             max-height: 500px;
             overflow-y: auto;
@@ -260,7 +248,7 @@
         }
 
         .table-scroll::-webkit-scrollbar-thumb {
-            background: linear-gradient(135deg, #A44F56, #723E43);
+            background: #A36A66;
             border-radius: 10px;
         }
 
@@ -359,7 +347,7 @@
                     <td><span class="status-present">Present</span></td>
                     <td>₱45,000.00</td>
                     <td><span class="status-paid">Paid</span></td>
-                    <td><button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">📤 Send Report</button></td>
+                    <td><button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">Send Concern</button></td>
                 </tr>
                 <tr>
                     <td><span class="avatar-initial">AR</span>Anna Reyes</td>
@@ -370,7 +358,7 @@
                     <td><span class="status-late">Late</span></td>
                     <td>₱28,500.00</td>
                     <td><span class="status-paid">Paid</span></td>
-                    <td><button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">📤 Send Report</button></td>
+                    <td><button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">Send Concern</button></td>
                 </tr>
                 <tr>
                     <td><span class="avatar-initial">MB</span>Mark Borja</td>
@@ -381,7 +369,7 @@
                     <td><span class="status-present">Present</span></td>
                     <td>₱32,000.00</td>
                     <td><span class="status-unpaid">Unpaid</span></td>
-                    <td><button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">📤 Send Report</button></td>
+                    <td><button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">Send Concern</button></td>
                 </tr>
                 <tr>
                     <td><span class="avatar-initial">CL</span>Carmen Lim</td>
@@ -392,7 +380,7 @@
                     <td><span class="status-absent">Absent</span></td>
                     <td>₱26,750.00</td>
                     <td><span class="status-unpaid">Unpaid</span></td>
-                    <td><button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">📤 Send Report</button></td>
+                    <td><button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">Send Concern</button></td>
                 </tr>
                 <tr>
                     <td><span class="avatar-initial">DK</span>Daniel Kim</td>
@@ -403,7 +391,7 @@
                     <td><span class="status-late">Late</span></td>
                     <td>₱30,200.00</td>
                     <td><span class="status-paid">Paid</span></td>
-                    <td><button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">📤 Send Report</button></td>
+                    <td><button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">Send Concern</button></td>
                 </tr>
                 <tr>
                     <td><span class="avatar-initial">SJ</span>Sarah Jimenez</td>
@@ -414,7 +402,7 @@
                     <td><span class="status-present">Present</span></td>
                     <td>₱35,800.00</td>
                     <td><span class="status-paid">Paid</span></td>
-                    <td><button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">📤 Send Report</button></td>
+                    <td><button class="btn btn-outline" style="padding: 6px 12px; font-size: 12px;">Send Concern</button></td>
                 </tr>
             </tbody>
         </table>

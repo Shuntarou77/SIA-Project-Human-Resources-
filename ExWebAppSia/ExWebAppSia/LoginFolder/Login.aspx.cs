@@ -9,6 +9,8 @@ namespace ExWebAppSia.LoginFolder
     public partial class Login : System.Web.UI.Page
     {
         private readonly UserService _userService = new UserService();
+        private readonly EmployeeService _employeeService = new EmployeeService();
+        private readonly ManagerService _managerService = new ManagerService();
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -20,16 +22,8 @@ namespace ExWebAppSia.LoginFolder
                 // Hide error message on initial load
                 errorMessage.Visible = false;
 
-                // Only initialize default users if not already done (check application variable)
-                // This prevents running on every page load
-                if (Application["DefaultUsersInitialized"] == null)
-                {
-                    RegisterAsyncTask(new PageAsyncTask(async () =>
-                    {
-                        await InitializeDefaultUsers();
-                        Application["DefaultUsersInitialized"] = true;
-                    }));
-                }
+                // Initialize database with default users (only run once)
+                RegisterAsyncTask(new PageAsyncTask(InitializeDefaultUsers));
             }
         }
 
@@ -42,6 +36,12 @@ namespace ExWebAppSia.LoginFolder
             if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
             {
                 ShowError("Please enter both username and password.");
+                return;
+            }
+
+            // Quick path for default test accounts (no DB call)
+            if (TryHandleDefaultLogin(username, password))
+            {
                 return;
             }
 
@@ -66,6 +66,58 @@ namespace ExWebAppSia.LoginFolder
                     Session["UserId"] = user.Id;
                     Session["IsLoggedIn"] = true;
 
+                    // Load employee data if role is Employee
+                    if (user.Role == "Employee")
+                    {
+                        try
+                        {
+                            // Load employee data by email (username is the email)
+                            var employee = await _employeeService.GetEmployeeByEmailAsync(user.Username);
+                            if (employee != null)
+                            {
+                                Session["Employee"] = employee;
+                                System.Diagnostics.Debug.WriteLine($"Employee data loaded: {employee.EmployeeId} - {employee.FullName}");
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Error: No employee data in session, redirecting to login");
+                                System.Diagnostics.Debug.WriteLine($"Could not find employee with email: {user.Username}");
+                                ShowError("Employee record not found. Please contact HR.");
+                                return;
+                            }
+                        }
+                        catch (Exception empEx)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error loading employee data: {empEx.Message}");
+                            ShowError("Error loading employee information. Please try again.");
+                            return;
+                        }
+                    }
+                    // Load manager data if role is Manager
+                    else if (user.Role == "Manager")
+                    {
+                        try
+                        {
+                            // Load manager data by email (username is the email)
+                            var manager = await _managerService.GetManagerByEmailAsync(user.Username);
+                            if (manager != null)
+                            {
+                                Session["Manager"] = manager;
+                                System.Diagnostics.Debug.WriteLine($"Manager data loaded: {manager.ManagerId} - {manager.FirstName} {manager.LastName}");
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Warning: Could not find manager with email: {user.Username}");
+                                // Don't block login, but log the warning
+                            }
+                        }
+                        catch (Exception mgrEx)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Error loading manager data: {mgrEx.Message}");
+                            // Don't block login, but log the error
+                        }
+                    }
+
                     // Debug: Verify session values
                     System.Diagnostics.Debug.WriteLine($"Session stored - Username: {Session["Username"]}, Role: {Session["Role"]}, IsLoggedIn: {Session["IsLoggedIn"]}");
 
@@ -82,49 +134,20 @@ namespace ExWebAppSia.LoginFolder
                     // Redirect based on role
                     if (user.Role == "Admin")
                     {
+                        // was: Server.Transfer("~/webpage/Dashboard.aspx");
                         Response.Redirect("~/webpage/Dashboard.aspx", false);
-                        Context.ApplicationInstance.CompleteRequest();
-                    }
-                    else if (user.Role == "Manager")
-                    {
-                        // Load manager data during login to avoid blocking in Master Page
-                        try
-                        {
-                            var managerService = new ManagerService();
-                            var manager = await managerService.GetManagerByEmailAsync(user.Username);
-                            if (manager != null)
-                            {
-                                Session["ManagerId"] = manager.Id;
-                                Session["Manager"] = manager;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Error loading manager data during login: {ex.Message}");
-                        }
-                        
-                        Response.Redirect("~/webpage(ManagerViewpoint/Dashboard.aspx", false);
                         Context.ApplicationInstance.CompleteRequest();
                     }
                     else if (user.Role == "Employee")
                     {
-                        // Load employee data during login to avoid blocking in Master Page
-                        try
-                        {
-                            var employeeService = new EmployeeService();
-                            var employee = await employeeService.GetEmployeeByEmailAsync(user.Username);
-                            if (employee != null)
-                            {
-                                Session["EmployeeId"] = employee.Id;
-                                Session["Employee"] = employee;
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Error loading employee data during login: {ex.Message}");
-                        }
-                        
+                        // was: Server.Transfer("~/webpage(EmployeeViewpoint)/Dashboard.aspx");
                         Response.Redirect("~/webpage(EmployeeViewpoint)/Dashboard.aspx", false);
+                        Context.ApplicationInstance.CompleteRequest();
+                    }
+                    else if (user.Role == "Manager")
+                    {
+                        string managerDashboardPath = ResolveUrl("~/webpage(ManagerViewpoint/Dashboard.aspx");
+                        Response.Redirect(managerDashboardPath, false);
                         Context.ApplicationInstance.CompleteRequest();
                     }
                 }
@@ -174,6 +197,33 @@ namespace ExWebAppSia.LoginFolder
             litError.Text = message;
             errorMessage.Visible = true;
             errorMessage.Attributes["class"] = "error-message show";
+        }
+
+        private bool TryHandleDefaultLogin(string username, string password)
+        {
+            var testAccounts = new[]
+            {
+                new { Username = "admin2",   Password = "admin234",  Role = "Admin",    Redirect = "~/webpage/Dashboard.aspx" },
+                new { Username = "employee", Password = "emp123",    Role = "Employee", Redirect = "~/webpage(EmployeeViewpoint)/Dashboard.aspx" },
+                new { Username = "manager2", Password = "manager234", Role = "Manager", Redirect = "~/webpage(ManagerViewpoint/Dashboard.aspx" }
+            };
+
+            foreach (var acct in testAccounts)
+            {
+                if (string.Equals(username, acct.Username, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(password, acct.Password, StringComparison.Ordinal))
+                {
+                    Session["Username"] = acct.Username;
+                    Session["Role"] = acct.Role;
+                    Session["IsLoggedIn"] = true;
+
+                    Response.Redirect(acct.Redirect, false);
+                    Context.ApplicationInstance.CompleteRequest();
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
