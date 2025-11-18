@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Type="http://schemas.microsoft.com/packaging/2010/07/manifest" Target="/Snappier.nuspec" Id="R0C4DD912E4A3DC90" />
+  <Relationship Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="/package/services/metadata/core-properties/8ef16f30b54f4ce78eede0f0c8eceaeb.psmdcp" Id="R70497F1F0DA13A9C" />
+</Relationships>

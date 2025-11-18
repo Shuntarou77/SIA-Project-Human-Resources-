@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<coreProperties xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.openxmlformats.org/package/2006/metadata/core-properties">
+  <dc:creator>btburnett3</dc:creator>
+  <dc:description>A near-C++ performance implementation of the Snappy compression algorithm for .NET. Snappier is ported to C# directly
+      from the official C++ implementation, with the addition of support for the framed stream format.
+
+      By avoiding P/Invoke, Snappier is fully cross-platform and works on both Linux and Windows and against any CPU supported
+      by .NET Core. However, Snappier performs best in .NET Core 3.0 and later on little-endian x86/64 processors with the
+      help of System.Runtime.Instrinsics.</dc:description>
+  <dc:identifier>Snappier</dc:identifier>
+  <version>1.0.0</version>
+  <keywords>snappy compression fast io</keywords>
+  <lastModifiedBy>NuGet.Build.Tasks.Pack, Version=5.8.0.6930, Culture=neutral, PublicKeyToken=31bf3856ad364e35;</lastModifiedBy>
+</coreProperties>
