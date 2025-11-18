@@ -43,8 +43,8 @@ bld/
 
 # NuGet Packages
 *.nupkg
-**/packages/*
-!**/packages/build/
+# **/packages/*  # Commented out to include packages for immediate runnability
+# !**/packages/build/
 *.nuget.props
 *.nuget.targets
 
