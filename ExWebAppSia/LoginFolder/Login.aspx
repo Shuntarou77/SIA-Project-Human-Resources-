@@ -104,8 +104,8 @@
     }
 
     .login-logo {
-        width: 90px;
-        height: 90px;
+        width: 260px;
+        height: 140px;
         background-color: white;
         border-radius: 50%;
         margin: 0 auto 24px;
@@ -379,13 +379,56 @@
         }
 
         .login-logo {
-            width: 80px;
-            height: 80px;
+            width: 72px;
+            height: 72px;
+            background-color: white;
+            border-radius: 50%;
+            margin: 0 auto 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            /* outer drop shadow */
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+            /* visible border around the circle */
+            border: 4px solid rgba(163, 106, 102, 0.12);
+            /* subtle inner ring for depth */
+            outline: 2px solid rgba(255,255,255,0.6);
+            position: relative;
+            animation: bounce 2s ease-in-out infinite;
+            overflow: hidden;
         }
-
+        
+        /* SVG sizing */
         .login-logo svg {
-            width: 40px;
-            height: 40px;
+            width: 72px;
+            height: 72px;
+            fill: #A36A66;
+            display: block;
+        }
+        
+        /* Image sizing when using asp:Image */
+        .login-logo-img {
+            width: 72px;
+            height: 72px;
+            object-fit: contain;
+            display: block;
+            background: transparent;
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 480px) {
+            .login-logo {
+                width: 100px;
+                height: 100px;
+                border-width: 3px; /* slightly thinner on small screens */
+                outline-width: 1px;
+            }
+        
+            .login-logo svg,
+            .login-logo-img {
+                width: 56px;
+                height: 56px;
+            }
         }
     }
 </style>
@@ -395,11 +438,9 @@
         <div class="login-container">
             <div class="login-header">
                 <div class="login-logo">
-                    <svg viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
-                    </svg>
+                    <asp:Image ID="imgLogo" runat="server" ImageUrl="~/images/shessentials-logo.png" CssClass="login-logo-img" AlternateText="Essentials Beauty Logo" />
                 </div>
-                <div class="login-title">✨ Welcome Back</div>
+                <div class="login-title">Welcome Back</div>
                 <div class="login-subtitle">HR Management System</div>
             </div>
 
