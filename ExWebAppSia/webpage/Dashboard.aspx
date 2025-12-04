@@ -58,6 +58,7 @@
                 border: 1px solid #F8ECEB;
                 transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                 animation: fadeIn 0.6s ease-out backwards;
+                animation-fill-mode: both;
             }
 
             .dashboard-card:nth-child(1) {
