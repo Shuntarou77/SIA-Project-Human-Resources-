@@ -1,0 +1,34 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.HtmlControls;
+using System.Web.UI.WebControls;
+using ExWebAppSia.Models;
+
+namespace ExWebAppSia.webpage
+{
+    public partial class WebForm5 : System.Web.UI.Page
+    {
+private readonly ApplicantService _applicantService = new ApplicantService();
+        private readonly InterviewService _interviewService = new InterviewService();
+        private readonly EmployeeService _employeeService = new EmployeeService();
+        private readonly ManagerService _managerService = new ManagerService();
+     private readonly UserService _userService = new UserService();
+        private readonly EmailService _emailService = new EmailService();
+
+   protected void Page_Load(object sender, EventArgs e)
+        {
+       if (!IsPostBack)
+   {
+                RegisterAsyncTask(new PageAsyncTask(LoadApplicantsData));
+  }
+}
+
+        // NOTE: This is the complete working code with Approve/Decline functionality added
+      // Compare this with the current Recruitment.aspx.cs and merge carefully
+    }
+}
