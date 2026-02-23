@@ -142,11 +142,7 @@
             }
 
             .dept-head {
-                font-size: 9px;
-                color: #888;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
+                display: none;
             }
 
             .search-container {
@@ -750,9 +746,6 @@
                                 </div>
                                 <div class="dept-info">
                                     <div class="dept-name">Research & Development</div>
-                                    <div class="dept-head">Head: <asp:Literal ID="litRDManager" runat="server"
-                                            Text="Not assigned"></asp:Literal>
-                                    </div>
                                 </div>
                             </div>
                             <div class="dept-card" data-dept="Quality Control">
@@ -764,9 +757,6 @@
                                 </div>
                                 <div class="dept-info">
                                     <div class="dept-name">Quality Control</div>
-                                    <div class="dept-head">Head: <asp:Literal ID="litQCManager" runat="server"
-                                            Text="Not assigned"></asp:Literal>
-                                    </div>
                                 </div>
                             </div>
                             <div class="dept-card" data-dept="Human Resources">
@@ -778,9 +768,6 @@
                                 </div>
                                 <div class="dept-info">
                                     <div class="dept-name">Human Resources</div>
-                                    <div class="dept-head">Head: <asp:Literal ID="litHRManager" runat="server"
-                                            Text="Not assigned"></asp:Literal>
-                                    </div>
                                 </div>
                             </div>
                             <div class="dept-card" data-dept="Finance">
@@ -792,9 +779,6 @@
                                 </div>
                                 <div class="dept-info">
                                     <div class="dept-name">Finance</div>
-                                    <div class="dept-head">Head: <asp:Literal ID="litFinanceManager" runat="server"
-                                            Text="Not assigned"></asp:Literal>
-                                    </div>
                                 </div>
                             </div>
                             <div class="dept-card" data-dept="Marketing">
@@ -806,9 +790,6 @@
                                 </div>
                                 <div class="dept-info">
                                     <div class="dept-name">Marketing</div>
-                                    <div class="dept-head">Head: <asp:Literal ID="litMarketingManager" runat="server"
-                                            Text="Not assigned"></asp:Literal>
-                                    </div>
                                 </div>
                             </div>
                             <div class="dept-card" data-dept="IT Support">
@@ -820,9 +801,6 @@
                                 </div>
                                 <div class="dept-info">
                                     <div class="dept-name">IT Support</div>
-                                    <div class="dept-head">Head: <asp:Literal ID="litITManager" runat="server"
-                                            Text="Not assigned"></asp:Literal>
-                                    </div>
                                 </div>
                             </div>
                             <div class="dept-card" data-dept="Operations">
@@ -834,9 +812,6 @@
                                 </div>
                                 <div class="dept-info">
                                     <div class="dept-name">Operations</div>
-                                    <div class="dept-head">Head: <asp:Literal ID="litOperationsManager" runat="server"
-                                            Text="Not assigned"></asp:Literal>
-                                    </div>
                                 </div>
                             </div>
                             <div class="dept-card" data-dept="Sales">
@@ -848,9 +823,6 @@
                                 </div>
                                 <div class="dept-info">
                                     <div class="dept-name">Sales</div>
-                                    <div class="dept-head">Head: <asp:Literal ID="litSalesManager" runat="server"
-                                            Text="Not assigned"></asp:Literal>
-                                    </div>
                                 </div>
                             </div>
                             <div class="dept-card" data-dept="Legal">
@@ -862,9 +834,6 @@
                                 </div>
                                 <div class="dept-info">
                                     <div class="dept-name">Legal</div>
-                                    <div class="dept-head">Head: <asp:Literal ID="litLegalManager" runat="server"
-                                            Text="Not assigned"></asp:Literal>
-                                    </div>
                                 </div>
                             </div>
                             <div class="dept-card" data-dept="Customer Service">
@@ -876,20 +845,31 @@
                                 </div>
                                 <div class="dept-info">
                                     <div class="dept-name">Customer Service</div>
-                                    <div class="dept-head">Head: <asp:Literal ID="litCustomerServiceManager"
-                                            runat="server" Text="Not assigned"></asp:Literal>
-                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Search Bar -->
-                        <div class="search-container">
-                            <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                            <input type="text" class="search-bar" id="searchInput" placeholder="Search..." />
+                        <!-- Search Bar & Filter -->
+                        <div style="display: flex; gap: 16px; margin-bottom: 24px; align-items: center;">
+                            <div class="search-container" style="margin-bottom: 0; flex: 1;">
+                                <svg class="search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input type="text" class="search-bar" id="searchInput" placeholder="Search..." />
+                            </div>
+                            <div class="filter-group">
+                                <select id="govtFilter" class="form-control"
+                                    style="height: 48px; border-radius: 12px; border: 1.5px solid #e5e7eb; min-width: 220px; font-size: 14px; padding: 0 16px; background: #fff; cursor: pointer;"
+                                    onchange="applyFilter(currentSelectedDept)">
+                                    <option value="all">All Contributions</option>
+                                    <option value="complete">Complete (SSS, PH, PagIbig)</option>
+                                    <option value="incomplete">Incomplete</option>
+                                    <option value="sss">With SSS</option>
+                                    <option value="philhealth">With PhilHealth</option>
+                                    <option value="pagibig">With Pag-IBIG</option>
+                                </select>
+                            </div>
                         </div>
 
                         <!-- Employee Table -->
@@ -973,15 +953,34 @@
 
                 function applyFilter(selectedDept = null) {
                     const searchTerm = (searchInput.value || '').toLowerCase();
+                    const govtFilter = document.getElementById('govtFilter').value;
                     // Get all rows from the table body
                     const tableRows = tableBody ? tableBody.querySelectorAll('tr') : [];
 
                     tableRows.forEach(row => {
                         const dept = row.getAttribute('data-dept');
                         const text = row.textContent.toLowerCase();
+                        const sss = row.getAttribute('data-sss') === 'true';
+                        const ph = row.getAttribute('data-ph') === 'true';
+                        const pagibig = row.getAttribute('data-pi') === 'true';
+
                         const matchesDept = selectedDept ? dept === selectedDept : true;
                         const matchesSearch = text.includes(searchTerm);
-                        if (matchesDept && matchesSearch) {
+
+                        let matchesGovt = true;
+                        if (govtFilter === 'complete') {
+                            matchesGovt = sss && ph && pagibig;
+                        } else if (govtFilter === 'incomplete') {
+                            matchesGovt = !(sss && ph && pagibig);
+                        } else if (govtFilter === 'sss') {
+                            matchesGovt = sss;
+                        } else if (govtFilter === 'philhealth') {
+                            matchesGovt = ph;
+                        } else if (govtFilter === 'pagibig') {
+                            matchesGovt = pagibig;
+                        }
+
+                        if (matchesDept && matchesSearch && matchesGovt) {
                             row.classList.remove('filtered-out');
                         } else {
                             row.classList.add('filtered-out');
@@ -1022,35 +1021,110 @@
                         alert('Please select a department first.');
                         return;
                     }
+
                     const encoded = encodeURIComponent(dept);
-                    const url = '<%= ResolveUrl("~/Handler/ExportDepartmentReport.ashx") %>' + '?department=' + encoded;
+                    const url = '<%= ResolveUrl("~/Handler/ExportDepartmentReport.ashx") %>?department=' + encoded + '&format=html';
                     window.open(url, '_blank');
+                };
+
+                window.downloadReportPdf = function () {
+                    const activeCard = document.querySelector('.dept-card.active');
+                    const dept = activeCard ? activeCard.getAttribute('data-dept') : null;
+                    if (dept) {
+                        const encoded = encodeURIComponent(dept);
+                        window.open('<%= ResolveUrl("~/Handler/ExportDepartmentReport.ashx") %>?department=' + encoded + '&format=pdf', '_blank');
+                    }
                 };
             });
 
             // Modal functions
-            function viewEmployeeDetails(employeeId) {
-                // Show the modal immediately with a loading state
+            function viewEmployeeDetails(row) {
                 const modal = document.getElementById('viewEmployeeDetailsModal');
                 const content = document.getElementById('<%= employeeDetailsContent.ClientID %>');
 
-                content.innerHTML = `
-                    <div style="text-align: center; padding: 50px;">
-                        <svg style="width: 40px; height: 40px; color: #A36A66; display: inline; animation: spin 1s linear infinite;" viewBox="0 0 24 24">
-                            <circle style="opacity: 0.25;" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
-                            <path style="opacity: 0.75;" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <style>
-                            @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-                        </style>
-                        <p style="margin-top: 15px; color: #666; font-weight: 500;">Fetching employee profile...</p>
-                    </div>`;
+                // Extract all data from data-attributes
+                const id = row.getAttribute('data-id');
+                const empId = row.getAttribute('data-emp-id');
+                const fname = row.getAttribute('data-fname');
+                const mname = row.getAttribute('data-mname');
+                const lname = row.getAttribute('data-lname');
+                const email = row.getAttribute('data-email');
+                const contact = row.getAttribute('data-contact');
+                const address = row.getAttribute('data-address');
+                const dept = row.getAttribute('data-dept');
+                const role = row.getAttribute('data-role');
+                const hired = row.getAttribute('data-hired');
+                const active = row.getAttribute('data-active');
+                const sss = row.getAttribute('data-sss') === 'true';
+                const ph = row.getAttribute('data-ph') === 'true';
+                const pi = row.getAttribute('data-pi') === 'true';
+                const salary = row.getAttribute('data-salary');
+                const contract = row.getAttribute('data-contract');
 
+                // Build HTML instantly on the client side
+                let html = `<div style='padding: 20px;'>`;
+
+                // Personal Info Table
+                html += `<h3 style='color: #8B4755; margin-bottom: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px;'>Personal Information</h3>`;
+                html += `<table style='width: 100%; border-collapse: collapse; margin-bottom: 20px;'>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold; width: 40%;'>Employee ID:</td><td style='padding: 8px;'>${empId}</td></tr>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>First Name:</td><td style='padding: 8px;'>${fname}</td></tr>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>Middle Name:</td><td style='padding: 8px;'>${mname}</td></tr>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>Last Name:</td><td style='padding: 8px;'>${lname}</td></tr>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>Email Address:</td><td style='padding: 8px;'>${email}</td></tr>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>Contact No.:</td><td style='padding: 8px;'>${contact}</td></tr>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>Address:</td><td style='padding: 8px;'>${address}</td></tr>`;
+                html += `</table>`;
+
+                // Employment Info Table
+                html += `<h3 style='color: #8B4755; margin: 20px 0 15px 0; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px;'>Employment Information</h3>`;
+                html += `<table style='width: 100%; border-collapse: collapse; margin-bottom: 20px;'>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold; width: 40%;'>Department:</td><td style='padding: 8px;'>${dept}</td></tr>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>Role:</td><td style='padding: 8px;'>${role}</td></tr>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>Contract Type:</td><td style='padding: 8px;'><span style='color: ${contract === "Regular" ? "green" : "orange"}; font-weight: bold;'>${contract}</span></td></tr>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>Base Salary:</td><td style='padding: 8px; font-weight: bold; color: #8B4755;'>₱${salary}</td></tr>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>Hired Date:</td><td style='padding: 8px;'>${hired}</td></tr>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>Status:</td><td style='padding: 8px;'>${active}</td></tr>`;
+
+                // Gov Contributions
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>Govt. Contributions:</td><td style='padding: 8px;'>`;
+                html += `<span style='color: ${sss ? "green" : "gray"}; margin-right: 15px;'>SSS: ${sss ? "✓" : "✗"}</span>`;
+                html += `<span style='color: ${ph ? "green" : "gray"}; margin-right: 15px;'>PhilHealth: ${ph ? "✓" : "✗"}</span>`;
+                html += `<span style='color: ${pi ? "green" : "gray"}'>Pag-IBIG: ${pi ? "✓" : "✗"}</span>`;
+                html += `</td></tr>`;
+                html += `</table></div>`;
+
+                // Action Cards (View Payslip, Leave, Concern)
+                html += `<div class='actions-grid'>`;
+
+                // Card 1: Payslip
+                html += `<div class='action-card' onclick='openPayslipModal()'>
+                    <div class='action-icon'>💰</div>
+                    <h3 class='action-title'>View Payslip</h3>
+                    <p class='action-description'>View salary breakdown including gross salary, deductions, and net pay.</p>
+                    <button class='action-button'>View Details</button>
+                </div>`;
+
+                // Card 2: Leave History (Still needs AJAX when clicked)
+                html += `<div class='action-card' onclick='openLeaveHistoryModal("${id}")'>
+                    <div class='action-icon'>📝</div>
+                    <h3 class='action-title'>History Leave of Absence</h3>
+                    <p class='action-description'>View leave history including sick leave, vacation, and personal matters.</p>
+                    <button class='action-button'>View History</button>
+                </div>`;
+
+                // Card 3: Concern History (Still needs AJAX when clicked)
+                html += `<div class='action-card' onclick='openConcernHistoryModal("${id}")'>
+                    <div class='action-icon'>💬</div>
+                    <h3 class='action-title'>History of Employee Concern</h3>
+                    <p class='action-description'>View all workplace concerns, complaints, or suggestions submitted to HR.</p>
+                    <button class='action-button'>View History</button>
+                </div>`;
+
+                html += `</div>`;
+
+                content.innerHTML = html;
                 modal.style.display = 'block';
-
-                // We trigger the postback which will update the Modal content via the UpdatePanel
-                document.getElementById('<%= hdnEmployeeId.ClientID %>').value = employeeId;
-                __doPostBack('<%= btnViewEmployeeDetails.UniqueID %>', '');
             }
 
             function closeEmployeeDetailsModal() {
@@ -1066,8 +1140,17 @@
             }
 
             function openLeaveHistoryModal(employeeId) {
-                document.getElementById('<%= hdnEmployeeId.ClientID %>').value = employeeId;
-                __doPostBack('<%= btnViewLeaveHistory.UniqueID %>', '');
+                const modal = document.getElementById('leaveHistoryModal');
+                const content = document.getElementById('<%= leaveHistoryContent.ClientID %>');
+
+                content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #A36A66;"></i><p style="margin-top: 10px;">Loading leave history...</p></div>';
+                modal.style.display = 'block';
+
+                PageMethods.GetLeaveHistory(employeeId, function (response) {
+                    content.innerHTML = response;
+                }, function (error) {
+                    content.innerHTML = '<div style="padding: 20px; color: #dc3545;">Error loading leave history.</div>';
+                });
             }
 
             function closeLeaveHistoryModal() {
@@ -1075,8 +1158,17 @@
             }
 
             function openConcernHistoryModal(employeeId) {
-                document.getElementById('<%= hdnEmployeeId.ClientID %>').value = employeeId;
-                __doPostBack('<%= btnViewConcernHistory.UniqueID %>', '');
+                const modal = document.getElementById('concernHistoryModal');
+                const content = document.getElementById('<%= concernHistoryContent.ClientID %>');
+
+                content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #A36A66;"></i><p style="margin-top: 10px;">Loading concern history...</p></div>';
+                modal.style.display = 'block';
+
+                PageMethods.GetConcernHistory(employeeId, function (response) {
+                    content.innerHTML = response;
+                }, function (error) {
+                    content.innerHTML = '<div style="padding: 20px; color: #dc3545;">Error loading concern history.</div>';
+                });
             }
 
             function closeConcernHistoryModal() {

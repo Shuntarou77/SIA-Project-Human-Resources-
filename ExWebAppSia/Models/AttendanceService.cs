@@ -48,9 +48,17 @@ namespace ExWebAppSia.Models
                 if (existingAttendance != null)
                 {
                     System.Diagnostics.Debug.WriteLine($"Existing record found - ID: {existingAttendance.Id}, TimeIn: {existingAttendance.TimeIn}, TimeOut: {existingAttendance.TimeOut}");
-                    // Update existing record if time in hasn't been set
-                    if (existingAttendance.TimeIn == null)
+                    if (!existingAttendance.TimeIn.HasValue)
                     {
+                        // Calculate Late Time
+                        var localTime = now.AddHours(8);
+                        var shiftStart = new DateTime(localTime.Year, localTime.Month, localTime.Day, 8, 0, 0);
+                        if (localTime > shiftStart)
+                        {
+                            var diff = localTime - shiftStart;
+                            existingAttendance.LateTime = $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}";
+                        }
+
                         existingAttendance.TimeIn = now;
                         existingAttendance.EmployeeName = employeeName;
                         existingAttendance.Department = department;
@@ -88,6 +96,17 @@ namespace ExWebAppSia.Models
                 }
                 else
                 {
+                    // Calculate Late Time (Standard shift starts at 8:00 AM Local/UTC+8)
+                    string lateTimeStr = null;
+                    var localTime = now.AddHours(8); // Convert UTC to PH Time (UTC+8)
+                    var shiftStart = new DateTime(localTime.Year, localTime.Month, localTime.Day, 8, 0, 0);
+                    
+                    if (localTime > shiftStart)
+                    {
+                        var diff = localTime - shiftStart;
+                        lateTimeStr = $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}";
+                    }
+
                     // Create new attendance record
                     var attendance = new Attendance
                     {
@@ -97,87 +116,26 @@ namespace ExWebAppSia.Models
                         Date = today,
                         TimeIn = now,
                         TimeOut = null,
+                        LateTime = lateTimeStr,
                         CreatedAt = now,
                         IsActive = true
                     };
 
                     System.Diagnostics.Debug.WriteLine($"Attempting to insert attendance record...");
-                    System.Diagnostics.Debug.WriteLine($"  EmployeeId: {attendance.EmployeeId}");
-                    System.Diagnostics.Debug.WriteLine($"  EmployeeName: {attendance.EmployeeName}");
-                    System.Diagnostics.Debug.WriteLine($"  Department: {attendance.Department}");
-                    System.Diagnostics.Debug.WriteLine($"  Date: {attendance.Date:yyyy-MM-dd}");
-                    System.Diagnostics.Debug.WriteLine($"  TimeIn: {attendance.TimeIn:yyyy-MM-dd HH:mm:ss}");
+                    await _attendance.InsertOneAsync(attendance);
+                    System.Diagnostics.Debug.WriteLine($"InsertOneAsync completed - ID: {attendance.Id}");
                     
-                    try
+                    if (string.IsNullOrEmpty(attendance.Id))
                     {
-                        await _attendance.InsertOneAsync(attendance);
-                        System.Diagnostics.Debug.WriteLine($"InsertOneAsync completed - ID: {attendance.Id}");
-                        
-                        if (string.IsNullOrEmpty(attendance.Id))
-                        {
-                            System.Diagnostics.Debug.WriteLine($"ERROR - Insert completed but ID is null or empty!");
-                            return false;
-                        }
-                        
-                        System.Diagnostics.Debug.WriteLine($"New attendance record created - ID: {attendance.Id}, Date: {attendance.Date:yyyy-MM-dd}, TimeIn: {attendance.TimeIn:yyyy-MM-dd HH:mm:ss}");
-                        
-                        // Wait a moment for the write to propagate
-                        await System.Threading.Tasks.Task.Delay(100);
-                        
-                        // Verify the record was saved
-                        var verifyRecord = await _attendance
-                            .Find(a => a.Id == attendance.Id)
-                            .FirstOrDefaultAsync();
-                        
-                        if (verifyRecord != null)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Verification successful - Record found in database");
-                            System.Diagnostics.Debug.WriteLine($"  Verified EmployeeId: {verifyRecord.EmployeeId}, Date: {verifyRecord.Date:yyyy-MM-dd}");
-                            return true;
-                        }
-                        else
-                        {
-                            System.Diagnostics.Debug.WriteLine($"WARNING - Record not found after insert! ID: {attendance.Id}");
-                            
-                            // Try to find by employeeId and date as fallback
-                            var fallbackRecord = await _attendance
-                                .Find(a => a.EmployeeId == employeeId && a.Date == today && a.IsActive)
-                                .FirstOrDefaultAsync();
-                            
-                            if (fallbackRecord != null)
-                            {
-                                System.Diagnostics.Debug.WriteLine($"Fallback verification successful - Found record with different ID: {fallbackRecord.Id}");
-                                return true;
-                            }
-                            else
-                            {
-                                System.Diagnostics.Debug.WriteLine($"ERROR - Record not found even with fallback query!");
-                                return false;
-                            }
-                        }
+                        System.Diagnostics.Debug.WriteLine($"ERROR - Insert completed but ID is null or empty!");
+                        return false;
                     }
-                    catch (MongoDB.Driver.MongoWriteException mongoEx)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"MongoDB Write Exception: {mongoEx.Message}");
-                        System.Diagnostics.Debug.WriteLine($"Write Error Code: {mongoEx.WriteError?.Code}");
-                        System.Diagnostics.Debug.WriteLine($"Write Error Message: {mongoEx.WriteError?.Message}");
-                        throw;
-                    }
-                    catch (Exception mongoEx) when (mongoEx.GetType().Name == "MongoException" || mongoEx.GetType().Name.Contains("Mongo"))
-                    {
-                        System.Diagnostics.Debug.WriteLine($"MongoDB Exception: {mongoEx.Message}");
-                        System.Diagnostics.Debug.WriteLine($"Exception Type: {mongoEx.GetType().FullName}");
-                        throw;
-                    }
+                                        return true;
                 }
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error recording time in: {ex.Message}\n{ex.StackTrace}");
-                if (ex.InnerException != null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Inner exception: {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
-                }
+                System.Diagnostics.Debug.WriteLine($"Error in TimeInAsync: {ex.Message}");
                 return false;
             }
         }
@@ -349,6 +307,31 @@ namespace ExWebAppSia.Models
             string employeeId, DateTime startDate, DateTime endDate)
         {
             return await GetEmployeeAttendanceAsync(employeeId, startDate, endDate);
+        }
+                
+        // Get attendance records for a department within a date range
+        public async Task<List<Attendance>> GetDepartmentAttendanceAsync(string department, DateTime startDate, DateTime endDate)
+        {
+            try
+            {
+                var filterBuilder = Builders<Attendance>.Filter;
+                var filter = filterBuilder.Eq(a => a.Department, department) &
+                            filterBuilder.Gte(a => a.Date, startDate.Date) &
+                            filterBuilder.Lte(a => a.Date, endDate.Date) &
+                            filterBuilder.Eq(a => a.IsActive, true);
+
+                var attendanceList = await _attendance
+                    .Find(filter)
+                    .SortByDescending(a => a.Date)
+                    .ToListAsync();
+
+                return attendanceList;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting department attendance: {ex.Message}");
+                return new List<Attendance>();
+            }
         }
 
         // Check if employee has timed in today

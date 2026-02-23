@@ -100,45 +100,70 @@ namespace ExWebAppSia.Models
             return await GetApplicantsByStatusAsync("In-Progress");
         }
 
+        // Get for-viewing applicants (status = "For Viewing")
+        public async Task<List<Applicant>> GetForViewingApplicantsAsync()
+        {
+            return await GetApplicantsByStatusAsync("For Viewing");
+        }
+
         // Update applicant status
         public async Task<bool> UpdateApplicantStatusAsync(string applicantId, string newStatus)
         {
             try
             {
-                if (string.IsNullOrEmpty(applicantId))
-                {
-                    System.Diagnostics.Debug.WriteLine("UpdateApplicantStatusAsync: applicantId is null or empty");
-                    return false;
-                }
-
-                // First check if applicant exists
-                var applicant = await GetApplicantByIdAsync(applicantId);
-                if (applicant == null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"UpdateApplicantStatusAsync: Applicant with ID {applicantId} not found");
-                    return false;
-                }
-
-                // Check if status is already the target status
-                if (applicant.Status == newStatus)
-                {
-                    System.Diagnostics.Debug.WriteLine($"UpdateApplicantStatusAsync: Applicant status is already {newStatus}");
-                    return true; // Already in the desired state
-                }
+                if (string.IsNullOrEmpty(applicantId)) return false;
 
                 var filter = Builders<Applicant>.Filter.Eq(a => a.Id, applicantId);
                 var update = Builders<Applicant>.Update.Set(a => a.Status, newStatus);
                 var result = await _applicants.UpdateOneAsync(filter, update);
                 
-                bool success = result.ModifiedCount > 0 || result.MatchedCount > 0;
-                System.Diagnostics.Debug.WriteLine($"UpdateApplicantStatusAsync: Matched={result.MatchedCount}, Modified={result.ModifiedCount}, Success={success}");
-                
-                return success;
+                return result.ModifiedCount > 0 || result.MatchedCount > 0;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error updating applicant status: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                return false;
+            }
+        }
+
+        // Update applicant status to declined with a reason
+        public async Task<bool> UpdateDeclinedStatusAsync(string applicantId, string reason)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(applicantId)) return false;
+
+                var filter = Builders<Applicant>.Filter.Eq(a => a.Id, applicantId);
+                var update = Builders<Applicant>.Update
+                    .Set(a => a.Status, "Declined")
+                    .Set(a => a.DeclineReason, reason);
+                
+                var result = await _applicants.UpdateOneAsync(filter, update);
+                return result.ModifiedCount > 0 || result.MatchedCount > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error declining applicant: {ex.Message}");
+                return false;
+            }
+        }
+
+        // Update requirements status
+        public async Task<bool> UpdateRequirementsStatusAsync(string applicantId, bool isComplete)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(applicantId)) return false;
+
+                var filter = Builders<Applicant>.Filter.Eq(a => a.Id, applicantId);
+                var update = Builders<Applicant>.Update.Set(a => a.IsRequirementsComplete, isComplete);
+                
+                var result = await _applicants.UpdateOneAsync(filter, update);
+                return result.ModifiedCount > 0 || result.MatchedCount > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating requirements status: {ex.Message}");
                 return false;
             }
         }
@@ -176,7 +201,7 @@ namespace ExWebAppSia.Models
         }
 
         // Schedule interview for applicant
-        public async Task<bool> ScheduleInterviewAsync(string applicantId, DateTime interviewDate, string interviewTime, 
+        public async Task<bool> ScheduleInterviewAsync(string applicantId, DateTime interviewDate, string interviewTime,
             string interviewLocation, string interviewerName, string interviewNotes, string scheduledBy)
         {
             try
@@ -198,6 +223,28 @@ namespace ExWebAppSia.Models
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error scheduling interview: {ex.Message}");
+                return false;
+            }
+        }
+        public async Task<bool> UpdateGovtDetailsAsync(string applicantId, string sss, string philhealth, string pagibig)
+        {
+            try
+            {
+                var filter = Builders<Applicant>.Filter.Eq(a => a.Id, applicantId);
+                var update = Builders<Applicant>.Update
+                    .Set(a => a.SSSNumber, sss)
+                    .Set(a => a.PhilHealthNumber, philhealth)
+                    .Set(a => a.PagIbigNumber, pagibig)
+                    .Set(a => a.HasSSS, !string.IsNullOrEmpty(sss))
+                    .Set(a => a.HasPhilHealth, !string.IsNullOrEmpty(philhealth))
+                    .Set(a => a.HasPagIbig, !string.IsNullOrEmpty(pagibig));
+
+                var result = await _applicants.UpdateOneAsync(filter, update);
+                return result.ModifiedCount > 0 || result.MatchedCount > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating govt details: {ex.Message}");
                 return false;
             }
         }

@@ -4,6 +4,7 @@ using System;
 
 namespace ExWebAppSia.Models
 {
+    [BsonIgnoreExtraElements]
     public class Employee
     {
         [BsonId]
@@ -44,7 +45,10 @@ namespace ExWebAppSia.Models
         public string Department { get; set; } // The position/department they were hired for
 
         [BsonElement("role")]
-        public string Role { get; set; } // Job role/title
+        public string Role { get; set; } // Job Title / Position
+
+        [BsonElement("position")]
+        public string Position { get; set; } // Specific role within department
 
         [BsonElement("hiredDate")]
         public DateTime HiredDate { get; set; } = DateTime.UtcNow;
@@ -53,10 +57,34 @@ namespace ExWebAppSia.Models
         public string ApplicantId { get; set; } // Reference to original applicant record
 
         [BsonElement("contractType")]
-        public string ContractType { get; set; } // "Regular" or "Contractual"
+        public string ContractType { get; set; } // "Regular" or "Probationary"
+
+        [BsonElement("hasSSS")]
+        public bool HasSSS { get; set; }
+
+        [BsonElement("hasPhilHealth")]
+        public bool HasPhilHealth { get; set; }
+
+        [BsonElement("hasPagIbig")]
+        public bool HasPagIbig { get; set; }
+
+        [BsonElement("baseSalary")]
+        public decimal BaseSalary { get; set; }
 
         [BsonElement("isActive")]
         public bool IsActive { get; set; } = true;
+
+        // Auto-calculate employment status based on HiredDate (6 months rule)
+        [BsonIgnore]
+        public string EmploymentStatus 
+        {
+            get 
+            {
+                if (HiredDate == DateTime.MinValue) return "Probationary";
+                var sixMonthsAgo = DateTime.UtcNow.AddMonths(-6);
+                return HiredDate <= sixMonthsAgo ? "Regular" : "Probationary";
+            }
+        }
 
         // Helper property for full name
         [BsonIgnore]

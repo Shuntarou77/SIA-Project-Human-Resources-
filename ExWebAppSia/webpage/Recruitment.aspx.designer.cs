@@ -60,6 +60,15 @@ namespace ExWebAppSia.webpage
         protected global::System.Web.UI.WebControls.Literal litDeclinedCount;
 
         /// <summary>
+        /// litForViewingCount control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Literal litForViewingCount;
+
+        /// <summary>
         /// newApplicantsTableBody control.
         /// </summary>
         /// <remarks>
@@ -85,6 +94,15 @@ namespace ExWebAppSia.webpage
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.HtmlControls.HtmlGenericControl declinedApplicantsTableBody;
+
+        /// <summary>
+        /// forViewingApplicantsTableBody control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl forViewingApplicantsTableBody;
 
         /// <summary>
         /// inProgressApplicantsTableBody control.
@@ -329,14 +347,7 @@ namespace ExWebAppSia.webpage
         /// </remarks>
         protected global::System.Web.UI.WebControls.RadioButtonList rblContractType;
 
-        /// <summary>
-        /// rblHiringType control.
-        /// </summary>
-        /// <remarks>
-        /// Auto-generated field.
-        /// To modify move field declaration from designer file to code-behind file.
-        /// </remarks>
-        protected global::System.Web.UI.WebControls.RadioButtonList rblHiringType;
+
 
         /// <summary>
         /// btnCancel control.
@@ -499,5 +510,123 @@ namespace ExWebAppSia.webpage
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.HiddenField hdnSelectedApplicantIds;
+
+        /// <summary>
+        /// litAvailablePositions control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Literal litAvailablePositions;
+
+        /// <summary>
+        /// litAvailablePositionsList control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Literal litAvailablePositionsList;
+
+
+
+        /// <summary>
+        /// txtDeclineReason control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.TextBox txtDeclineReason;
+
+        /// <summary>
+        /// chkSSS control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.CheckBox chkSSS;
+
+        /// <summary>
+        /// chkPhilHealth control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.CheckBox chkPhilHealth;
+
+        /// <summary>
+        /// chkPagIbig control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.CheckBox chkPagIbig;
+
+        /// <summary>
+        /// hdnDeclineReason control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hdnDeclineReason;
+
+        /// <summary>
+        /// btnConfirmDecline control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Button btnConfirmDecline;
+        /// <summary>
+        /// btnSendRequirementEmail control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.Button btnSendRequirementEmail;
+
+        /// <summary>
+        /// hdnSelectedNewApplicantIds control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// To modify move field declaration from designer file to code-behind file.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hdnSelectedNewApplicantIds;
+
+        /// <summary>
+        /// hdnActiveSubTab control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.HiddenField hdnActiveSubTab;
+
+        /// <summary>
+        /// txtStartingSalary control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.TextBox txtStartingSalary;
+
+        /// <summary>
+        /// txtSSSNumber control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.TextBox txtSSSNumber;
+
+        /// <summary>
+        /// txtPhilHealthNumber control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.TextBox txtPhilHealthNumber;
+
+        /// <summary>
+        /// txtPagIbigNumber control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.TextBox txtPagIbigNumber;
+
+        /// <summary>
+        /// btnSaveGovtDetails control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Button btnSaveGovtDetails;
+
+        /// <summary>
+        /// govtDetailsSection control.
+        /// </summary>
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl govtDetailsSection;
     }
 }

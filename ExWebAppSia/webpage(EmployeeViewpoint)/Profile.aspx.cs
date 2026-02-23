@@ -145,6 +145,13 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
             return string.IsNullOrEmpty(employee.ContractType) ? "Regular" : employee.ContractType;
         }
 
+        protected string GetEmployeeSalary()
+        {
+            var employee = CurrentEmployee;
+            if (employee == null) return "₱0.00";
+            return $"₱{employee.BaseSalary:N2}";
+        }
+
         private async Task LoadAttendanceStatisticsAsync()
         {
             try

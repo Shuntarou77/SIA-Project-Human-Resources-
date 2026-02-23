@@ -28,6 +28,9 @@ namespace ExWebAppSia.Models
         [BsonElement("timeOut")]
         public DateTime? TimeOut { get; set; } // Time out timestamp
 
+        [BsonElement("lateTime")]
+        public string LateTime { get; set; } // e.g., "00:15" if 15 mins late
+
         [BsonElement("createdAt")]
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

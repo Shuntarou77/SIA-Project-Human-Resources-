@@ -1,4 +1,4 @@
-﻿            using System;
+﻿using System;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.UI;
@@ -66,6 +66,13 @@ namespace ExWebAppSia.LoginFolder
 
                 // Hide error message on initial load
                 errorMessage.Visible = false;
+
+                // Handle Remember Me - Load from cookie if exists
+                if (Request.Cookies["HRSystemUser"] != null)
+                {
+                    txtUsername.Text = Request.Cookies["HRSystemUser"]["Username"];
+                    chkRememberMe.Checked = true;
+                }
 
                 // Initialize database with default users (only run once)
                 RegisterAsyncTask(new PageAsyncTask(InitializeDefaultUsers));
@@ -138,29 +145,11 @@ namespace ExWebAppSia.LoginFolder
                             return;
                         }
                     }
-                    // Load manager data if role is Manager
-                    else if (user.Role == "Manager")
+                    // Specific Admin types (HR Admin, Marketing Admin, etc.)
+                    else if (user.Role.Contains("Admin") || user.Role == "HR")
                     {
-                        try
-                        {
-                            // Load manager data by email (username is the email)
-                            var manager = await ManagerServiceInstance.GetManagerByEmailAsync(user.Username);
-                            if (manager != null)
-                            {
-                                Session["Manager"] = manager;
-                                System.Diagnostics.Debug.WriteLine($"Manager data loaded: {manager.ManagerId} - {manager.FirstName} {manager.LastName}");
-                            }
-                            else
-                            {
-                                System.Diagnostics.Debug.WriteLine($"Warning: Could not find manager with email: {user.Username}");
-                                // Don't block login, but log the warning
-                            }
-                        }
-                        catch (Exception mgrEx)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Error loading manager data: {mgrEx.Message}");
-                            // Don't block login, but log the error
-                        }
+                        // Standard admin session setup
+                        System.Diagnostics.Debug.WriteLine($"Admin-type user: {user.Role}");
                     }
 
                     // Debug: Verify session values
@@ -175,24 +164,34 @@ namespace ExWebAppSia.LoginFolder
                         userCookie.Expires = DateTime.Now.AddDays(30);
                         Response.Cookies.Add(userCookie);
                     }
+                    else
+                    {
+                        // Clear cookie if unchecked
+                        if (Request.Cookies["HRSystemUser"] != null)
+                        {
+                            HttpCookie userCookie = new HttpCookie("HRSystemUser");
+                            userCookie.Expires = DateTime.Now.AddDays(-1);
+                            Response.Cookies.Add(userCookie);
+                        }
+                    }
 
                     // Redirect based on role
-                    if (user.Role == "Admin")
+                    if (user.Role == "Admin" || user.Role.Contains("Admin") || user.Role == "HR")
                     {
-                        // was: Server.Transfer("~/webpage/Dashboard.aspx");
                         Response.Redirect("~/webpage/Dashboard.aspx", false);
                         Context.ApplicationInstance.CompleteRequest();
                     }
                     else if (user.Role == "Employee")
                     {
-                        // was: Server.Transfer("~/webpage(EmployeeViewpoint)/Dashboard.aspx");
-                        Response.Redirect("~/webpage(EmployeeViewpoint)/Dashboard.aspx", false);
-                        Context.ApplicationInstance.CompleteRequest();
-                    }
-                    else if (user.Role == "Manager")
-                    {
-                        string managerDashboardPath = ResolveUrl("~/webpage(ManagerViewpoint/Dashboard.aspx");
-                        Response.Redirect(managerDashboardPath, false);
+                        var employee = Session["Employee"] as Employee;
+                        if (employee != null && employee.Department == "Human Resources")
+                        {
+                            Response.Redirect("~/webpage/Dashboard.aspx", false);
+                        }
+                        else
+                        {
+                            Response.Redirect("~/webpage(EmployeeViewpoint)/Dashboard.aspx", false);
+                        }
                         Context.ApplicationInstance.CompleteRequest();
                     }
                 }
@@ -213,21 +212,8 @@ namespace ExWebAppSia.LoginFolder
         {
             try
             {
-                // Check if admin user exists
-                var adminUser = await UserServiceInstance.GetUserByUsernameAsync("admin");
-                if (adminUser == null)
-                {
-                    // Create default admin user (Admin role only - not Employee)
-                    bool adminCreated = await UserServiceInstance.CreateUserAsync("admin", "admin123", "Admin", "admin@company.com");
-                    System.Diagnostics.Debug.WriteLine($"Admin user created: {adminCreated}");
-                }
-
-
-                await DefaultManagerSeeder.EnsureDefaultManagersAsync();
-
-                System.Diagnostics.Debug.WriteLine("✅ Default admin user initialized");
-                System.Diagnostics.Debug.WriteLine("✅ Default managers ensured for every department");
-                System.Diagnostics.Debug.WriteLine("ℹ️  Employee accounts should be created via Recruitment page (Hire workflow)");
+                System.Diagnostics.Debug.WriteLine("✅ System users and employees already seeded.");
+                System.Diagnostics.Debug.WriteLine("ℹ️  New accounts will be created via Recruitment page (Hire workflow)");
             }
             catch (Exception ex)
             {
@@ -247,8 +233,7 @@ namespace ExWebAppSia.LoginFolder
             var testAccounts = new[]
         {
           new { Username = "admin2",   Password = "admin234",  Role = "Admin",    Redirect = "~/webpage/Dashboard.aspx" },
-          new { Username = "employee",   Password = "emp123",  Role = "Employee",    Redirect = "~/webpage(EmployeeViewpoint)/Dashboard.aspx" },
-      new { Username = "manager2", Password = "manager234", Role = "Manager", Redirect = "~/webpage(ManagerViewpoint)/Dashboard.aspx" }
+          new { Username = "employee",   Password = "emp123",  Role = "Employee",    Redirect = "~/webpage(EmployeeViewpoint)/Dashboard.aspx" }
 };
 
             foreach (var acct in testAccounts)

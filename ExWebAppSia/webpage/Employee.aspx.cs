@@ -20,8 +20,11 @@ namespace ExWebAppSia.webpage
 
         protected void Page_Load(object sender, EventArgs e)
         {
-            // Always load data so the table doesn't disappear on postback
-            RegisterAsyncTask(new PageAsyncTask(LoadEmployeesData));
+            if (!IsPostBack)
+            {
+                // Only load the full dataset on initial page load
+                RegisterAsyncTask(new PageAsyncTask(LoadEmployeesData));
+            }
         }
 
         private async Task LoadEmployeesData()
@@ -48,7 +51,7 @@ namespace ExWebAppSia.webpage
 
                 // Update department counts
                 UpdateDepartmentCounts(departmentCounts);
-                UpdateDepartmentHeads(managers);
+                // UpdateDepartmentHeads(managers); // Removed as per request to remove "Head" text
 
                 // Populate employee table
                 PopulateEmployeeTable(employees);
@@ -82,6 +85,7 @@ namespace ExWebAppSia.webpage
             return counts.ContainsKey(key) ? counts[key] : 0;
         }
 
+        /*
         private void UpdateDepartmentHeads(List<Manager> managers)
         {
             var literals = new Dictionary<string, Literal>(StringComparer.OrdinalIgnoreCase)
@@ -119,6 +123,7 @@ namespace ExWebAppSia.webpage
                 }
             }
         }
+        */
 
         private void PopulateEmployeeTable(List<Employee> employees)
         {
@@ -138,15 +143,38 @@ namespace ExWebAppSia.webpage
             var sb = new StringBuilder();
             foreach (var employee in employees)
             {
-                string employeeId = Server.HtmlEncode(employee.Id);
-                string dept = Server.HtmlEncode(employee.Department ?? "");
+                string id = HttpUtility.HtmlAttributeEncode(employee.Id);
+                string empId = HttpUtility.HtmlAttributeEncode(employee.EmployeeId ?? "");
+                string fname = HttpUtility.HtmlAttributeEncode(employee.FirstName ?? "");
+                string mname = HttpUtility.HtmlAttributeEncode(employee.MiddleName ?? "");
+                string lname = HttpUtility.HtmlAttributeEncode(employee.LastName ?? "");
+                string email = HttpUtility.HtmlAttributeEncode(employee.Email ?? "");
+                string contact = HttpUtility.HtmlAttributeEncode(employee.ContactNo ?? "");
+                string address = HttpUtility.HtmlAttributeEncode(employee.Address ?? "");
+                string dept = HttpUtility.HtmlAttributeEncode(employee.Department ?? "");
+                string role = HttpUtility.HtmlAttributeEncode(employee.Role ?? "");
+                string hired = employee.HiredDate.ToLocalTime().ToString("MMM dd, yyyy");
+                string active = employee.IsActive ? "Active" : "Inactive";
                 
-                sb.AppendFormat("<tr data-dept='{0}' style='cursor: pointer;' onclick=\"viewEmployeeDetails('{1}')\" title='Click to view details'>", 
-                    dept, 
-                    employeeId);
+                string contract = HttpUtility.HtmlAttributeEncode(employee.ContractType ?? "Regular");
+                
+                string salary = employee.BaseSalary.ToString("N2");
+                
+                sb.AppendFormat("<tr class='employee-row' onclick=\"viewEmployeeDetails(this)\" style='cursor: pointer;' " +
+                                "data-id='{0}' data-emp-id='{1}' data-fname='{2}' data-mname='{3}' data-lname='{4}' " +
+                                "data-email='{5}' data-contact='{6}' data-address='{7}' data-dept='{8}' data-role='{9}' " +
+                                "data-hired='{10}' data-active='{11}' data-sss='{12}' data-ph='{13}' data-pi='{14}' data-salary='{15}' data-contract='{16}'>",
+                    id, empId, fname, mname, lname, email, contact, address, dept, role, 
+                    hired, active, 
+                    employee.HasSSS.ToString().ToLower(), 
+                    employee.HasPhilHealth.ToString().ToLower(), 
+                    employee.HasPagIbig.ToString().ToLower(),
+                    salary,
+                    contract);
+                
                 sb.AppendFormat("<td>{0}</td>", Server.HtmlEncode(employee.EmployeeId));
                 sb.AppendFormat("<td>{0}</td>", Server.HtmlEncode(employee.FullName));
-                sb.AppendFormat("<td>{0}</td>", dept);
+                sb.AppendFormat("<td>{0}</td>", Server.HtmlEncode(employee.Department ?? ""));
                 sb.AppendFormat("<td>{0}</td>", Server.HtmlEncode(employee.Role ?? ""));
                 sb.Append("</tr>");
             }
@@ -243,10 +271,7 @@ namespace ExWebAppSia.webpage
             try
             {
                 var employeeService = new EmployeeService();
-                var employee = employeeService.GetEmployeeByIdAsync(id)
-                    .ConfigureAwait(false)
-                    .GetAwaiter()
-                    .GetResult();
+                var employee = Task.Run(() => employeeService.GetEmployeeByIdAsync(id)).Result;
 
                 if (employee == null) return "Employee not found.";
 
@@ -273,6 +298,14 @@ namespace ExWebAppSia.webpage
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Role:</td><td style='padding: 8px;'>{0}</td></tr>", HttpUtility.HtmlEncode(employee.Role ?? ""));
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Hired Date:</td><td style='padding: 8px;'>{0}</td></tr>", employee.HiredDate.ToLocalTime().ToString("MMM dd, yyyy"));
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Status:</td><td style='padding: 8px;'>{0}</td></tr>", employee.IsActive ? "Active" : "Inactive");
+                
+                // Gov Contributions
+                sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Govt. Contributions:</td><td style='padding: 8px;'>");
+                sb.AppendFormat("<span style='color: {0}; margin-right: 15px;'>SSS: {1}</span>", employee.HasSSS ? "green" : "gray", employee.HasSSS ? "✓" : "✗");
+                sb.AppendFormat("<span style='color: {0}; margin-right: 15px;'>PhilHealth: {1}</span>", employee.HasPhilHealth ? "green" : "gray", employee.HasPhilHealth ? "✓" : "✗");
+                sb.AppendFormat("<span style='color: {0}'>Pag-IBIG: {1}</span>", employee.HasPagIbig ? "green" : "gray", employee.HasPagIbig ? "✓" : "✗");
+                sb.Append("</td></tr>");
+                
                 sb.Append("</table>");
                 sb.Append("</div>");
 
@@ -306,6 +339,99 @@ namespace ExWebAppSia.webpage
             {
                 return "Error loading details: " + ex.Message;
             }
+        }
+
+        [System.Web.Services.WebMethod]
+        public static string GetLeaveHistory(string id)
+        {
+            try
+            {
+                var leaveService = new LeaveService();
+                var leaves = Task.Run(() => leaveService.GetLeavesByEmployeeIdAsync(id)).Result;
+                
+                var sb = new StringBuilder();
+                sb.Append("<div style='padding: 20px;'>");
+
+                if (leaves == null || leaves.Count == 0)
+                {
+                    sb.Append("<div style='text-align: center; padding: 40px; color: #999;'>");
+                    sb.Append("<p style='font-size: 16px;'>No leave records found for this employee.</p>");
+                    sb.Append("</div>");
+                }
+                else
+                {
+                    sb.Append("<h3 style='color: #8B4755; margin-bottom: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px;'>Leave History</h3>");
+                    foreach (var leave in leaves)
+                    {
+                        string statusColor = leave.Status == "Approved" ? "#10b981" : 
+                                            leave.Status == "Rejected" ? "#ef4444" : "#f59e0b";
+                        
+                        sb.Append("<div style='background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid " + statusColor + ";'>");
+                        sb.AppendFormat("<div style='display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;'>");
+                        sb.AppendFormat("<div><strong style='color: #333; font-size: 16px;'>{0}</strong></div>", HttpUtility.HtmlEncode(leave.LeaveType ?? ""));
+                        sb.AppendFormat("<span style='background: {0}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;'>{1}</span>", statusColor, HttpUtility.HtmlEncode(leave.Status ?? ""));
+                        sb.Append("</div>");
+                        sb.AppendFormat("<div style='margin-bottom: 8px; color: #666;'><strong>Period:</strong> {0} to {1}</div>", 
+                            leave.StartDate.ToLocalTime().ToString("MMM dd, yyyy"), 
+                            leave.EndDate.ToLocalTime().ToString("MMM dd, yyyy"));
+                        sb.AppendFormat("<div style='margin-bottom: 8px; color: #666;'><strong>Reason:</strong> {0}</div>", HttpUtility.HtmlEncode(leave.Reason ?? ""));
+                        sb.AppendFormat("<div style='color: #999; font-size: 12px;'><strong>Submitted:</strong> {0}</div>", leave.SubmittedDate.ToLocalTime().ToString("MMM dd, yyyy h:mm tt"));
+                        sb.Append("</div>");
+                    }
+                }
+                sb.Append("</div>");
+                return sb.ToString();
+            }
+            catch (Exception ex) { return "Error loading leave history: " + ex.Message; }
+        }
+
+        [System.Web.Services.WebMethod]
+        public static string GetConcernHistory(string id)
+        {
+            try
+            {
+                var concernService = new EmployeeConcernService();
+                var concerns = Task.Run(() => concernService.GetConcernsByEmployeeIdAsync(id)).Result;
+                
+                var sb = new StringBuilder();
+                sb.Append("<div style='padding: 20px;'>");
+
+                if (concerns == null || concerns.Count == 0)
+                {
+                    sb.Append("<div style='text-align: center; padding: 40px; color: #999;'>");
+                    sb.Append("<p style='font-size: 16px;'>No concern records found for this employee.</p>");
+                    sb.Append("</div>");
+                }
+                else
+                {
+                    sb.Append("<h3 style='color: #8B4755; margin-bottom: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px;'>Concern History</h3>");
+                    foreach (var concern in concerns)
+                    {
+                        string priorityColor = concern.PriorityLevel == "Urgent" ? "#ef4444" : 
+                                              concern.PriorityLevel == "High" ? "#f59e0b" : 
+                                              concern.PriorityLevel == "Medium" ? "#3b82f6" : "#10b981";
+                        
+                        string statusColor = concern.Status == "Resolved" ? "#10b981" : 
+                                            concern.Status == "Closed" ? "#6b7280" : 
+                                            concern.Status == "In Progress" ? "#3b82f6" : "#f59e0b";
+                        
+                        sb.Append("<div style='background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid " + priorityColor + ";'>");
+                        sb.AppendFormat("<div style='display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;'>");
+                        sb.AppendFormat("<div><strong style='color: #333; font-size: 16px;'>{0}</strong></div>", HttpUtility.HtmlEncode(concern.Subject ?? ""));
+                        sb.AppendFormat("<div style='display: flex; gap: 8px; flex-wrap: wrap;'>");
+                        sb.AppendFormat("<span style='background: {0}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;'>{1}</span>", priorityColor, HttpUtility.HtmlEncode(concern.PriorityLevel ?? ""));
+                        sb.AppendFormat("<span style='background: {0}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;'>{1}</span>", statusColor, HttpUtility.HtmlEncode(concern.Status ?? ""));
+                        sb.Append("</div></div>");
+                        sb.AppendFormat("<div style='margin-bottom: 8px; color: #666;'><strong>Type:</strong> {0}</div>", HttpUtility.HtmlEncode(concern.ConcernType ?? ""));
+                        sb.AppendFormat("<div style='margin-bottom: 8px; color: #666;'><strong>Description:</strong> {0}</div>", HttpUtility.HtmlEncode(concern.Description ?? ""));
+                        sb.AppendFormat("<div style='color: #999; font-size: 12px;'><strong>Submitted:</strong> {0}</div>", concern.SubmittedDate.ToLocalTime().ToString("MMM dd, yyyy h:mm tt"));
+                        sb.Append("</div>");
+                    }
+                }
+                sb.Append("</div>");
+                return sb.ToString();
+            }
+            catch (Exception ex) { return "Error loading concern history: " + ex.Message; }
         }
 
         protected async void btnViewEmployeeDetails_Click(object sender, EventArgs e)
@@ -345,6 +471,14 @@ namespace ExWebAppSia.webpage
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Role:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(employee.Role ?? ""));
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Hired Date:</td><td style='padding: 8px;'>{0}</td></tr>", employee.HiredDate.ToLocalTime().ToString("MMM dd, yyyy"));
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Status:</td><td style='padding: 8px;'>{0}</td></tr>", employee.IsActive ? "Active" : "Inactive");
+            
+            // Gov Contributions
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Govt. Contributions:</td><td style='padding: 8px;'>");
+            sb.AppendFormat("<span style='color: {0}; margin-right: 15px;'>SSS: {1}</span>", employee.HasSSS ? "green" : "gray", employee.HasSSS ? "✓" : "✗");
+            sb.AppendFormat("<span style='color: {0}; margin-right: 15px;'>PhilHealth: {1}</span>", employee.HasPhilHealth ? "green" : "gray", employee.HasPhilHealth ? "✓" : "✗");
+            sb.AppendFormat("<span style='color: {0}'>Pag-IBIG: {1}</span>", employee.HasPagIbig ? "green" : "gray", employee.HasPagIbig ? "✓" : "✗");
+            sb.Append("</td></tr>");
+            
             sb.Append("</table>");
 
             sb.Append("</div>");

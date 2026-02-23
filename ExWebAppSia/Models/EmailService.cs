@@ -7,10 +7,10 @@ using System.Configuration;
 namespace ExWebAppSia.Models
 {
     public class EmailService
-  {
+    {
         private readonly string _smtpHost;
         private readonly int _smtpPort;
-private readonly string _smtpUsername;
+        private readonly string _smtpUsername;
         private readonly string _smtpPassword;
         private readonly string _fromEmail;
         private readonly string _fromName;
@@ -18,111 +18,118 @@ private readonly string _smtpUsername;
 
         public EmailService()
         {
-       // Load SMTP settings from Web.config
-    _smtpHost = ConfigurationManager.AppSettings["SmtpHost"] ?? "smtp.gmail.com";
-    _smtpPort = int.Parse(ConfigurationManager.AppSettings["SmtpPort"] ?? "587");
-         _smtpUsername = ConfigurationManager.AppSettings["SmtpUsername"] ?? "";
-            _smtpPassword = ConfigurationManager.AppSettings["SmtpPassword"] ?? "";
-            _fromEmail = ConfigurationManager.AppSettings["FromEmail"] ?? "";
-         _fromName = ConfigurationManager.AppSettings["FromName"] ?? "HR Department";
-     _enableSsl = bool.Parse(ConfigurationManager.AppSettings["EnableSsl"] ?? "true");
+            // Load SMTP settings from Web.config
+            _smtpHost = (ConfigurationManager.AppSettings["SmtpHost"] ?? "smtp.gmail.com").Trim();
+            _smtpPort = int.Parse(ConfigurationManager.AppSettings["SmtpPort"] ?? "587");
+            _smtpUsername = (ConfigurationManager.AppSettings["SmtpUsername"] ?? "").Trim();
+            _smtpPassword = (ConfigurationManager.AppSettings["SmtpPassword"] ?? "").Trim();
+            _fromEmail = (ConfigurationManager.AppSettings["FromEmail"] ?? "").Trim();
+            _fromName = ConfigurationManager.AppSettings["FromName"] ?? "HR Department";
+            _enableSsl = bool.Parse(ConfigurationManager.AppSettings["EnableSsl"] ?? "true");
+            
+            // Enforce TLS 1.2 for secure SMTP connections
+            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12;
         }
 
         /// <summary>
         /// Send interview invitation email to applicant
-     /// </summary>
+        /// </summary>
         public async Task<bool> SendInterviewInvitationEmailAsync(string toEmail, string applicantName, DateTime interviewDateTime, string location, string interviewerName, string notes = "")
- {
-          try
-     {
-                string subject = "Interview Invitation - Essentials Beauty Product Company";
-    
+        {
+            try
+            {
+                string subject = "Interview Invitation - SheEssentials Beauty Product Company";
+
                 string body = $@"
 <!DOCTYPE html>
 <html>
 <head>
     <style>
-      body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
         .header {{ background: linear-gradient(135deg, #A36A66, #8B5A58); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
-      .content {{ background: white; padding: 30px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 8px 8px; }}
+        .content {{ background: white; padding: 30px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 8px 8px; }}
         .details {{ background: #F8ECEB; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #A36A66; }}
-        .button {{ display: inline-block; background: #A36A66; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }}
-      .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #999; }}
+        .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #999; }}
     </style>
 </head>
 <body>
     <div class='container'>
         <div class='header'>
             <h1 style='margin: 0; font-size: 28px;'>Interview Invitation</h1>
-            <p style='margin: 10px 0 0; opacity: 0.95;'>Essentials Beauty Product Company</p>
-    </div>
+            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials Beauty Product Company</p>
+        </div>
         <div class='content'>
-        <p>Dear <strong>{applicantName}</strong>,</p>
-     
-   <p>Congratulations! We are pleased to invite you for an interview for the position you applied for.</p>
-      
- <div class='details'>
-     <p><strong>?? Interview Date & Time:</strong><br/>{interviewDateTime.ToLocalTime():dddd, MMMM dd, yyyy} at {interviewDateTime.ToLocalTime():h:mm tt}</p>
-     <p><strong>?? Location:</strong><br/>{location}</p>
-                <p><strong>?? Interviewer:</strong><br/>{interviewerName}</p>
-    {(!string.IsNullOrEmpty(notes) ? $"<p><strong>?? Additional Notes:</strong><br/>{notes}</p>" : "")}
+            <p>Dear <strong>{applicantName}</strong>,</p>
+            
+            <p>Congratulations! Following the approval of your initial application, we are pleased to officially invite you for an interview at <strong>SheEssentials Beauty Product Company</strong>.</p>
+            
+            <div class='details'>
+                <p><strong>📅 Interview Date & Time:</strong><br/>{interviewDateTime.ToLocalTime():dddd, MMMM dd, yyyy} at {interviewDateTime.ToLocalTime():h:mm tt}</p>
+                <p><strong>📍 Location:</strong><br/>{location}</p>
+                <p><strong>👤 Interviewer:</strong><br/>{interviewerName}</p>
+                {(!string.IsNullOrEmpty(notes) ? $"<p><strong>📝 Additional Notes:</strong><br/>{notes}</p>" : "")}
             </div>
-    
-          <p><strong>What to Bring:</strong></p>
-          <ul>
- <li>Updated resume/CV</li>
- <li>Valid ID</li>
-                <li>Professional portfolio (if applicable)</li>
+            
+            <p><strong>Interview Preparation & Guidelines:</strong></p>
+            <ul>
+                <li><strong>Arrival:</strong> Please arrive 10-15 minutes before your scheduled time for processing.</li>
+                <li><strong>Dress Code:</strong> Business Professional attire is recommended.</li>
+                <li><strong>Documents to Bring:</strong>
+                    <ul>
+                        <li>Updated Resume/CV</li>
+                        <li>Valid Government-issued ID</li>
+                        <li>Professional Portfolio (if applicable)</li>
+                    </ul>
+                </li>
             </ul>
-     
-            <p><strong>Please confirm your attendance</strong> by replying to this email at your earliest convenience.</p>
-         
-  <p>If you have any questions or need to reschedule, please don't hesitate to contact us.</p>
             
-   <p>We look forward to meeting you!</p>
+            <p><strong>Confirmation Required:</strong><br/>
+            Please <strong>confirm your attendance</strong> by replying directly to this email at your earliest convenience. If you need to reschedule, kindly notify us at least 24 hours in advance.</p>
             
-        <p>Best regards,<br/>
+            <p>We look forward to the opportunity to discuss your background and how you can contribute to our team!</p>
+            
+            <p>Best regards,<br/>
             <strong>HR Department</strong><br/>
-   Essentials Beauty Product Company</p>
-     </div>
+            SheEssentials Beauty Product Company</p>
+        </div>
         <div class='footer'>
-       <p>This is an automated message. Please do not reply directly to this email.</p>
-      </div>
+            <p>This is an automated message. Please do not reply directly to this email.</p>
+        </div>
     </div>
 </body>
 </html>";
 
- return await SendEmailAsync(toEmail, subject, body, isHtml: true);
-     }
-        catch (Exception ex)
+                return await SendEmailAsync(toEmail, subject, body, isHtml: true);
+            }
+            catch (Exception ex)
             {
-           System.Diagnostics.Debug.WriteLine($"Error sending interview invitation email: {ex.Message}");
-              return false;
-     }
-    }
+                System.Diagnostics.Debug.WriteLine($"Error sending interview invitation email: {ex.Message}");
+                return false;
+            }
+        }
 
         /// <summary>
-    /// Send hired notification email with account credentials
-/// </summary>
+        /// Send hired notification email with account credentials
+        /// </summary>
         public async Task<bool> SendHiredEmailAsync(string toEmail, string applicantName, string department, string role, string username, string password, bool isManager = false)
         {
-   try
-        {
-    string subject = "Congratulations! You're Hired - Essentials Beauty Product Company";
-        string portalType = isManager ? "Manager Portal" : "Employee Self-Service Portal";
-  string loginUrl = isManager ? "http://localhost:54257/ManagerFolder/ManagerLogin.aspx" : "http://localhost:54257/LoginFolder/Login.aspx";
+            try
+            {
+                string subject = "Congratulations! You're Hired - SheEssentials Beauty Product Company";
+                string portalType = isManager ? "Manager Portal" : "Employee Self-Service Portal";
+                string loginUrl = isManager ? "http://localhost:54257/ManagerFolder/ManagerLogin.aspx" : "http://localhost:54257/LoginFolder/Login.aspx";
 
-  string body = $@"
+                string body = $@"
 <!DOCTYPE html>
 <html>
 <head>
- <style>
+    <style>
         body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
         .header {{ background: linear-gradient(135deg, #4CAF50, #45a049); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
         .content {{ background: white; padding: 30px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 8px 8px; }}
-   .credentials {{ background: #F8ECEB; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #A36A66; }}
+        .credentials {{ background: #F8ECEB; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #A36A66; }}
         .button {{ display: inline-block; background: #4CAF50; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }}
         .warning {{ background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }}
         .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #999; }}
@@ -130,44 +137,44 @@ private readonly string _smtpUsername;
 </head>
 <body>
     <div class='container'>
-   <div class='header'>
-       <h1 style='margin: 0; font-size: 32px;'>?? Congratulations!</h1>
-            <p style='margin: 10px 0 0; opacity: 0.95; font-size: 18px;'>Welcome to Essentials Beauty Product Company</p>
-      </div>
+        <div class='header'>
+            <h1 style='margin: 0; font-size: 32px;'>🎊 Congratulations!</h1>
+            <p style='margin: 10px 0 0; opacity: 0.95; font-size: 18px;'>Welcome to SheEssentials Beauty Product Company</p>
+        </div>
         <div class='content'>
- <p>Dear <strong>{applicantName}</strong>,</p>
+            <p>Dear <strong>{applicantName}</strong>,</p>
             
- <p>We are thrilled to inform you that you have been selected for the position of <strong>{role}</strong> in the <strong>{department}</strong> department.</p>
-         
-     <p>Welcome to the Essentials Beauty Product Company family!</p>
-    
-      <div class='credentials'>
-  <h3 style='margin-top: 0; color: #A36A66;'>?? Your Account Credentials</h3>
-       <p><strong>Portal:</strong> {portalType}</p>
-       <p><strong>Username:</strong> {username}</p>
-   <p><strong>Temporary Password:</strong> {password}</p>
-  <p><strong>Login URL:</strong><br/><a href='{loginUrl}' style='color: #A36A66; word-break: break-all;'>{loginUrl}</a></p>
-  </div>
-     
-      <div class='warning'>
-         <p style='margin: 0;'><strong>?? Important:</strong> Please change your password after your first login for security purposes.</p>
-      </div>
+            <p>We are thrilled to inform you that you have been selected for the position of <strong>{role}</strong> in the <strong>{department}</strong> department.</p>
             
-        <p><strong>Next Steps:</strong></p>
+            <p>Welcome to the SheEssentials Beauty Product Company family!</p>
+            
+            <div class='credentials'>
+                <h3 style='margin-top: 0; color: #A36A66;'>🔑 Your Account Credentials</h3>
+                <p><strong>Portal:</strong> {portalType}</p>
+                <p><strong>Username:</strong> {username}</p>
+                <p><strong>Temporary Password:</strong> {password}</p>
+                <p><strong>Login URL:</strong><br/><a href='{loginUrl}' style='color: #A36A66; word-break: break-all;'>{loginUrl}</a></p>
+            </div>
+            
+            <div class='warning'>
+                <p style='margin: 0;'><strong>⚠️ Important:</strong> Please change your password after your first login for security purposes.</p>
+            </div>
+            
+            <p><strong>Next Steps:</strong></p>
             <ol>
-     <li>Log in to your account using the credentials above</li>
-     <li>Complete your employee profile</li>
-    <li>Review company policies and guidelines</li>
-         <li>Wait for your official start date notification</li>
-     </ol>
-        
+                <li>Log in to your account using the credentials above</li>
+                <li>Complete your employee profile</li>
+                <li>Review company policies and guidelines</li>
+                <li>Wait for your official start date notification</li>
+            </ol>
+            
             <p>If you have any questions or face any issues accessing your account, please contact our HR department.</p>
-      
+            
             <p>Once again, congratulations and welcome aboard!</p>
- 
-        <p>Best regards,<br/>
-     <strong>HR Department</strong><br/>
-       Essentials Beauty Product Company</p>
+            
+            <p>Best regards,<br/>
+            <strong>HR Department</strong><br/>
+            SheEssentials Beauty Product Company</p>
         </div>
         <div class='footer'>
             <p>This email contains confidential information. Please keep your credentials secure.</p>
@@ -176,32 +183,166 @@ private readonly string _smtpUsername;
 </body>
 </html>";
 
-    return await SendEmailAsync(toEmail, subject, body, isHtml: true);
+                return await SendEmailAsync(toEmail, subject, body, isHtml: true);
             }
-   catch (Exception ex)
-   {
-    System.Diagnostics.Debug.WriteLine($"Error sending hired email: {ex.Message}");
-           return false;
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error sending hired email: {ex.Message}");
+                return false;
             }
-  }
+        }
 
-    /// <summary>
-        /// Send rejection email to applicant
+        /// <summary>
+        /// Send physical requirement request email to applicant
         /// </summary>
-        public async Task<bool> SendRejectionEmailAsync(string toEmail, string applicantName, string reason = "")
-     {
-  try
- {
-              string subject = "Application Status Update - Essentials Beauty Product Company";
-      
-           string body = $@"
+        public async Task<bool> SendRequirementRequestEmailAsync(string toEmail, string applicantName, DateTime submissionDeadline)
+        {
+            try
+            {
+                string subject = "Action Required: Physical Requirements Submission - SheEssentials Beauty Product Company";
+                
+                string body = $@"
 <!DOCTYPE html>
 <html>
 <head>
     <style>
-     body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
-    .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-     .header {{ background: linear-gradient(135deg, #6c757d, #5a6268); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .content {{ background: white; padding: 30px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 8px 8px; }}
+        .deadline {{ background: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #3b82f6; color: #1e40af; }}
+        .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #999; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1 style='margin: 0; font-size: 28px;'>Requirement Submission</h1>
+            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials Beauty Product Company</p>
+        </div>
+        <div class='content'>
+            <p>Dear <strong>{applicantName}</strong>,</p>
+            
+            <p>We have reviewed your initial application and would like to proceed to the next step.</p>
+            
+            <p><strong>You can now submit your physical requirements.</strong> Please ensure all necessary documents are provided to our HR department as soon as possible.</p>
+            
+            <div class='deadline'>
+                <p style='margin: 0; font-weight: bold;'>📅 Submission Deadline:</p>
+                <p style='margin: 5px 0 0; font-size: 18px;'>{submissionDeadline:MMMM dd, yyyy}</p>
+                <p style='margin: 5px 0 0; font-size: 13px;'>*Please submit within one week from today.</p>
+            </div>
+            
+            <p><strong>List of Physical Requirements:</strong></p>
+            <ul>
+                <li>Authenticated Birth Certificate</li>
+                <li>NBI Clearance or Police Clearance</li>
+                <li>SSS, PhilHealth, and Pag-IBIG Numbers</li>
+                <li>2x2 ID Pictures (4 copies)</li>
+                <li>Medical Examination Results</li>
+            </ul>
+            
+            <p>If you have any questions regarding the submission process, please reply to this email.</p>
+            
+            <p>Best regards,<br/>
+            <strong>HR Department</strong><br/>
+            SheEssentials Beauty Product Company</p>
+        </div>
+        <div class='footer'>
+            <p>This is an automated message. Please do not reply directly to this email.</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+                return await SendEmailAsync(toEmail, subject, body, isHtml: true);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error sending requirement request email: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Send approval email to applicant
+        /// </summary>
+        public async Task<bool> SendApprovalEmailAsync(string toEmail, string applicantName)
+        {
+            try
+            {
+                string subject = "Application Approved - SheEssentials Beauty Product Company";
+
+                string body = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #A36A66, #8B5A58); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .content {{ background: white; padding: 30px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 8px 8px; }}
+        .highlight {{ background: #F8ECEB; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #A36A66; }}
+        .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #999; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1 style='margin: 0; font-size: 28px;'>Application Approved</h1>
+            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials Beauty Product Company</p>
+        </div>
+        <div class='content'>
+            <p>Dear <strong>{applicantName}</strong>,</p>
+            
+            <p>Congratulations! We are pleased to inform you that your initial application has been approved.</p>
+            
+            <div class='highlight'>
+                <p style='margin: 0;'><strong>📌 Next Step: Interview Schedule</strong></p>
+                <p style='margin: 10px 0 0;'>You have been approved for the next stage. Please wait for a separate email regarding your specific interview schedule and further instructions.</p>
+            </div>
+            
+            <p>In the meantime, please ensure you have all your original documents ready for verification.</p>
+            
+            <p>We look forward to the possibility of having you join our team!</p>
+            
+            <p>Best regards,<br/>
+            <strong>HR Department</strong><br/>
+            SheEssentials Beauty Product Company</p>
+        </div>
+        <div class='footer'>
+            <p>This is an automated message. Please do not reply directly to this email.</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+                return await SendEmailAsync(toEmail, subject, body, isHtml: true);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error sending approval email: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Send rejection email to applicant
+        /// </summary>
+        public async Task<bool> SendRejectionEmailAsync(string toEmail, string applicantName, string reason = "")
+        {
+            try
+            {
+                string subject = "Application Status Update - SheEssentials Beauty Product Company";
+
+                string body = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #6c757d, #5a6268); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
         .content {{ background: white; padding: 30px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 8px 8px; }}
         .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #999; }}
     </style>
@@ -209,26 +350,29 @@ private readonly string _smtpUsername;
 <body>
     <div class='container'>
         <div class='header'>
-       <h1 style='margin: 0; font-size: 28px;'>Application Status Update</h1>
-            <p style='margin: 10px 0 0; opacity: 0.95;'>Essentials Beauty Product Company</p>
+            <h1 style='margin: 0; font-size: 28px;'>Application Status Update</h1>
+            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials Beauty Product Company</p>
         </div>
         <div class='content'>
             <p>Dear <strong>{applicantName}</strong>,</p>
             
-    <p>Thank you for your interest in joining Essentials Beauty Product Company and for taking the time to interview with us.</p>
+            <p>Thank you for your interest in joining SheEssentials Beauty Product Company.</p>
             
-  <p>After careful consideration, we regret to inform you that we have decided to move forward with other candidates whose qualifications more closely match our current needs.</p>
-      
-            {(!string.IsNullOrEmpty(reason) ? $"<p>{reason}</p>" : "")}
+            <p>After careful review of your application, we regret to inform you that we will not be moving forward with your candidacy at this time.</p>
             
- <p>We truly appreciate the time and effort you invested in the application process. Your skills and experience are impressive, and we encourage you to apply for future openings that align with your qualifications.</p>
+            <div style='background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #6c757d;'>
+                <p><strong>Reason for decision:</strong><br/>
+                We have determined that you are either <strong>missing some key requirements</strong> or your current qualifications <strong>do not match our specific needs</strong> for this position at this time.</p>
+            </div>
+
+            {(!string.IsNullOrEmpty(reason) ? $"<p><strong>Additional Feedback:</strong><br/>{reason}</p>" : "")}
             
-         <p>We wish you all the best in your job search and future career endeavors.</p>
-         
+            <p>We appreciate the time you took to apply and wish you the best of luck in your future endeavors.</p>
+            
             <p>Best regards,<br/>
             <strong>HR Department</strong><br/>
-          Essentials Beauty Product Company</p>
- </div>
+            SheEssentials Beauty Product Company</p>
+        </div>
         <div class='footer'>
             <p>Thank you for your interest in our company.</p>
         </div>
@@ -236,13 +380,13 @@ private readonly string _smtpUsername;
 </body>
 </html>";
 
-      return await SendEmailAsync(toEmail, subject, body, isHtml: true);
-    }
-   catch (Exception ex)
-  {
-        System.Diagnostics.Debug.WriteLine($"Error sending rejection email: {ex.Message}");
-           return false;
-         }
+                return await SendEmailAsync(toEmail, subject, body, isHtml: true);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error sending rejection email: {ex.Message}");
+                return false;
+            }
         }
 
         /// <summary>
@@ -299,7 +443,7 @@ private readonly string _smtpUsername;
             
             <p>Best regards,<br/>
             <strong>HR Department</strong><br/>
-            Essentials Beauty Product Company</p>
+            SheEssentials Beauty Product Company</p>
         </div>
         <div class='footer'>
             <p>This is an automated message. Please do not reply directly to this email.</p>
@@ -323,41 +467,41 @@ private readonly string _smtpUsername;
         /// </summary>
         private async Task<bool> SendEmailAsync(string toEmail, string subject, string body, bool isHtml = true)
         {
-       try
-  {
-           // Check if SMTP is configured
-   if (string.IsNullOrEmpty(_smtpUsername) || string.IsNullOrEmpty(_smtpPassword) || string.IsNullOrEmpty(_fromEmail))
-         {
-        System.Diagnostics.Debug.WriteLine("SMTP not configured. Skipping email send.");
-      System.Diagnostics.Debug.WriteLine($"Would have sent email to: {toEmail}");
-     System.Diagnostics.Debug.WriteLine($"Subject: {subject}");
-     return true; // Return true to not block the workflow
-       }
-
- using (var mailMessage = new MailMessage())
-      {
-          mailMessage.From = new MailAddress(_fromEmail, _fromName);
-      mailMessage.To.Add(toEmail);
-  mailMessage.Subject = subject;
-     mailMessage.Body = body;
-         mailMessage.IsBodyHtml = isHtml;
-
-         using (var smtpClient = new SmtpClient(_smtpHost, _smtpPort))
-             {
-   smtpClient.Credentials = new NetworkCredential(_smtpUsername, _smtpPassword);
-          smtpClient.EnableSsl = _enableSsl;
-
-      await smtpClient.SendMailAsync(mailMessage);
-      System.Diagnostics.Debug.WriteLine($"Email sent successfully to: {toEmail}");
-  return true;
-    }
-       }
-      }
-        catch (Exception ex)
+            try
             {
-          System.Diagnostics.Debug.WriteLine($"Error sending email: {ex.Message}");
+                // Check if SMTP is configured
+                if (string.IsNullOrEmpty(_smtpUsername) || string.IsNullOrEmpty(_smtpPassword) || string.IsNullOrEmpty(_fromEmail))
+                {
+                    System.Diagnostics.Debug.WriteLine("SMTP not configured. Skipping email send.");
+                    return true;
+                }
+
+                using (var mailMessage = new MailMessage())
+                {
+                    mailMessage.From = new MailAddress(_fromEmail, _fromName);
+                    mailMessage.To.Add(toEmail);
+                    mailMessage.Subject = subject;
+                    mailMessage.Body = body;
+                    mailMessage.IsBodyHtml = isHtml;
+
+                    using (var smtpClient = new SmtpClient(_smtpHost, _smtpPort))
+                    {
+                        smtpClient.UseDefaultCredentials = false;
+                        smtpClient.Credentials = new NetworkCredential(_smtpUsername, _smtpPassword);
+                        smtpClient.EnableSsl = _enableSsl;
+                        smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
+
+                        await smtpClient.SendMailAsync(mailMessage);
+                        System.Diagnostics.Debug.WriteLine($"Email sent successfully to: {toEmail}");
+                        return true;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error sending email to {toEmail} using account {_smtpUsername}: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-    return false;
+                return false;
             }
         }
 
@@ -396,6 +540,7 @@ private readonly string _smtpUsername;
 
                     using (var smtpClient = new SmtpClient(_smtpHost, _smtpPort))
                     {
+                        smtpClient.UseDefaultCredentials = false;
                         smtpClient.Credentials = new NetworkCredential(_smtpUsername, _smtpPassword);
                         smtpClient.EnableSsl = _enableSsl;
 
@@ -409,6 +554,67 @@ private readonly string _smtpUsername;
             {
                 System.Diagnostics.Debug.WriteLine($"Error sending email with attachment: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+                return false;
+            }
+        }
+        public async Task<bool> SendPasswordResetEmailAsync(string toEmail, string userName, string resetLink)
+        {
+            try
+            {
+                string subject = "Password Reset Request - SheEssentials Beauty Product Company";
+
+                string body = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #A36A66, #8B5A58); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .content {{ background: white; padding: 30px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 8px 8px; }}
+        .button-container {{ text-align: center; margin: 30px 0; }}
+        .button {{ display: inline-block; background: #A36A66; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; }}
+        .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #999; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1 style='margin: 0; font-size: 28px;'>Password Reset</h1>
+            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials Beauty Product Company</p>
+        </div>
+        <div class='content'>
+            <p>Dear <strong>{userName}</strong>,</p>
+            
+            <p>We received a request to reset the password for your account. If you didn't make this request, you can safely ignore this email.</p>
+            
+            <p>To reset your password, please click the button below:</p>
+            
+            <div class='button-container'>
+                <a href='{resetLink}' class='button'>Reset Password</a>
+            </div>
+            
+            <p>Alternatively, you can copy and paste the following link into your browser:</p>
+            <p style='word-break: break-all;'><a href='{resetLink}'>{resetLink}</a></p>
+            
+            <p>This link will expire in 2 hours for security reasons.</p>
+            
+            <p>Best regards,<br/>
+            <strong>HR Department</strong><br/>
+            SheEssentials Beauty Product Company</p>
+        </div>
+        <div class='footer'>
+            <p>This is an automated message. Please do not reply directly to this email.</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+                return await SendEmailAsync(toEmail, subject, body, isHtml: true);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error sending password reset email: {ex.Message}");
                 return false;
             }
         }

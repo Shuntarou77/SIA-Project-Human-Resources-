@@ -4,6 +4,7 @@ using System;
 
 namespace ExWebAppSia.Models
 {
+    [BsonIgnoreExtraElements]
     public class User
     {
         [BsonId]
@@ -95,6 +96,22 @@ namespace ExWebAppSia.Models
         [BsonElement("lastPayRunId")]
         public string LastPayRunId { get; set; } // Reference to last PayRun
 
+        [BsonElement("hasSSS")]
+        public bool HasSSS { get; set; }
+
+        [BsonElement("hasPhilHealth")]
+        public bool HasPhilHealth { get; set; }
+
+        [BsonElement("hasPagIbig")]
+        public bool HasPagIbig { get; set; }
+
+        // ========== PASSWORD RESET FIELDS ==========
+        [BsonElement("passwordResetToken")]
+        public string PasswordResetToken { get; set; }
+
+        [BsonElement("passwordResetTokenExpiration")]
+        public DateTime? PasswordResetTokenExpiration { get; set; }
+
         // ========== HELPER PROPERTIES ==========
         [BsonIgnore]
         public string FullName
@@ -112,7 +129,7 @@ namespace ExWebAppSia.Models
         public bool IsEmployee => Role == "Employee";
 
         [BsonIgnore]
-        public bool IsAdmin => Role == "Admin" || Role == "HR";
+        public bool IsAdmin => Role == "Admin" || Role == "HR" || Role.Contains("Admin");
 
         [BsonIgnore]
         public bool HasBankAccount => !string.IsNullOrEmpty(BankAccountNumber);

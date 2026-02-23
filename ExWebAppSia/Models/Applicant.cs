@@ -123,6 +123,33 @@ namespace ExWebAppSia.Models
         [BsonElement("scheduledDate")]
         public DateTime? ScheduledDate { get; set; }
 
+        [BsonElement("declineReason")]
+        public string DeclineReason { get; set; }
+
+        [BsonElement("isRequirementsComplete")]
+        public bool IsRequirementsComplete { get; set; }
+
+        [BsonElement("hasSSS")]
+        public bool HasSSS { get; set; }
+
+        [BsonElement("hasPhilHealth")]
+        public bool HasPhilHealth { get; set; }
+
+        [BsonElement("hasPagIbig")]
+        public bool HasPagIbig { get; set; }
+
+        [BsonElement("sssNumber")]
+        public string SSSNumber { get; set; }
+
+        [BsonElement("philHealthNumber")]
+        public string PhilHealthNumber { get; set; }
+
+        [BsonElement("pagIbigNumber")]
+        public string PagIbigNumber { get; set; }
+
+        [BsonElement("startingSalary")]
+        public decimal StartingSalary { get; set; } = 18000;
+
         [BsonElement("isActive")]
         public bool IsActive { get; set; } = true;
 

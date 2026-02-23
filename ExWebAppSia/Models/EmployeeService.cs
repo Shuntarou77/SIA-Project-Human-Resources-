@@ -17,6 +17,93 @@ namespace ExWebAppSia.Models
             try { _employees = MongoDBHelper.GetEmployeesCollection(); } catch { _employees = null; }
         }
 
+        // Standardized salary table for small company (Internal Source of Truth)
+        private static readonly Dictionary<string, decimal> _regularSalaries = new Dictionary<string, decimal>
+        {
+            { "Research Scientist", 48000 }, { "Lab Technician", 25000 }, { "Product Developer", 42000 }, { "R&D Manager", 85000 },
+            { "QC Analyst", 30000 }, { "QC Inspector", 24000 }, { "QC Manager", 75000 }, { "Laboratory Supervisor", 55000 },
+            { "HR Generalist", 32500 }, { "Recruitment Specialist", 28000 }, { "HR Manager", 75000 }, { "Training Coordinator", 35000 },
+            { "Accountant", 40000 }, { "Financial Analyst", 45000 }, { "Finance Manager", 85000 }, { "Payroll Specialist", 32000 },
+            { "Marketing Coordinator", 28000 }, { "Brand Manager", 70000 }, { "Digital Marketing Specialist", 35000 }, { "Content Creator", 26000 },
+            { "IT Support Specialist", 32000 }, { "Network Administrator", 55000 }, { "System Administrator", 58000 }, { "IT Manager", 95000 },
+            { "Operations Coordinator", 30000 }, { "Operations Manager", 80000 }, { "Supply Chain Specialist", 42000 }, { "Logistics Coordinator", 28000 },
+            { "Sales Representative", 25000 }, { "Sales Manager", 70000 }, { "Account Executive", 45000 }, { "Business Development Manager", 80000 },
+            { "Legal Counsel", 100000 }, { "Compliance Officer", 60000 }, { "Legal Assistant", 30000 }, { "Contract Specialist", 48000 },
+            { "Customer Service Representative", 22000 }, { "Customer Support Specialist", 28000 }, { "Call Center Agent", 24000 }, { "Customer Service Manager", 70000 }
+        };
+
+        /// <summary>
+        /// Automatically regularizes employees who have reached 6 months of tenure.
+        /// Updates ContractType to "Regular" and sets the BaseSalary to the standardized amount.
+        /// </summary>
+        public async Task<int> ProcessRegularizationAsync()
+        {
+            if (_employees == null) return 0;
+
+            // Target date: 6 months ago from now
+            var thresholdDate = DateTime.UtcNow.AddMonths(-6);
+            
+            // Find employees who are currently "Probationary" but hired 6+ months ago
+            var filter = Builders<Employee>.Filter.And(
+                Builders<Employee>.Filter.Eq(e => e.IsActive, true),
+                Builders<Employee>.Filter.Eq(e => e.ContractType, "Probationary"),
+                Builders<Employee>.Filter.Lte(e => e.HiredDate, thresholdDate)
+            );
+
+            var eligibleEmployees = await _employees.Find(filter).ToListAsync();
+            int updatedCount = 0;
+
+            foreach (var emp in eligibleEmployees)
+            {
+                var update = Builders<Employee>.Update.Set(e => e.ContractType, "Regular");
+                
+                // If the role exists in our standardized salary table, update the base salary
+                if (!string.IsNullOrEmpty(emp.Role) && _regularSalaries.ContainsKey(emp.Role))
+                {
+                    update = update.Set(e => e.BaseSalary, _regularSalaries[emp.Role]);
+                }
+
+                var result = await _employees.UpdateOneAsync(e => e.Id == emp.Id, update);
+                if (result.ModifiedCount > 0)
+                {
+                    updatedCount++;
+                    System.Diagnostics.Debug.WriteLine($"[Automation] Regularized {emp.FullName}: Role={emp.Role}, Hired={emp.HiredDate:MMM dd, yyyy}");
+                }
+            }
+
+            return updatedCount;
+        }
+
+        /// <summary>
+        /// Ensures all probationary employees have the mandatory starting salary of 18,000 PHP.
+        /// Fixes legacy records or records created with missing salary data.
+        /// </summary>
+        public async Task<int> FixProbationarySalariesAsync()
+        {
+            if (_employees == null) return 0;
+
+            var filter = Builders<Employee>.Filter.And(
+                Builders<Employee>.Filter.Eq(e => e.IsActive, true),
+                Builders<Employee>.Filter.Eq(e => e.ContractType, "Probationary"),
+                Builders<Employee>.Filter.Lte(e => e.BaseSalary, 0) // Fix if 0 or missing
+            );
+
+            var probEmployeesWithNoSalary = await _employees.Find(filter).ToListAsync();
+            int updatedCount = 0;
+
+            foreach (var emp in probEmployeesWithNoSalary)
+            {
+                var update = Builders<Employee>.Update.Set(e => e.BaseSalary, 18000);
+                var result = await _employees.UpdateOneAsync(e => e.Id == emp.Id, update);
+                if (result.ModifiedCount > 0)
+                {
+                    updatedCount++;
+                    System.Diagnostics.Debug.WriteLine($"[Automation] Fixed Salary for {emp.FullName}: Set to 18,000 PHP");
+                }
+            }
+            return updatedCount;
+        }
+
         // Create a new employee (creates a User with Role="Employee")
         public async Task<bool> CreateEmployeeAsync(Employee employee)
         {
@@ -42,6 +129,10 @@ namespace ExWebAppSia.Models
                     HiredDate = employee.HiredDate,
                     ApplicantId = employee.ApplicantId,
                     ContractType = employee.ContractType ?? "Regular",
+                    HasSSS = employee.HasSSS,
+                    HasPhilHealth = employee.HasPhilHealth,
+                    HasPagIbig = employee.HasPagIbig,
+                    BaseSalary = employee.BaseSalary,
                     IsActive = true
                 };
 
@@ -54,7 +145,7 @@ namespace ExWebAppSia.Models
                 var user = new User
                 {
                     Username = employee.Email,
-                    Password = GenerateDefaultPassword(),
+                    Password = PasswordHelper.HashPasswordComplete(empId),
                     Role = "Employee",
                     Email = employee.Email,
                     EmployeeId = empId,
@@ -102,7 +193,11 @@ namespace ExWebAppSia.Models
                     Role = employee.Role,
                     HiredDate = employee.HiredDate,
                     ApplicantId = employee.ApplicantId,
-                    ContractType = employee.ContractType ?? "Regular",
+                    ContractType = employee.ContractType ?? "Probationary",
+                    HasSSS = employee.HasSSS,
+                    HasPhilHealth = employee.HasPhilHealth,
+                    HasPagIbig = employee.HasPagIbig,
+                    BaseSalary = employee.BaseSalary,
                     IsActive = true
                 };
 
@@ -194,7 +289,7 @@ namespace ExWebAppSia.Models
                 var user = new User
                 {
                     Username = employee.Email,
-                    Password = GenerateDefaultPassword(),
+                    Password = PasswordHelper.HashPasswordComplete(empId),
                     Role = "Employee",
                     Email = employee.Email,
                     EmployeeId = empId,  // Link to employee record

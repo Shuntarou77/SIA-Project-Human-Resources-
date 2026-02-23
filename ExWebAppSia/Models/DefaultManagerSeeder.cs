@@ -190,15 +190,13 @@ namespace ExWebAppSia.Models
                         }
                     }
 
-                    await userService.EnsureManagerAccountAsync(
-                        email: info.Email,
+                    await userService.EnsureAdminAccountAsync(
+                        username: info.Email,
                         password: info.Password,
+                        role: info.Department + " Admin",
+                        email: info.Email,
                         firstName: info.FirstName,
-                        middleName: info.MiddleName,
-                        lastName: info.LastName,
-                        department: info.Department,
-                        position: info.Role,
-                        managerId: manager?.ManagerId);
+                        lastName: info.LastName);
                 }
             }
             catch (Exception ex)

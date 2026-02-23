@@ -1,6 +1,5 @@
-﻿<%@ Page Title="Employee Profile" Language="C#" MasterPageFile="~/webpage(EmployeeViewpoint)/EmployeeHR.Master"
-    AutoEventWireup="true" Async="true" CodeBehind="Profile.aspx.cs"
-    Inherits="ExWebAppSia.webpage_EmployeeViewpoint_.WebForm2" %>
+<%@ Page Title="HR Profile" Language="C#" MasterPageFile="~/webpage/HR.Master" AutoEventWireup="true" Async="true"
+    CodeFile="Profile.aspx.cs" Inherits="ExWebAppSia.webpage.HRProfile" %>
     <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
@@ -54,6 +53,7 @@
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
                 max-width: 320px;
                 font-family: 'Poppins', sans-serif;
+                border: 1px solid var(--border-color);
             }
 
             .profile-card.compact:hover {
@@ -142,6 +142,7 @@
                 box-shadow: var(--card-shadow);
                 padding: 24px;
                 font-family: 'Poppins', sans-serif;
+                border: 1px solid var(--border-color);
             }
 
             .card-title {
@@ -155,19 +156,23 @@
                 font-family: 'Poppins', sans-serif;
             }
 
-            .stats-grid {
-                display: grid;
-                grid-template-columns: repeat(4, 1fr);
-                gap: 16px;
+            .stats-row {
+                display: flex !important;
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                gap: 16px !important;
+                margin-top: 20px !important;
+                margin-bottom: 25px !important;
+                width: 100% !important;
             }
 
-            .stat-box {
+            .stats-row .stat-box {
+                flex: 1 !important;
                 background: linear-gradient(135deg, var(--accent-color), #FFF5F5);
                 padding: 20px;
                 border-radius: 12px;
                 text-align: center;
                 border: 1px solid var(--border-color);
-                font-family: 'Poppins', sans-serif;
             }
 
             .stat-value {
@@ -319,46 +324,6 @@
                 font-family: 'Poppins', sans-serif;
             }
 
-            .form-group {
-                margin-bottom: 20px;
-                font-family: 'Poppins', sans-serif;
-            }
-
-            .form-label {
-                display: block;
-                font-weight: 600;
-                color: var(--text-primary);
-                margin-bottom: 8px;
-                font-size: 14px;
-                font-family: 'Poppins', sans-serif;
-            }
-
-            .form-input,
-            .form-select,
-            .form-textarea {
-                width: 100%;
-                padding: 12px 16px;
-                border: 2px solid var(--border-color);
-                border-radius: 10px;
-                font-size: 15px;
-                transition: all 0.3s ease;
-                font-family: 'Poppins', sans-serif;
-            }
-
-            .form-input:focus,
-            .form-select:focus,
-            .form-textarea:focus {
-                outline: none;
-                border-color: var(--primary-color);
-                box-shadow: 0 0 0 3px rgba(164, 79, 86, 0.1);
-            }
-
-            .form-textarea {
-                resize: vertical;
-                min-height: 100px;
-                font-family: 'Poppins', sans-serif;
-            }
-
             .modal-footer {
                 padding: 16px 24px;
                 display: flex;
@@ -366,35 +331,7 @@
                 justify-content: flex-end;
                 border-top: 1px solid var(--border-color);
                 font-family: 'Poppins', sans-serif;
-            }
-
-            .btn-submit,
-            .btn-cancel {
-                padding: 10px 24px;
-                border: none;
-                border-radius: 10px;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.3s ease;
-                font-family: 'Poppins', sans-serif;
-            }
-
-            .btn-submit {
-                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
-                color: white;
-            }
-
-            .btn-submit:hover {
-                transform: scale(1.05);
-            }
-
-            .btn-cancel {
-                background: #E5E7EB;
-                color: var(--text-primary);
-            }
-
-            .btn-cancel:hover {
-                background: #D1D5DB;
+                background: #F9FAFB;
             }
 
             .close {
@@ -451,6 +388,94 @@
                 font-family: 'Poppins', sans-serif;
             }
 
+            /* Attendance Tracking Specific Styles (HR Side) */
+            .attendance-status-info {
+                text-align: center;
+                margin-bottom: 25px;
+                padding: 15px;
+                background: var(--accent-color);
+                border-radius: 12px;
+                border: 1px solid var(--border-color);
+            }
+
+            .status-text {
+                font-size: 16px;
+                font-weight: 700;
+                color: var(--primary-color);
+            }
+
+            .attendance-time-display {
+                font-size: 24px;
+                font-weight: 700;
+                font-family: monospace;
+                background: rgba(255, 255, 255, 0.4);
+                padding: 5px 15px;
+                border-radius: 10px;
+                display: inline-block;
+                color: var(--primary-color);
+                margin-top: 10px;
+            }
+
+            .attendance-actions {
+                display: flex;
+                gap: 20px;
+                justify-content: center;
+            }
+
+            .action-btn {
+                padding: 15px 40px;
+                border-radius: 12px;
+                font-weight: 700;
+                font-size: 16px;
+                cursor: pointer;
+                border: none;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+                text-transform: uppercase;
+                letter-spacing: 1px;
+            }
+
+            .btn-time-in {
+                background: linear-gradient(135deg, #10b981, #34d399);
+                color: white;
+            }
+
+            .btn-time-out {
+                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                color: white;
+            }
+
+            .action-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none !important;
+                box-shadow: none !important;
+            }
+
+            .btn-submit,
+            .btn-cancel {
+                padding: 10px 24px;
+                border: none;
+                border-radius: 10px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-family: 'Poppins', sans-serif;
+            }
+
+            .btn-submit {
+                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                color: white;
+            }
+
+            .btn-cancel {
+                background: #E5E7EB;
+                color: var(--text-primary);
+            }
+
             /* Responsive */
             @media (max-width: 1024px) {
                 .profile-grid {
@@ -467,8 +492,8 @@
                     grid-template-columns: 1fr;
                 }
 
-                .stats-grid {
-                    grid-template-columns: repeat(2, 1fr);
+                .attendance-actions {
+                    flex-direction: column;
                 }
             }
         </style>
@@ -494,47 +519,47 @@
                         <div class="info-row">
                             <span class="info-label">📧 Email</span>
                             <span class="info-value">
-                                <%= GetEmployeeEmail() %>
+                                <%: GetEmployeeEmail() %>
                             </span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">📞 Contact</span>
                             <span class="info-value">
-                                <%= GetEmployeeContact() %>
+                                <%: GetEmployeeContact() %>
                             </span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">📍 Address</span>
+                            <span class="info-label">📍 Dept</span>
                             <span class="info-value">
-                                <%= GetEmployeeAddress() %>
+                                <%: GetEmployeeDepartment() %>
                             </span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">🎂 Birthdate</span>
+                            <span class="info-label">🎂 Birthday</span>
                             <span class="info-value">
-                                <%= GetEmployeeBirthdate() %>
+                                <%: GetEmployeeBirthdate() %>
                             </span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">👤 Age</span>
                             <span class="info-value">
-                                <%= GetEmployeeAge() %>
+                                <%: GetEmployeeAge() %>
                             </span>
                         </div>
                         <div class="info-row">
                             <span class="info-label">⚧ Sex</span>
                             <span class="info-value">
-                                <%= GetEmployeeSex() %>
+                                <%: GetEmployeeSex() %>
                             </span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">📋 Contract Type</span>
+                            <span class="info-label">📋 Status</span>
                             <span class="info-value" style="color: var(--success-color);">
-                                <%= GetEmployeeStatus() %>
+                                <%: GetEmployeeStatus() %>
                             </span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">💰 Base Salary</span>
+                            <span class="info-label">💰 Salary</span>
                             <span class="info-value" style="font-weight: 700; color: var(--primary-color);">
                                 <%= GetEmployeeSalary() %>
                             </span>
@@ -542,64 +567,91 @@
                     </div>
                 </div>
 
-                <!-- Right: Attendance Summary (unchanged) -->
-                <div class="attendance-card">
-                    <h2 class="card-title">📊 Attendance Summary</h2>
-                    <div class="stats-grid">
-                        <div class="stat-box">
-                            <div class="stat-value">
-                                <%= GetDaysPresent() %>
-                            </div>
-                            <div class="stat-label">Days Present</div>
+                <!-- Right: Attendance Column -->
+                <div class="attendance-column">
+                    <div class="attendance-card">
+                        <div class="card-title">
+                            <svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24">
+                                <path
+                                    d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+                            </svg>
+                            Attendance Tracker
                         </div>
-                        <div class="stat-box">
-                            <div class="stat-value">
-                                <%= GetDaysAbsent() %>
+                        <div class="attendance-body" style="background: transparent; padding: 0;">
+                            <div class="attendance-status-info">
+                                <span id="attendanceStatusLabel" class="status-text">Not timed in yet</span>
+                                <div id="currentDate"
+                                    style="font-size: 13px; color: var(--text-muted); margin-top: 5px;">--</div>
+                                <div id="currentTime" class="attendance-time-display">00:00:00</div>
                             </div>
-                            <div class="stat-label">Days Absent</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value">
-                                <%= GetDaysLate() %>
+
+                            <div class="stats-row">
+                                <div class="stat-box">
+                                    <div class="stat-value">
+                                        <%= GetDaysPresent() %>
+                                    </div>
+                                    <div class="stat-label">Present</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-value">
+                                        <%= GetDaysAbsent() %>
+                                    </div>
+                                    <div class="stat-label">Absent</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-value">
+                                        <%= GetDaysLate() %>
+                                    </div>
+                                    <div class="stat-label">Late</div>
+                                </div>
                             </div>
-                            <div class="stat-label">Days Late</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value" style="color: var(--success-color);">
-                                <%= GetAttendanceRate() %>%
+
+                            <div class="attendance-actions">
+                                <button id="timeInBtn" type="button" class="action-btn btn-time-in" onclick="timeIn()">
+                                    <svg style="width:20px;height:20px;fill:currentColor" viewBox="0 0 24 24">
+                                        <path
+                                            d="M13 3h-2v10h2V3zm4.83 2.17l-1.42 1.42C17.99 7.86 19 9.81 19 12c0 3.87-3.13 7-7 7s-7-3.13-7-7c0-2.19 1.01-4.14 2.58-5.42L6.17 5.17C4.23 6.82 3 9.26 3 12c0 4.97 4.03 9 9 9s9-4.03 9-9c0-2.74-1.23-5.18-3.17-6.83z" />
+                                    </svg>
+                                    Time In
+                                </button>
+                                <button id="timeOutBtn" type="button" class="action-btn btn-time-out"
+                                    onclick="timeOut()" disabled>
+                                    <svg style="width:20px;height:20px;fill:currentColor" viewBox="0 0 24 24">
+                                        <path
+                                            d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
+                                    </svg>
+                                    Time Out
+                                </button>
                             </div>
-                            <div class="stat-label">Attendance Rate</div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Action Cards -->
-            <div class="actions-grid">
-                <div class="action-card">
-                    <div class="action-icon">💰</div>
-                    <h3 class="action-title">View Payslip</h3>
-                    <p class="action-description">View your salary breakdown including gross salary, deductions, and net
-                        pay.</p>
-                    <button type="button" class="action-button" onclick="openPayslipModal(event); return false;">View
-                        Details</button>
-                </div>
+                    <!-- Action Cards -->
+                    <div class="actions-grid">
+                        <div class="action-card" onclick="openPayslipModal()">
+                            <div class="action-icon">💰</div>
+                            <h3 class="action-title">View Payslip</h3>
+                            <p class="action-description">View your salary breakdown including gross salary, deductions,
+                                and net pay.</p>
+                            <button type="button" class="action-button">View Details</button>
+                        </div>
 
-                <div class="action-card">
-                    <div class="action-icon">📝</div>
-                    <h3 class="action-title">File Leave of Absence</h3>
-                    <p class="action-description">Submit your leave request for sick leave, vacation, or personal
-                        matters.</p>
-                    <button type="button" class="action-button" onclick="openLeaveModal(event); return false;">File
-                        Leave</button>
-                </div>
+                        <div class="action-card" onclick="openLeaveModal()">
+                            <div class="action-icon">📝</div>
+                            <h3 class="action-title">File Leave of Absence</h3>
+                            <p class="action-description">Submit your leave request for sick leave, vacation, or
+                                personal matters.</p>
+                            <button type="button" class="action-button">File Leave</button>
+                        </div>
 
-                <div class="action-card">
-                    <div class="action-icon">💬</div>
-                    <h3 class="action-title">Report Employee Concern</h3>
-                    <p class="action-description">Submit any workplace concerns, complaints, or suggestions to HR.</p>
-                    <button type="button" class="action-button" onclick="openConcernModal(event); return false;">Submit
-                        Concern</button>
+                        <div class="action-card" onclick="openConcernModal()">
+                            <div class="action-icon">💬</div>
+                            <h3 class="action-title">Report Employee Concern</h3>
+                            <p class="action-description">Submit any workplace concerns, complaints, or suggestions to
+                                HR.</p>
+                            <button type="button" class="action-button">Submit Concern</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -615,57 +667,60 @@
                     <h3 style="margin-bottom: 16px; color: var(--text-primary);">Gross Salary</h3>
                     <div class="payslip-item">
                         <span class="payslip-label">Basic Salary</span>
-                        <span class="payslip-value">₱<%= GetBasicSalary() %></span>
+                        <span class="payslip-value">&#8369;<%= GetBasicSalary() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Allowances</span>
-                        <span class="payslip-value">₱<%= GetAllowances() %></span>
+                        <span class="payslip-value">&#8369;<%= GetAllowances() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Overtime Pay</span>
-                        <span class="payslip-value">₱<%= GetOvertimePay() %></span>
+                        <span class="payslip-value">&#8369;<%= GetOvertimePay() %></span>
                     </div>
-                    <div class="payslip-item">
-                        <span class="payslip-label"><strong>Total Gross</strong></span>
-                        <span class="payslip-value"><strong>₱<%= GetGrossSalary() %></strong></span>
+                    <div class="payslip-item"
+                        style="background: var(--accent-color); border: 1px solid var(--primary-color);">
+                        <span class="payslip-label" style="color: var(--primary-color);">Total Gross</span>
+                        <span class="payslip-value" style="color: var(--primary-color);">&#8369;<%= GetGrossSalary() %>
+                        </span>
                     </div>
 
                     <h3 style="margin: 24px 0 16px; color: var(--text-primary);">Deductions</h3>
                     <div class="payslip-item">
                         <span class="payslip-label">SSS</span>
-                        <span class="payslip-value" style="color: var(--warning-color);">- ₱<%= GetSSSDeduction() %>
-                        </span>
-                    </div>
-                    <div class="payslip-item">
-                        <span class="payslip-label">PhilHealth</span>
-                        <span class="payslip-value" style="color: var(--warning-color);">- ₱<%= GetPhilHealthDeduction()
+                        <span class="payslip-value" style="color: var(--warning-color);">- &#8369;<%= GetSSSDeduction()
                                 %></span>
                     </div>
                     <div class="payslip-item">
+                        <span class="payslip-label">PhilHealth</span>
+                        <span class="payslip-value" style="color: var(--warning-color);">- &#8369;<%=
+                                GetPhilHealthDeduction() %></span>
+                    </div>
+                    <div class="payslip-item">
                         <span class="payslip-label">Pag-IBIG</span>
-                        <span class="payslip-value" style="color: var(--warning-color);">- ₱<%= GetPagIbigDeduction() %>
-                        </span>
+                        <span class="payslip-value" style="color: var(--warning-color);">- &#8369;<%=
+                                GetPagIbigDeduction() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Withholding Tax</span>
-                        <span class="payslip-value" style="color: var(--warning-color);">- ₱<%= GetWithholdingTax() %>
-                        </span>
+                        <span class="payslip-value" style="color: var(--warning-color);">- &#8369;<%=
+                                GetWithholdingTax() %></span>
                     </div>
-                    <div class="payslip-item">
-                        <span class="payslip-label"><strong>Total Deductions</strong></span>
-                        <span class="payslip-value" style="color: var(--warning-color);"><strong>- ₱<%=
-                                    GetTotalDeductions() %></strong></span>
+                    <div class="payslip-item" style="background: #FFF5F5; border: 1px solid #FEB2B2;">
+                        <span class="payslip-label" style="color: #C53030;">Total Deductions</span>
+                        <span class="payslip-value" style="color: #C53030;">- &#8369;<%= GetTotalDeductions() %></span>
                     </div>
 
                     <div class="payslip-total">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <span class="payslip-label" style="color: white; font-size: 18px;">Net Salary</span>
-                            <span class="payslip-value">₱<%= GetNetSalary() %></span>
+                            <span class="payslip-value" style="color: white; font-size: 24px;">&#8369;<%= GetNetSalary()
+                                    %></span>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn-cancel" onclick="closeModal('payslipModal')">Close</button>
+                    <button type="button" class="btn-cancel" onclick="closeModal('payslipModal')">Close</button>
+                    <button type="button" class="btn-submit" onclick="window.print()">Print</button>
                 </div>
             </div>
         </div>
@@ -675,139 +730,173 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <span class="close" onclick="closeModal('leaveModal')">&times;</span>
-                    <h2 class="modal-title">📝 File Leave of Absence</h2>
+                    <h2 class="modal-title">📝 Employee Leave</h2>
                 </div>
-                <div class="modal-body">
-                    <asp:Label ID="lblLeaveMessage" runat="server" style="display: none;"></asp:Label>
-                    <div class="form-group">
-                        <label class="form-label">Leave Type *</label>
-                        <asp:DropDownList ID="ddlLeaveType" runat="server" CssClass="form-select">
-                            <asp:ListItem Value="" Text="Select leave type"></asp:ListItem>
-                            <asp:ListItem Value="sick" Text="Sick Leave"></asp:ListItem>
-                            <asp:ListItem Value="vacation" Text="Vacation Leave"></asp:ListItem>
-                            <asp:ListItem Value="personal" Text="Personal Leave"></asp:ListItem>
-                            <asp:ListItem Value="emergency" Text="Emergency Leave"></asp:ListItem>
-                            <asp:ListItem Value="maternity" Text="Maternity Leave"></asp:ListItem>
-                            <asp:ListItem Value="paternity" Text="Paternity Leave"></asp:ListItem>
-                        </asp:DropDownList>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Start Date *</label>
-                        <asp:TextBox ID="txtStartDate" runat="server" CssClass="form-input" TextMode="Date">
-                        </asp:TextBox>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">End Date *</label>
-                        <asp:TextBox ID="txtEndDate" runat="server" CssClass="form-input" TextMode="Date"></asp:TextBox>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Reason for Leave *</label>
-                        <asp:TextBox ID="txtLeaveReason" runat="server" CssClass="form-textarea" TextMode="MultiLine"
-                            placeholder="Please provide details about your leave request..."></asp:TextBox>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Attachment (Optional)</label>
-                        <asp:FileUpload ID="fileLeaveAttachment" runat="server" CssClass="form-input"
-                            accept=".pdf,.jpg,.png,.doc,.docx" />
-                    </div>
+                <div class="modal-body" style="text-align: center;">
+                    <div style="font-size: 40px; margin-bottom: 20px;">⏳</div>
+                    <h3 style="color: var(--text-primary);">Leave Management</h3>
+                    <p style="color: var(--text-muted); line-height: 1.6;">You can view and manage leave requests in the
+                        Attendance Management section.</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn-cancel" onclick="closeModal('leaveModal')">Cancel</button>
-                    <asp:Button ID="btnSubmitLeave" runat="server" CssClass="btn-submit" Text="Submit Leave Request"
-                        OnClick="btnSubmitLeave_Click" />
+                    <button type="button" class="btn-cancel" onclick="closeModal('leaveModal')">Close</button>
+                    <button type="button" class="btn-submit" onclick="location.href='Attendance.aspx'">Go to
+                        Attendance</button>
                 </div>
             </div>
         </div>
 
-        <!-- Concern Modal -->
         <div id="concernModal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
                     <span class="close" onclick="closeModal('concernModal')">&times;</span>
-                    <h2 class="modal-title">💬 Submit Employee Concern</h2>
+                    <h2 class="modal-title">💬 Admin Concern</h2>
                 </div>
-                <div class="modal-body">
-                    <asp:Label ID="lblConcernMessage" runat="server" style="display: none;"></asp:Label>
-                    <div class="form-group">
-                        <label class="form-label">Concern Type *</label>
-                        <asp:DropDownList ID="ddlConcernType" runat="server" CssClass="form-select">
-                            <asp:ListItem Value="" Text="Select concern type"></asp:ListItem>
-                            <asp:ListItem Value="workplace" Text="Workplace Issue"></asp:ListItem>
-                            <asp:ListItem Value="harassment" Text="Harassment/Bullying"></asp:ListItem>
-                            <asp:ListItem Value="safety" Text="Safety Concern"></asp:ListItem>
-                            <asp:ListItem Value="payroll" Text="Payroll Issue"></asp:ListItem>
-                            <asp:ListItem Value="benefits" Text="Benefits Inquiry"></asp:ListItem>
-                            <asp:ListItem Value="equipment" Text="Equipment/Facilities"></asp:ListItem>
-                            <asp:ListItem Value="suggestion" Text="Suggestion/Feedback"></asp:ListItem>
-                            <asp:ListItem Value="other" Text="Other"></asp:ListItem>
-                        </asp:DropDownList>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Subject *</label>
-                        <asp:TextBox ID="txtConcernSubject" runat="server" CssClass="form-input"
-                            placeholder="Brief subject of your concern"></asp:TextBox>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Description *</label>
-                        <asp:TextBox ID="txtConcernDescription" runat="server" CssClass="form-textarea"
-                            TextMode="MultiLine"
-                            placeholder="Please provide detailed information about your concern..."></asp:TextBox>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Priority Level</label>
-                        <asp:DropDownList ID="ddlPriorityLevel" runat="server" CssClass="form-select">
-                            <asp:ListItem Value="low" Text="Low"></asp:ListItem>
-                            <asp:ListItem Value="medium" Text="Medium" Selected="True"></asp:ListItem>
-                            <asp:ListItem Value="high" Text="High"></asp:ListItem>
-                            <asp:ListItem Value="urgent" Text="Urgent"></asp:ListItem>
-                        </asp:DropDownList>
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Supporting Documents (Optional)</label>
-                        <asp:FileUpload ID="fileSupportingDocs" runat="server" CssClass="form-input"
-                            accept=".pdf,.jpg,.png,.doc,.docx" />
-                    </div>
+                <div class="modal-body" style="text-align: center;">
+                    <div style="font-size: 40px; margin-bottom: 20px;">📢</div>
+                    <h3 style="color: var(--text-primary);">Employee Concerns</h3>
+                    <p style="color: var(--text-muted); line-height: 1.6;">Manage employee feedback, complaints, and
+                        suggestions from the specialized dashboard.</p>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn-cancel" onclick="closeModal('concernModal')">Cancel</button>
-                    <asp:Button ID="btnSubmitConcern" runat="server" CssClass="btn-submit" Text="Submit Concern"
-                        OnClick="btnSubmitConcern_Click" />
+                    <button type="button" class="btn-cancel" onclick="closeModal('concernModal')">Close</button>
+                    <button type="button" class="btn-submit" onclick="alert('Feature coming soon!')">Open
+                        Concerns</button>
                 </div>
             </div>
         </div>
 
         <script>
-            function openPayslipModal(event) {
-                if (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-                document.getElementById('payslipModal').style.display = 'block';
-                return false;
+            // Data from server
+            const employeeId = '<%= GetEmployeeId() %>';
+            const employeeName = '<%= GetEmployeeName() %>';
+            const employeeDepartment = '<%= GetEmployeeDepartment() %>';
+            const handlerUrl = '<%= ResolveUrl("~/webpage/api/AttendanceHandler.ashx") %>';
+            const attendanceStatus = JSON.parse('<%= GetAttendanceStatusJsonString() %>');
+
+            let hasTimedIn = attendanceStatus.hasTimedIn || false;
+            let hasTimedOut = attendanceStatus.hasTimedOut || false;
+
+            function updateDateTime() {
+                const now = new Date();
+                const dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                const timeOpts = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+
+                document.getElementById('currentDate').textContent = now.toLocaleDateString(undefined, dateOpts);
+                document.getElementById('currentTime').textContent = now.toLocaleTimeString(undefined, timeOpts);
             }
 
-            function openLeaveModal(event) {
-                if (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
+            setInterval(updateDateTime, 1000);
+            updateDateTime();
+
+            function loadStatus() {
+                const statusLabel = document.getElementById('attendanceStatusLabel');
+                const timeInBtn = document.getElementById('timeInBtn');
+                const timeOutBtn = document.getElementById('timeOutBtn');
+
+                if (attendanceStatus.hasTimedIn) {
+                    if (attendanceStatus.hasTimedOut) {
+                        statusLabel.textContent = `Timed Out at ${attendanceStatus.timeOut}`;
+                        statusLabel.style.color = 'var(--warning-color)';
+                        timeInBtn.disabled = false;
+                        timeOutBtn.disabled = true;
+                        hasTimedIn = false;
+                    } else {
+                        statusLabel.textContent = `Timed In at ${attendanceStatus.timeIn}`;
+                        statusLabel.style.color = 'var(--success-color)';
+                        timeInBtn.disabled = true;
+                        timeOutBtn.disabled = false;
+                        hasTimedIn = true;
+                    }
+                } else {
+                    statusLabel.textContent = 'Not timed in yet';
+                    timeInBtn.disabled = false;
+                    timeOutBtn.disabled = true;
                 }
-                document.getElementById('leaveModal').style.display = 'block';
-                return false;
             }
 
-            function openConcernModal(event) {
-                if (event) {
-                    event.preventDefault();
-                    event.stopPropagation();
+            document.addEventListener('DOMContentLoaded', loadStatus);
+
+            async function timeIn() {
+                if (hasTimedIn && !hasTimedOut) {
+                    alert('Already timed in.');
+                    return;
                 }
-                document.getElementById('concernModal').style.display = 'block';
-                return false;
+
+                const btn = document.getElementById('timeInBtn');
+                btn.disabled = true;
+                btn.innerHTML = 'Processing...';
+
+                try {
+                    const params = new URLSearchParams({
+                        action: 'timein',
+                        employeeId: employeeId,
+                        employeeName: employeeName,
+                        department: employeeDepartment
+                    });
+
+                    const response = await fetch(handlerUrl + '?' + params.toString());
+                    const result = await response.json();
+
+                    if (result.success) {
+                        window.location.reload();
+                    } else {
+                        alert(result.message || 'Time in failed.');
+                        btn.disabled = false;
+                        btn.innerHTML = 'Time In';
+                    }
+                } catch (error) {
+                    console.error(error);
+                    alert('Error occurring.');
+                    btn.disabled = false;
+                }
+            }
+
+            async function timeOut() {
+                const btn = document.getElementById('timeOutBtn');
+                btn.disabled = true;
+                btn.innerHTML = 'Processing...';
+
+                try {
+                    const params = new URLSearchParams({
+                        action: 'timeout',
+                        employeeId: employeeId
+                    });
+
+                    const response = await fetch(handlerUrl + '?' + params.toString());
+                    const result = await response.json();
+
+                    if (result.success) {
+                        window.location.reload();
+                    } else {
+                        alert(result.message || 'Time out failed.');
+                        btn.disabled = false;
+                        btn.innerHTML = 'Time Out';
+                    }
+                } catch (error) {
+                    console.error(error);
+                    alert('Error occurring.');
+                    btn.disabled = false;
+                }
             }
 
             function closeModal(modalId) {
                 document.getElementById(modalId).style.display = 'none';
             }
 
+            function openPayslipModal() {
+                document.getElementById('payslipModal').style.display = 'block';
+            }
+
+            function openLeaveModal() {
+                document.getElementById('leaveModal').style.display = 'block';
+            }
+
+            function openConcernModal() {
+                document.getElementById('concernModal').style.display = 'block';
+            }
+
+            // Close modal when clicking outside
             window.onclick = function (event) {
                 if (event.target.classList.contains('modal')) {
                     event.target.style.display = 'none';

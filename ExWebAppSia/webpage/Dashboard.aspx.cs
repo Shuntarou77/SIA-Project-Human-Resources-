@@ -21,12 +21,32 @@ namespace ExWebAppSia.webpage
             if (Session["IsLoggedIn"] == null || !(bool)Session["IsLoggedIn"])
             {
                 Response.Redirect("~/LoginFolder/Login.aspx", false);
-                Context.ApplicationInstance.CompleteRequest();
                 return;
             }
 
             if (!IsPostBack)
             {
+                // Set Personalized Greeting
+                string displayName = "Admin";
+                if (Session["Username"] != null)
+                {
+                    string username = Session["Username"].ToString();
+                    displayName = username.Split('@')[0]; // Simple fallback: use part of email
+                    
+                    // If we have employee data in session, use full name
+                    var emp = Session["Employee"] as Employee;
+                    if (emp != null)
+                    {
+                        displayName = emp.FirstName;
+                    }
+                }
+
+                if (litGreeting != null) 
+                    litGreeting.Text = $"Welcome back, <strong>{displayName}</strong>!";
+                
+                if (litDashboardTitle != null)
+                    litDashboardTitle.Visible = false;
+
                 RegisterAsyncTask(new PageAsyncTask(LoadDashboardDataAsync));
             }
         }
@@ -35,6 +55,15 @@ namespace ExWebAppSia.webpage
         {
             try
             {
+                // Auto-promote probationary employees who reached 6 months
+                await _employeeService.ProcessRegularizationAsync();
+                
+                // Ensure all probationary employees have the correct starting salary
+                await _employeeService.FixProbationarySalariesAsync();
+
+                // Seed specific HR employees requested by the user
+                await EmployeeSeeder.SeedSpecificHREmployeesAsync();
+
                 // Core optimization: Load employees once to share across all other tasks
                 var employees = await _employeeService.GetAllEmployeesAsync();
 
@@ -63,10 +92,10 @@ namespace ExWebAppSia.webpage
                     e.Gender.Equals("Male", StringComparison.OrdinalIgnoreCase));
 
                 int regularCount = employees.Count(e => e.ContractType == "Regular");
-                int contractualCount = employees.Count(e => e.ContractType == "Contractual");
+                int probationaryCount = employees.Count(e => e.ContractType == "Probationary");
 
                 double regularPercentage = totalEmployees > 0 ? (regularCount * 100.0 / totalEmployees) : 0;
-                double contractualPercentage = totalEmployees > 0 ? (contractualCount * 100.0 / totalEmployees) : 0;
+                double probationaryPercentage = totalEmployees > 0 ? (probationaryCount * 100.0 / totalEmployees) : 0;
 
                 if (litTotalEmployees != null) litTotalEmployees.Text = totalEmployees.ToString();
                 if (litFemaleCount != null) litFemaleCount.Text = femaleCount.ToString();
@@ -74,8 +103,17 @@ namespace ExWebAppSia.webpage
                 
                 if (litRegularPercentage != null) litRegularPercentage.Text = regularPercentage.ToString("F0");
                 if (litRegularPercentageDisplay != null) litRegularPercentageDisplay.Text = $"{regularPercentage:F0}%";
-                if (litContractualPercentage != null) litContractualPercentage.Text = contractualPercentage.ToString("F0");
-                if (litContractualPercentageDisplay != null) litContractualPercentageDisplay.Text = $"{contractualPercentage:F0}%";
+                if (litContractualPercentage != null) litContractualPercentage.Text = probationaryPercentage.ToString("F0"); // Reusing Contractual Literal for Probationary
+                if (litContractualPercentageDisplay != null) litContractualPercentageDisplay.Text = $"{probationaryPercentage:F0}%";
+             
+                // Headcount per Department
+                var headcountData = employees
+                    .GroupBy(e => e.Department ?? "Unassigned")
+                    .Select(g => new { Dept = g.Key, Count = g.Count() })
+                    .OrderByDescending(x => x.Count)
+                    .ToDictionary(x => x.Dept, x => x.Count);
+                
+                Session["DeptHeadcount"] = headcountData;
              
                 var recentEmployees = employees
                     .Where(e => e.IsActive)
@@ -190,7 +228,7 @@ namespace ExWebAppSia.webpage
                         }
                     }
                     
-                    string salary = netSalary > 0 ? $"₱{netSalary:N2}" : "₱0.00";
+                    string salary = netSalary > 0 ? $"&#8369;{netSalary:N2}" : "&#8369;0.00";
 
                     sb.Append($@"
                         <tr>
