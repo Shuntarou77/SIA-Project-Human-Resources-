@@ -10,6 +10,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Text;
 using System.Configuration;
+using System.Web.Script.Serialization;
 
 namespace ExWebAppSia.webpage_EmployeeViewpoint_
 {
@@ -19,6 +20,10 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
         private List<Attendance> _employeeAttendanceRecords = null;
         private Dictionary<string, object> _attendanceStats = null;
         private PayrollItem _latestPayrollItem = null;
+        private string _attendanceStatusJson = null;
+
+        private const int TOTAL_WORKING_DAYS_PER_YEAR = 260;
+        private const int TOTAL_ALLOWED_ABSENCES_PER_YEAR = 15;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -29,11 +34,12 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                     "if (document.forms[0]) { document.forms[0].noValidate = true; }", true);
             }
             
-            // Always load attendance statistics (both on initial load and postback)
-            // This ensures the stats are available even after form submissions
+            // Always load statistics and sync missing data
             RegisterAsyncTask(new PageAsyncTask(LoadAttendanceStatisticsAsync));
             RegisterAsyncTask(new PageAsyncTask(LoadLatestPayrollAsync));
-            
+            RegisterAsyncTask(new PageAsyncTask(SyncMissingDataAsync));
+            RegisterAsyncTask(new PageAsyncTask(LoadAttendanceStatusAsync));
+
             // After postback, if there's a message, keep the modal open
             if (IsPostBack)
             {
@@ -46,6 +52,26 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 {
                     ClientScript.RegisterStartupScript(this.GetType(), "KeepLeaveModalOpen", 
                         "var modal = document.getElementById('leaveModal'); if (modal) { modal.style.display = 'block'; }", true);
+                }
+            }
+        }
+
+        private async Task SyncMissingDataAsync()
+        {
+            var employee = CurrentEmployee;
+            if (employee == null) return;
+
+            // If data is missing in session, try to sync from DB and update session
+            if (!employee.BirthDate.HasValue || !employee.Age.HasValue || string.IsNullOrEmpty(employee.Gender))
+            {
+                var employeeService = new EmployeeService();
+                await employeeService.SyncMissingEmployeeDataAsync();
+                
+                // Refresh employee from DB to get the synced data
+                var updatedEmployee = await employeeService.GetEmployeeByEmailAsync(employee.Email);
+                if (updatedEmployee != null)
+                {
+                    Session["Employee"] = updatedEmployee;
                 }
             }
         }
@@ -141,8 +167,23 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
         {
             var employee = CurrentEmployee;
             if (employee == null) return "N/A";
-            // Return ContractType instead of Active/Inactive status
-            return string.IsNullOrEmpty(employee.ContractType) ? "Regular" : employee.ContractType;
+            // Return EmploymentStatus (Regular/Probationary based on 6 months rule)
+            return employee.EmploymentStatus;
+        }
+
+        protected string GetHiredDate()
+        {
+            var employee = CurrentEmployee;
+            if (employee == null || employee.HiredDate == DateTime.MinValue) return "N/A";
+            return employee.HiredDate.ToLocalTime().ToString("MMM dd, yyyy");
+        }
+
+        protected string GetRegularizationDate()
+        {
+            var employee = CurrentEmployee;
+            if (employee == null || employee.HiredDate == DateTime.MinValue) return "N/A";
+            // Regularization is usually after 6 months
+            return employee.HiredDate.ToLocalTime().AddMonths(6).ToString("MMM dd, yyyy");
         }
 
         protected string GetEmployeeSalary()
@@ -151,6 +192,56 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
             if (employee == null) return "₱0.00";
             return $"₱{employee.BaseSalary:N2}";
         }
+
+        private string FormatGovNumber(string number, string type)
+        {
+            if (string.IsNullOrEmpty(number)) return "Not Set";
+            string clean = new string(number.Where(char.IsDigit).ToArray());
+            try
+            {
+                if (type == "SSS" && clean.Length == 10)
+                    return $"{clean.Substring(0, 2)}-{clean.Substring(2, 7)}-{clean.Substring(9, 1)}";
+                if (type == "PhilHealth" && clean.Length == 12)
+                    return $"{clean.Substring(0, 2)}-{clean.Substring(2, 9)}-{clean.Substring(11, 1)}";
+                if (type == "Pag-IBIG" && clean.Length == 12)
+                    return $"{clean.Substring(0, 4)}-{clean.Substring(4, 4)}-{clean.Substring(8, 4)}";
+            }
+            catch { }
+            return number;
+        }
+
+        protected string GetSSSNumber() => FormatGovNumber(CurrentEmployee?.SSSNumber, "SSS");
+        protected string GetPhilHealthNumber() => FormatGovNumber(CurrentEmployee?.PhilHealthNumber, "PhilHealth");
+        protected string GetPagIbigNumber() => FormatGovNumber(CurrentEmployee?.PagIbigNumber, "Pag-IBIG");
+
+        private async Task LoadAttendanceStatusAsync()
+        {
+            try
+            {
+                var employee = CurrentEmployee;
+                if (employee == null || string.IsNullOrEmpty(employee.EmployeeId))
+                {
+                    _attendanceStatusJson = "{\"hasTimedIn\":false,\"hasTimedOut\":false,\"timeIn\":null,\"timeOut\":null}";
+                    return;
+                }
+
+                var attendance = await _attendanceService.GetTodayAttendanceAsync(employee.EmployeeId);
+                var status = new
+                {
+                    hasTimedIn = attendance != null && attendance.TimeIn.HasValue,
+                    hasTimedOut = attendance != null && attendance.TimeOut.HasValue,
+                    timeIn = attendance?.TimeIn?.ToLocalTime().ToString("h:mm tt"),
+                    timeOut = attendance?.TimeOut?.ToLocalTime().ToString("h:mm tt")
+                };
+                _attendanceStatusJson = new JavaScriptSerializer().Serialize(status);
+            }
+            catch
+            {
+                _attendanceStatusJson = "{\"hasTimedIn\":false,\"hasTimedOut\":false,\"timeIn\":null,\"timeOut\":null}";
+            }
+        }
+
+        protected string GetAttendanceStatusJsonString() => _attendanceStatusJson ?? "{\"hasTimedIn\":false,\"hasTimedOut\":false,\"timeIn\":null,\"timeOut\":null}";
 
         private async Task LoadAttendanceStatisticsAsync()
         {
@@ -220,12 +311,32 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 ? (int)Math.Round((double)currentMonthPresent / pastWeekdays * 100) 
                 : 0;
 
+            // Yearly stats
+            var currentYear = now.Year;
+            var yearlyRecords = _employeeAttendanceRecords
+                .Where(a => a.TimeIn.HasValue)
+                .Select(a => a.TimeIn.Value.ToLocalTime())
+                .Where(t => t.Year == currentYear)
+                .ToList();
+
+            var yearStart = new DateTime(currentYear, 1, 1);
+            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count();
+            
+            var pastYearWeekdays = Enumerable.Range(0, (today - yearStart).Days + 1)
+                .Select(i => yearStart.AddDays(i))
+                .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
+            
+            var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent);
+            var remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
+
             _attendanceStats = new Dictionary<string, object>
             {
                 { "daysPresent", currentMonthPresent },
                 { "daysAbsent", currentMonthAbsent },
                 { "daysLate", currentMonthLate },
-                { "attendanceRate", currentMonthAttendancePercent }
+                { "attendanceRate", currentMonthAttendancePercent },
+                { "remainingAbsences", remainingAbsences },
+                { "targetWorkingDays", TOTAL_WORKING_DAYS_PER_YEAR }
             };
         }
 
@@ -236,7 +347,9 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 { "daysPresent", 0 },
                 { "daysAbsent", 0 },
                 { "daysLate", 0 },
-                { "attendanceRate", 0 }
+                { "attendanceRate", 0 },
+                { "remainingAbsences", TOTAL_ALLOWED_ABSENCES_PER_YEAR },
+                { "targetWorkingDays", TOTAL_WORKING_DAYS_PER_YEAR }
             };
         }
 
@@ -263,6 +376,18 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
         {
             if (_attendanceStats == null) return "0";
             return _attendanceStats["attendanceRate"].ToString();
+        }
+
+        protected string GetRemainingAbsences()
+        {
+            if (_attendanceStats == null) return "0";
+            return _attendanceStats["remainingAbsences"].ToString();
+        }
+
+        protected string GetTargetWorkingDays()
+        {
+            if (_attendanceStats == null) return "0";
+            return _attendanceStats["targetWorkingDays"].ToString();
         }
 
         private async Task LoadLatestPayrollAsync()
@@ -353,8 +478,8 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                     ConcernType = ddlConcernType.SelectedItem.Text,
                     Subject = txtConcernSubject.Text.Trim(),
                     Description = txtConcernDescription.Text.Trim(),
-                    PriorityLevel = ddlPriorityLevel.SelectedValue,
-                    Status = "Pending",
+                    PriorityLevel = "Normal",
+                    Status = "New",
                     SubmittedDate = DateTime.UtcNow,
                     IsActive = true
                 };
@@ -363,7 +488,6 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 ddlConcernType.SelectedIndex = 0;
                 txtConcernSubject.Text = "";
                 txtConcernDescription.Text = "";
-                ddlPriorityLevel.SelectedValue = "medium";
                 fileSupportingDocs.Attributes.Clear();
 
                 // Show initial success message
@@ -530,9 +654,7 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 body.AppendLine("<div style='margin-bottom: 20px;'>");
                 body.AppendLine($"<p><strong>Subject:</strong> <span style='color: #A44F56; font-weight: bold;'>{HttpUtility.HtmlEncode(concern.Subject)}</span></p>");
                 body.AppendLine($"<p><strong>Concern Type:</strong> {concern.ConcernType}</p>");
-                body.AppendLine($"<p><strong>Priority Level:</strong> <span style='color: #A44F56; font-weight: bold;'>{concern.PriorityLevel}</span></p>");
                 body.AppendLine($"<p><strong>Submitted Date:</strong> {concern.SubmittedDate.ToLocalTime():MMM dd, yyyy HH:mm}</p>");
-                body.AppendLine($"<p><strong>Status:</strong> <span style='color: #f59e0b; font-weight: bold;'>Under Review</span></p>");
                 body.AppendLine("</div>");
 
                 body.AppendLine("<div style='background-color: #f9f9f9; padding: 15px; border-left: 4px solid #A44F56; margin-bottom: 20px;'>");

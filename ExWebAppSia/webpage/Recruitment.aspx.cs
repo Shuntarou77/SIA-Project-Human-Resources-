@@ -19,6 +19,7 @@ namespace ExWebAppSia.webpage
         private readonly ManagerService _managerService = new ManagerService();
         private readonly UserService _userService = new UserService();
         private readonly EmailService _emailService = new EmailService();
+        private readonly RoleSalaryService _roleSalaryService = new RoleSalaryService();
 
         protected async void Page_Load(object sender, EventArgs e)
         {
@@ -36,7 +37,10 @@ namespace ExWebAppSia.webpage
 
             if (!IsPostBack)
             {
-                RegisterAsyncTask(new PageAsyncTask(LoadApplicantsData));
+                RegisterAsyncTask(new PageAsyncTask(async () => {
+                    await _roleSalaryService.SeedRoleSalariesAsync();
+                    await LoadApplicantsData();
+                }));
             }
         }
 
@@ -47,7 +51,7 @@ namespace ExWebAppSia.webpage
                 // Default hiring type to Employee
                 string selectedHiringType = "Employee";
 
-                // Validate required fields
+                // Basic Field Validation
                 if (string.IsNullOrEmpty(txtFirstName.Text.Trim()) ||
                     string.IsNullOrEmpty(txtLastName.Text.Trim()) ||
                     string.IsNullOrEmpty(ddlAppliedPosition.SelectedValue) ||
@@ -58,7 +62,80 @@ namespace ExWebAppSia.webpage
                     return;
                 }
 
+                string firstName = txtFirstName.Text.Trim();
+                string lastName = txtLastName.Text.Trim();
 
+                // 1. Restriction: Unique Name Check
+                bool nameExistsInApplicants = await _applicantService.IsNameDuplicateAsync(firstName, lastName);
+                bool nameExistsInEmployees = await _employeeService.IsNameDuplicateAsync(firstName, lastName);
+
+                if (nameExistsInApplicants || nameExistsInEmployees)
+                {
+                    ShowMessage("An employee or applicant with this name already exists in the system.", false);
+                    return;
+                }
+
+                // 2. Restriction: Age and Birthdate must match
+                DateTime birthDate;
+                if (!DateTime.TryParse(txtBirthDate.Text.Trim(), out birthDate))
+                {
+                    ShowMessage("Please enter a valid birthdate.", false);
+                    return;
+                }
+
+                // Calculate age from birthdate
+                var today = DateTime.Today;
+                int calculatedAge = today.Year - birthDate.Year;
+                if (birthDate.Date > today.AddYears(-calculatedAge)) calculatedAge--;
+
+                int enteredAge;
+                if (int.TryParse(txtAge.Text.Trim(), out enteredAge))
+                {
+                    if (enteredAge != calculatedAge)
+                    {
+                        ShowMessage($"Entered age ({enteredAge}) does not match the birthdate calculation ({calculatedAge}).", false);
+                        return;
+                    }
+                }
+                else
+                {
+                    // Auto-fill age if not entered
+                    txtAge.Text = calculatedAge.ToString();
+                }
+
+                // Proceed with applicant creation
+
+
+
+                // Handle Resume Upload
+                string resumePath = "";
+                string resumeFileName = "";
+                string resumeFileType = "";
+
+                if (fileResume.HasFile)
+                {
+                    try
+                    {
+                        resumeFileName = fileResume.FileName;
+                        resumeFileType = fileResume.PostedFile.ContentType;
+                        string fileName = Guid.NewGuid().ToString() + "_" + System.IO.Path.GetFileName(fileResume.FileName);
+                        string uploadDir = Server.MapPath("~/Uploads/Resumes/");
+                        if (!System.IO.Directory.Exists(uploadDir))
+                        {
+                            System.IO.Directory.CreateDirectory(uploadDir);
+                        }
+                        string fullPath = System.IO.Path.Combine(uploadDir, fileName);
+                        fileResume.SaveAs(fullPath);
+                        resumePath = "~/Uploads/Resumes/" + fileName;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error saving resume: {ex.Message}");
+                    }
+                }
+
+                // Generate Reference Number (format: SHE-YYYYMMDDHHMMSS-RANDOM)
+                string refNumber = "SHE-" + DateTime.Now.ToString("yyyyMMddHHmmss") + "-" + new Random().Next(1000, 9999).ToString();
 
                 // Create applicant object
                 var applicant = new Applicant
@@ -69,7 +146,11 @@ namespace ExWebAppSia.webpage
                     Email = txtEmail.Text.Trim(),
                     ContactNo = txtContactNo.Text.Trim(),
                     Address = txtAddress.Text.Trim(),
-                    Education = txtEducation.Text.Trim(),
+                    Street = txtStreet.Text.Trim(),
+                    City = txtCity.Text.Trim(),
+                    State = txtState.Text.Trim(),
+                    Country = txtCountry.Text.Trim(),
+                    Education = ddlEducationLevel.SelectedValue,
                     Age = !string.IsNullOrEmpty(txtAge.Text.Trim()) ? int.Parse(txtAge.Text.Trim()) : (int?)null,
                     BirthDate = !string.IsNullOrEmpty(txtBirthDate.Text.Trim()) ? DateTime.Parse(txtBirthDate.Text.Trim()) : (DateTime?)null,
                     Gender = ddlGender.SelectedValue,
@@ -87,12 +168,22 @@ namespace ExWebAppSia.webpage
                     Role = hdnSelectedRole.Value,
                     HowDidYouHearUs = ddlHowDidYouHearUs.SelectedValue,
                     ReferralName = txtReferralName.Text.Trim(),
-                    ContractType = rblContractType.SelectedValue ?? "Regular",
+                    ContractType = rblContractType.SelectedValue ?? "Provisionary",
                     StartingSalary = 18000, // All probationary employees start at 18,000 PHP
                     HiringType = selectedHiringType,
+                    Status = "Pending Review",
+                    ReferenceNumber = refNumber,
+                    AppointmentStatus = "Pending",
+                    IsDraft = false,
                     HasSSS = chkSSS.Checked,
                     HasPhilHealth = chkPhilHealth.Checked,
-                    HasPagIbig = chkPagIbig.Checked
+                    HasPagIbig = chkPagIbig.Checked,
+                    SSSNumber = "", 
+                    PhilHealthNumber = "",
+                    PagIbigNumber = "",
+                    ResumePath = resumePath,
+                    ResumeFileName = resumeFileName,
+                    ResumeFileType = resumeFileType
                 };
 
                 bool success = await _applicantService.CreateApplicantAsync(applicant);
@@ -125,6 +216,13 @@ namespace ExWebAppSia.webpage
                 var applicant = await _applicantService.GetApplicantByIdAsync(applicantId);
                 if (applicant != null)
                 {
+                    // Only show govt details editing for 'For Viewing' tab and later stages
+                    // Hide it for 'Pending Review' (which is the 'New' tab)
+                    if (govtDetailsSection != null)
+                    {
+                        govtDetailsSection.Visible = (applicant.Status != "Pending Review");
+                    }
+
                     DisplayApplicantDetails(applicant);
                     ScriptManager.RegisterStartupScript(this, GetType(), "openDetailsModal",
                         "document.getElementById('viewDetailsModal').style.display = 'block';", true);
@@ -139,37 +237,83 @@ namespace ExWebAppSia.webpage
         private void DisplayApplicantDetails(Applicant applicant)
         {
             var sb = new StringBuilder();
-            sb.Append("<div style='padding: 20px;'>");
+            sb.Append("<div style='padding: 20px; font-family: sans-serif;'>");
 
             // Personal Info
-            sb.Append("<h3 style='color: var(--accent); margin-bottom: 15px; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;'>Personal Information</h3>");
-            sb.Append("<table style='width: 100%; border-collapse: collapse; margin-bottom: 20px;'>");
-            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold; width: 40%;'>Full Name:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.FullName));
-            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Email:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.Email ?? ""));
-            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Contact:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.ContactNo ?? ""));
-            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Address:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.Address ?? ""));
+            sb.Append("<h3 style='color: var(--primary-color); margin-bottom: 15px; border-bottom: 2px solid #eee; padding-bottom: 8px; font-size: 1.1rem; text-transform: uppercase;'>Personal Information</h3>");
+            sb.Append("<table style='width: 100%; border-collapse: collapse; margin-bottom: 24px;'>");
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666; width: 35%;'>Full Name:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.FullName));
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Reference No:</td><td style='padding: 8px;'><span style='background: #f0f7ff; color: #007bff; padding: 2px 8px; border-radius: 4px; font-weight: 700;'>{0}</span></td></tr>", Server.HtmlEncode(applicant.ReferenceNumber ?? "N/A"));
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Email:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.Email ?? ""));
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Contact:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.ContactNo ?? ""));
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Birth Date:</td><td style='padding: 8px;'>{0} ({1} yrs old)</td></tr>", applicant.BirthDate?.ToString("MMM dd, yyyy") ?? "N/A", applicant.Age?.ToString() ?? "N/A");
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Gender:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.Gender ?? ""));
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Address:</td><td style='padding: 8px;'>{0} {1}, {2}, {3}, {4}</td></tr>", 
+                Server.HtmlEncode(applicant.Street ?? ""), 
+                Server.HtmlEncode(applicant.Address ?? ""),
+                Server.HtmlEncode(applicant.City ?? ""), 
+                Server.HtmlEncode(applicant.State ?? ""), 
+                Server.HtmlEncode(applicant.Country ?? ""));
             sb.Append("</table>");
 
-            // Application Info
-            sb.Append("<h3 style='color: var(--accent); margin: 20px 0 15px 0; border-bottom: 2px solid var(--border-color); padding-bottom: 8px;'>Application Information</h3>");
-            sb.Append("<table style='width: 100%; border-collapse: collapse; margin-bottom: 20px;'>");
-            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold; width: 40%;'>Position:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.AppliedPosition ?? ""));
-            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Role:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.Role ?? ""));
-            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Starting Salary:</td><td style='padding: 8px;'>₱{0:N2}</td></tr>", applicant.StartingSalary > 0 ? applicant.StartingSalary : 18000);
-            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Status:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.Status ?? ""));
+            // Guardian Info
+            sb.Append("<h3 style='color: var(--primary-color); margin: 24px 0 15px 0; border-bottom: 2px solid #eee; padding-bottom: 8px; font-size: 1.1rem; text-transform: uppercase;'>Guardian Information</h3>");
+            sb.Append("<table style='width: 100%; border-collapse: collapse; margin-bottom: 24px;'>");
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666; width: 35%;'>Guardian Name:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.GuardianName ?? "N/A"));
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Contact No:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.GuardianContactNo ?? "N/A"));
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Email:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.GuardianEmail ?? "N/A"));
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Home Address:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.GuardianHomeAddress ?? "N/A"));
+            sb.Append("</table>");
 
-            sb.Append("<tr><td style='padding: 8px; font-weight: bold;'>Govt. Contributions:</td><td style='padding: 8px;'>");
-            sb.AppendFormat("<span style='color: {0}; margin-right: 15px;'>SSS: {1}</span>", applicant.HasSSS ? "green" : "gray", applicant.HasSSS ? "✓" : "✗");
-            sb.AppendFormat("<span style='color: {0}; margin-right: 15px;'>PhilHealth: {1}</span>", applicant.HasPhilHealth ? "green" : "gray", applicant.HasPhilHealth ? "✓" : "✗");
-            sb.AppendFormat("<span style='color: {0};'>Pag-IBIG: {1}</span>", applicant.HasPagIbig ? "green" : "gray", applicant.HasPagIbig ? "✓" : "✗");
-            sb.Append("</td></tr>");
-
-            if (applicant.Status == "Declined" && !string.IsNullOrEmpty(applicant.DeclineReason))
+            // Work History
+            if (applicant.HasPreviousCompany)
             {
-                sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold; color: #C62828;'>Decline Reason:</td><td style='padding: 8px; color: #C62828;'>{0}</td></tr>", Server.HtmlEncode(applicant.DeclineReason));
+                sb.Append("<h3 style='color: var(--primary-color); margin: 24px 0 15px 0; border-bottom: 2px solid #eee; padding-bottom: 8px; font-size: 1.1rem; text-transform: uppercase;'>Work Experience</h3>");
+                sb.Append("<table style='width: 100%; border-collapse: collapse; margin-bottom: 24px;'>");
+                sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666; width: 35%;'>Company:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.PreviousCompanyName ?? ""));
+                sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Previous Role:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.PreviousPosition ?? ""));
+                sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Job Industry:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.JobIndustry ?? ""));
+                sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Experience:</td><td style='padding: 8px;'>{0} Years, {1} Months</td></tr>", applicant.Years ?? 0, applicant.Months ?? 0);
+                sb.Append("</table>");
             }
 
-            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Date:</td><td style='padding: 8px;'>{0}</td></tr>", applicant.AppliedDate.ToLocalTime().ToString("MMM dd, yyyy"));
+            // Application Info
+            sb.Append("<h3 style='color: var(--primary-color); margin: 24px 0 15px 0; border-bottom: 2px solid #eee; padding-bottom: 8px; font-size: 1.1rem; text-transform: uppercase;'>Application Details</h3>");
+            sb.Append("<table style='width: 100%; border-collapse: collapse; margin-bottom: 24px;'>");
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666; width: 35%;'>Dept (Position):</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.AppliedPosition ?? ""));
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Role / Job Title:</td><td style='padding: 8px;'><mark style='background: #fff3cd; padding: 2px 6px;'>{0}</mark></td></tr>", Server.HtmlEncode(applicant.Role ?? ""));
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Contract Type:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.ContractType ?? ""));
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Starting Salary:</td><td style='padding: 8px;'>₱{0:N2}</td></tr>", applicant.StartingSalary > 0 ? applicant.StartingSalary : 18000);
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Status:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.Status ?? ""));
+            
+            // Govt. Contributions
+            string checkIcon = "<span style='color: #28a745; margin-right: 5px;'>✔</span>";
+            string xIcon = "<span style='color: #dc3545; margin-right: 5px;'>✘</span>";
+
+            sb.Append("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Govt. Contributions:</td><td style='padding: 8px;'>");
+            sb.AppendFormat("<span style='margin-right: 15px;'>{0} SSS</span>", applicant.HasSSS ? checkIcon : xIcon);
+            sb.AppendFormat("<span style='margin-right: 15px;'>{0} PhilHealth</span>", applicant.HasPhilHealth ? checkIcon : xIcon);
+            sb.AppendFormat("<span>{0} Pag-IBIG</span>", applicant.HasPagIbig ? checkIcon : xIcon);
+            sb.Append("</td></tr>");
+
+            if (!string.IsNullOrEmpty(applicant.ResumePath))
+            {
+                string resumeUrl = ResolveUrl(applicant.ResumePath);
+                sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Resume / CV:</td><td style='padding: 8px;'><a href='{0}' target='_blank' style='color: #007bff; text-decoration: underline;'>Download / View {1}</a></td></tr>", 
+                    resumeUrl, Server.HtmlEncode(applicant.ResumeFileName ?? "File"));
+            }
+
+            if (applicant.InterviewDate.HasValue)
+            {
+                sb.Append("<tr style='background: rgba(40, 167, 69, 0.05);'>");
+                sb.Append("<td style='padding: 8px; font-weight: 700; color: #28a745;'>Interview Schedule:</td>");
+                sb.AppendFormat("<td style='padding: 8px; color: #28a745; font-weight: 700;'>{0} at {1}</td>", applicant.InterviewDate.Value.ToString("MMM dd, yyyy"), applicant.InterviewTime ?? "N/A");
+                sb.Append("</tr>");
+                sb.AppendFormat("<tr style='background: rgba(40, 167, 69, 0.05);'><td style='padding: 8px; font-weight: 700; color: #666;'>Interviewer:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.InterviewerName ?? "N/A"));
+                sb.AppendFormat("<tr style='background: rgba(40, 167, 69, 0.05);'><td style='padding: 8px; font-weight: 700; color: #666;'>Location:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.InterviewLocation ?? "N/A"));
+            }
+
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Applied Date:</td><td style='padding: 8px;'>{0}</td></tr>", applicant.AppliedDate.ToLocalTime().ToString("MMM dd, yyyy"));
             sb.Append("</table>");
 
             // Populate Govt Textboxes
@@ -216,7 +360,8 @@ namespace ExWebAppSia.webpage
         private void ClearForm()
         {
             txtFirstName.Text = ""; txtLastName.Text = ""; txtEmail.Text = ""; ddlAppliedPosition.SelectedIndex = 0;
-            hdnSelectedRole.Value = ""; ddlHowDidYouHearUs.SelectedIndex = 0;
+            txtAddress.Text = ""; txtStreet.Text = ""; txtCity.Text = ""; txtState.Text = ""; txtCountry.Text = "";
+            hdnSelectedRole.Value = ""; ddlHowDidYouHearUs.SelectedIndex = 0; ddlEducationLevel.SelectedIndex = 0;
             chkSSS.Checked = false; chkPhilHealth.Checked = false; chkPagIbig.Checked = false;
         }
 
@@ -239,6 +384,7 @@ namespace ExWebAppSia.webpage
                 var declinedCountTask = _applicantService.GetCountByStatusAsync("Declined");
 
                 var employeesTask = _employeeService.GetAllEmployeesAsync();
+                var roleSalariesTask = _roleSalaryService.GetAllRoleSalariesAsync();
 
                 await Task.WhenAll(
                     newApplicantsTask,
@@ -251,7 +397,8 @@ namespace ExWebAppSia.webpage
                     inProgressCountTask,
                     approvedCountTask,
                     declinedCountTask,
-                    employeesTask
+                    employeesTask,
+                    roleSalariesTask
                 );
 
                 PopulateNewApplicantsTable(newApplicantsTask.Result);
@@ -276,7 +423,7 @@ namespace ExWebAppSia.webpage
 
                 // Calculate available positions: 50 slots minus (Current Employees + Applicants in pipeline)
                 int totalCapacity = 50;
-                int totalOccupied = currentEmployeeCount + newCount + inProgressCount + approvedCount;
+                int totalOccupied = currentEmployeeCount;
                 if (litAvailablePositions != null)
                 {
                     litAvailablePositions.Text = Math.Max(0, totalCapacity - totalOccupied).ToString();
@@ -284,50 +431,76 @@ namespace ExWebAppSia.webpage
 
                 if (litAvailablePositionsList != null)
                 {
-                    // Identify roles that are officially filled by hired employees
+                    // Identify roles that are occupied or reserved
                     var occupiedRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+                    // 1. Occupied by hired employees
                     if (employeesTask.Result != null)
                     {
                         foreach (var emp in employeesTask.Result)
                         {
-                            if (!string.IsNullOrEmpty(emp.Role)) occupiedRoles.Add(emp.Role);
+                            if (!string.IsNullOrEmpty(emp.Role)) 
+                                occupiedRoles.Add(emp.Role.Trim());
                         }
                     }
 
-                    var positions = new[] {
-                        "Research Scientist", "Lab Technician", "Product Developer", "R&D Manager",
-                        "QC Analyst", "QC Inspector", "QC Manager", "Laboratory Supervisor",
-                        "HR Generalist", "Recruitment Specialist", "HR Manager", "Training Coordinator",
-                        "Accountant", "Financial Analyst", "Finance Manager", "Payroll Specialist",
-                        "Marketing Coordinator", "Brand Manager", "Digital Marketing Specialist", "Content Creator",
-                        "IT Support Specialist", "Network Administrator", "System Administrator", "IT Manager",
-                        "Operations Coordinator", "Operations Manager", "Supply Chain Specialist", "Logistics Coordinator",
-                        "Sales Representative", "Sales Manager", "Account Executive", "Business Development Manager",
-                        "Legal Assistant", "Legal Counsel", "Compliance Officer", "Contract Specialist",
-                        "Customer Support Specialist", "Customer Service Representative", "Call Center Agent", "Customer Service Manager"
-                    };
+                    // 2. Reserved by applicants in critical pipeline stages (Removed per user request)
+                    // Roles should now stay in "Currently Hiring" until someone is actually hired.
+
+
+                    var activeRoleSalaries = (roleSalariesTask.Result ?? new List<RoleSalary>())
+                                            .Where(r => r.IsActive == true)
+                                            .ToList();
+                    var positions = activeRoleSalaries.Select(r => r.RoleName).ToArray();
 
                     var sbPos = new StringBuilder();
                     int visibleCount = 0;
 
                     foreach (var pos in positions)
                     {
+                        string trimmedPos = pos.Trim();
                         // Only show roles that are NOT yet occupied or reserved
-                        if (!occupiedRoles.Contains(pos))
+                        if (!occupiedRoles.Contains(trimmedPos))
                         {
-                            sbPos.AppendFormat("<div class='pos-item' style='display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; padding: 4px 0;' onclick=\"filterByPosition('{0}')\" onmouseover=\"this.style.color='#3b82f6'\" onmouseout=\"this.style.color=''\" ><svg style='width:14px; height:14px; color:#3b82f6;' fill='currentColor' viewBox='0 0 20 20'><path fill-rule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' clip-rule='evenodd'></path></svg>{0}</div>", pos);
+                            sbPos.AppendFormat("<div class='pos-item' style='display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; padding: 4px 0;' onclick=\"filterByPosition('{0}')\" onmouseover=\"this.style.color='#3b82f6'\" onmouseout=\"this.style.color=''\" ><svg style='width:14px; height:14px; color:#3b82f6;' fill='currentColor' viewBox='0 0 20 20'><path fill-rule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' clip-rule='evenodd'></path></svg>{0}</div>", Server.HtmlEncode(pos));
                             visibleCount++;
                         }
                     }
 
                     if (visibleCount == 0)
                     {
-                        litAvailablePositionsList.Text = "<div style='grid-column: 1/-1; color: var(--text-secondary); font-style: italic; font-size: 13px;'>All target roles currently filled.</div>";
+                        sbPos.Append("<div style='color: #6b7280; font-style: italic; font-size: 13px;'>All current positions filled.</div>");
                     }
-                    else
+
+                    litAvailablePositionsList.Text = sbPos.ToString();
+
+                    // Dynamic Dropdowns and JS Objects
+                    if (activeRoleSalaries.Count > 0)
                     {
-                        litAvailablePositionsList.Text = sbPos.ToString();
+                        var deptGrouped = activeRoleSalaries.GroupBy(r => r.Department)
+                                                            .OrderBy(g => g.Key)
+                                                            .ToDictionary(g => g.Key, g => g.Select(r => r.RoleName).ToList());
+
+                        // Populate ddlAppliedPosition if empty (first load)
+                        if (ddlAppliedPosition.Items.Count <= 1)
+                        {
+                            foreach (var dept in deptGrouped.Keys)
+                            {
+                                ddlAppliedPosition.Items.Add(new ListItem(dept, dept));
+                            }
+                        }
+
+                        // Inject JS for rolesByDepartment and salaryByRole
+                        var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+                        string rolesJson = serializer.Serialize(deptGrouped);
+                        string salaryJson = serializer.Serialize(activeRoleSalaries.ToDictionary(r => r.RoleName, r => r.BaseSalary));
+
+                        string script = $@"
+                            rolesByDepartment = {rolesJson};
+                            salaryByRole = {salaryJson};
+                            if (typeof updateRoleOptions === 'function') updateRoleOptions();
+                        ";
+                        ScriptManager.RegisterStartupScript(this, GetType(), "DynamicRoles", script, true);
                     }
                 }
             }
@@ -351,16 +524,16 @@ namespace ExWebAppSia.webpage
                 string id = Server.HtmlEncode(applicant.Id);
                 string dept = Server.HtmlEncode(applicant.AppliedPosition ?? "");
                 string role = Server.HtmlEncode(applicant.Role ?? "");
-                sb.AppendFormat(@"<tr data-fullname='{0}' data-position='{1}' data-sss='{3}' data-philhealth='{4}' data-pagibig='{5}' data-dept='{6}' data-role='{7}'>
+                sb.AppendFormat(@"<tr data-fullname='{0}' data-position='{7}' data-sss='{3}' data-philhealth='{4}' data-pagibig='{5}' data-dept='{6}' data-role='{7}'>
                     <td class='checkbox-cell'><input type='checkbox' value='{2}' class='applicant-checkbox' /></td>
                     <td><strong>{0}</strong></td>
-                    <td>{1}</td>
+                    <td>{7}</td>
                     <td style='text-align: center;'>
                         <div class='action-buttons'>
                             <button class='btn btn-view-details' onclick=""viewApplicantDetails('{2}'); return false;"">View</button>
                         </div>
                     </td>
-                </tr>", Server.HtmlEncode(applicant.FullName), Server.HtmlEncode(applicant.AppliedPosition ?? ""), id, applicant.HasSSS.ToString().ToLower(), applicant.HasPhilHealth.ToString().ToLower(), applicant.HasPagIbig.ToString().ToLower(), dept, role);
+                </tr>", Server.HtmlEncode(applicant.FullName), dept, id, applicant.HasSSS.ToString().ToLower(), applicant.HasPhilHealth.ToString().ToLower(), applicant.HasPagIbig.ToString().ToLower(), dept, role);
             }
             newApplicantsTableBody.InnerHtml = sb.ToString();
         }
@@ -379,7 +552,7 @@ namespace ExWebAppSia.webpage
                 string dept = Server.HtmlEncode(applicant.AppliedPosition ?? "");
                 string role = Server.HtmlEncode(applicant.Role ?? "");
                 string id = Server.HtmlEncode(applicant.Id);
-                sb.AppendFormat(@"<tr>
+                sb.AppendFormat(@"<tr data-sss='{3}' data-philhealth='{4}' data-pagibig='{5}'>
                     <td class='checkbox-cell'><input type='checkbox' value='{2}' class='applicant-checkbox' /></td>
                     <td><strong>{0}</strong></td>
                     <td>{1}</td>
@@ -390,7 +563,10 @@ namespace ExWebAppSia.webpage
                             <button class='btn btn-decline' onclick=""declineApplicant('{2}', this); return false;"">Decline</button>
                         </div>
                     </td>
-                </tr>", Server.HtmlEncode(applicant.FullName), Server.HtmlEncode(applicant.AppliedPosition ?? ""), id);
+                </tr>", Server.HtmlEncode(applicant.FullName), role, id, 
+                (!string.IsNullOrEmpty(applicant.SSSNumber)).ToString().ToLower(), 
+                (!string.IsNullOrEmpty(applicant.PhilHealthNumber)).ToString().ToLower(), 
+                (!string.IsNullOrEmpty(applicant.PagIbigNumber)).ToString().ToLower());
             }
             forViewingApplicantsTableBody.InnerHtml = sb.ToString();
         }
@@ -408,15 +584,16 @@ namespace ExWebAppSia.webpage
             {
                 string dept = Server.HtmlEncode(applicant.AppliedPosition ?? "");
                 string role = Server.HtmlEncode(applicant.Role ?? "");
-                sb.AppendFormat(@"<tr data-fullname='{0}' data-position='{1}' data-sss='{3}' data-philhealth='{4}' data-pagibig='{5}' data-dept='{6}' data-role='{7}'>
+                string approvedDateStr = (applicant.ApprovedDate ?? applicant.AppliedDate).ToString("yyyy-MM-dd");
+                sb.AppendFormat(@"<tr data-fullname='{0}' data-position='{7}' data-sss='{3}' data-philhealth='{4}' data-pagibig='{5}' data-dept='{6}' data-role='{7}' data-approvedate='{8}'>
                     <td class='checkbox-cell'><input type='checkbox' value='{2}' class='applicant-checkbox' /></td>
                     <td><strong>{0}</strong></td>
-                    <td>{1}</td>
+                    <td>{7}</td>
                     <td style='text-align: center;'>
                         <span class='status-badge status-approved'>Approved</span>
                         <a href='#' class='status-link' onclick=""viewApplicantDetails('{2}'); return false;"" style='margin-left: 12px;'>View Details</a>
                     </td>
-                </tr>", Server.HtmlEncode(applicant.FullName), Server.HtmlEncode(applicant.AppliedPosition ?? ""), Server.HtmlEncode(applicant.Id), applicant.HasSSS.ToString().ToLower(), applicant.HasPhilHealth.ToString().ToLower(), applicant.HasPagIbig.ToString().ToLower(), dept, role);
+                </tr>", Server.HtmlEncode(applicant.FullName), dept, Server.HtmlEncode(applicant.Id), applicant.HasSSS.ToString().ToLower(), applicant.HasPhilHealth.ToString().ToLower(), applicant.HasPagIbig.ToString().ToLower(), dept, role, approvedDateStr);
             }
             approvedApplicantsTableBody.InnerHtml = sb.ToString();
         }
@@ -434,9 +611,9 @@ namespace ExWebAppSia.webpage
             {
                 string dept = Server.HtmlEncode(applicant.AppliedPosition ?? "");
                 string role = Server.HtmlEncode(applicant.Role ?? "");
-                sb.AppendFormat(@"<tr data-fullname='{0}' data-position='{1}' data-sss='{3}' data-philhealth='{4}' data-pagibig='{5}' data-dept='{6}' data-role='{7}'>
+                sb.AppendFormat(@"<tr data-fullname='{0}' data-position='{7}' data-sss='{3}' data-philhealth='{4}' data-pagibig='{5}' data-dept='{6}' data-role='{7}'>
                     <td><strong>{0}</strong></td>
-                    <td>{1}</td>
+                    <td>{7}</td>
                     <td style='text-align: center;'>
                         <span class='status-badge status-declined'>Declined</span>
                         <a href='#' class='status-link' onclick=""viewApplicantDetails('{2}'); return false;"" style='margin-left: 12px;'>View Details</a>
@@ -467,9 +644,9 @@ namespace ExWebAppSia.webpage
                 string onclick = isHired ? "" : string.Format("hireApplicant('{0}', this); return false;", Server.HtmlEncode(applicant.Id));
                 string dept = Server.HtmlEncode(applicant.AppliedPosition ?? "");
                 string role = Server.HtmlEncode(applicant.Role ?? "");
-                sb.AppendFormat(@"<tr data-fullname='{0}' data-position='{1}' data-sss='{6}' data-philhealth='{7}' data-pagibig='{8}' data-dept='{9}' data-role='{10}'>
+                sb.AppendFormat(@"<tr data-fullname='{0}' data-position='{10}' data-sss='{6}' data-philhealth='{7}' data-pagibig='{8}' data-dept='{9}' data-role='{10}'>
                     <td><strong>{0}</strong></td>
-                    <td>{1}</td>
+                    <td>{10}</td>
                     <td style='text-align: center;'>
                         <a href='#' class='status-link' onclick=""viewApplicantDetails('{2}'); return false;"">View Details</a>
                     </td>
@@ -494,6 +671,15 @@ namespace ExWebAppSia.webpage
                 var applicant = await _applicantService.GetApplicantByIdAsync(applicantId);
                 if (applicant == null) return;
 
+                // Secondary safety check: ensure govt numbers are still present
+                if (string.IsNullOrEmpty(applicant.SSSNumber) || 
+                    string.IsNullOrEmpty(applicant.PhilHealthNumber) || 
+                    string.IsNullOrEmpty(applicant.PagIbigNumber))
+                {
+                    ShowMessage("Cannot hire applicant. Government numbers are incomplete. Please update them in the details view.", false);
+                    return;
+                }
+
                 // Simple check for existing employee
                 var existing = await _employeeService.GetEmployeeByApplicantIdAsync(applicantId);
                 if (existing != null)
@@ -510,14 +696,29 @@ namespace ExWebAppSia.webpage
                     MiddleName = applicant.MiddleName,
                     LastName = applicant.LastName,
                     Email = applicant.Email,
+                    ContactNo = applicant.ContactNo,
+                    Address = applicant.Address,
+                    Street = applicant.Street,
+                    City = applicant.City,
+                    State = applicant.State,
+                    Country = applicant.Country,
+                    Age = applicant.Age,
+                    BirthDate = applicant.BirthDate,
+                    Gender = applicant.Gender,
                     Department = applicant.AppliedPosition,
                     Role = applicant.Role,
+                    ContractType = applicant.ContractType ?? "Probationary",
                     BaseSalary = applicant.StartingSalary > 0 ? applicant.StartingSalary : 18000,
                     ApplicantId = applicantId,
                     HiredDate = DateTime.UtcNow,
                     HasSSS = applicant.HasSSS,
                     HasPhilHealth = applicant.HasPhilHealth,
                     HasPagIbig = applicant.HasPagIbig,
+                    SSSNumber = applicant.SSSNumber,
+                    PhilHealthNumber = applicant.PhilHealthNumber,
+                    PagIbigNumber = applicant.PagIbigNumber,
+                    ResumePath = applicant.ResumePath,
+                    ResumeFileName = applicant.ResumeFileName,
                     IsActive = true
                 };
 
@@ -563,6 +764,17 @@ namespace ExWebAppSia.webpage
                 if (string.IsNullOrEmpty(id)) return;
 
                 var applicant = await _applicantService.GetApplicantByIdAsync(id);
+                if (applicant == null) return;
+
+                // Restriction: Must have complete government numbers BEFORE approval
+                if (string.IsNullOrEmpty(applicant.SSSNumber) || 
+                    string.IsNullOrEmpty(applicant.PhilHealthNumber) || 
+                    string.IsNullOrEmpty(applicant.PagIbigNumber))
+                {
+                    ShowMessage("Cannot approve applicant. Government numbers (SSS, PhilHealth, Pag-IBIG) must be complete first.", false);
+                    return;
+                }
+
                 bool success = await _applicantService.UpdateApplicantStatusAsync(id, "Approved");
                 
                 if (success)
@@ -614,24 +826,32 @@ namespace ExWebAppSia.webpage
 
                 string[] applicantIds = idsRaw.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
 
-                DateTime interviewDate;
-                if (!DateTime.TryParse(txtInterviewDate.Text, out interviewDate))
+                // Automatically set interview to the Upcoming Monday
+                DateTime today = DateTime.Now;
+                int daysUntilMonday = ((int)DayOfWeek.Monday - (int)today.DayOfWeek + 7) % 7;
+                if (daysUntilMonday == 0) daysUntilMonday = 7; // If today is Monday, schedule for next week
+                DateTime interviewDate = today.AddDays(daysUntilMonday);
+                
+                // Get the manually selected time
+                string timeStrRaw = txtInterviewTime.Text;
+                string timeStr = "";
+                DateTime fullInterviewDateTime = interviewDate.Date;
+
+                if (DateTime.TryParse(timeStrRaw, out DateTime parsedTime))
                 {
-                    ShowMessage("Invalid interview date.", false);
-                    return;
+                    timeStr = parsedTime.ToString("hh:mm tt");
+                    fullInterviewDateTime = interviewDate.Date.Add(parsedTime.TimeOfDay);
+                }
+                else
+                {
+                    // Fallback to 9:00 AM if parsing fails for some reason
+                    timeStr = "09:00 AM";
+                    fullInterviewDateTime = interviewDate.Date.Add(new TimeSpan(9, 0, 0));
                 }
 
-                string timeStr = txtInterviewTime.Text;
                 string location = txtInterviewLocation.Text;
                 string interviewer = txtInterviewerName.Text;
                 string notes = txtInterviewNotes.Text;
-
-                // Try to combine date and time for the email
-                DateTime fullInterviewDateTime = interviewDate;
-                if (DateTime.TryParse($"{txtInterviewDate.Text} {timeStr}", out DateTime combined))
-                {
-                    fullInterviewDateTime = combined;
-                }
 
                 int successCount = 0;
                 int emailCount = 0;
@@ -639,6 +859,7 @@ namespace ExWebAppSia.webpage
                 foreach (string id in applicantIds)
                 {
                     var applicant = await _applicantService.GetApplicantByIdAsync(id);
+                    if (applicant == null) continue;
                     
                     bool success = await _applicantService.ScheduleInterviewAsync(
                         id, interviewDate, timeStr, location, interviewer, notes, "HR Manager"

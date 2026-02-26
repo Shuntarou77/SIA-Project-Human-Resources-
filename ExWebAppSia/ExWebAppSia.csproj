@@ -286,6 +286,8 @@
     <Compile Include="Models\Manager.cs" />
     <Compile Include="Models\ManagerService.cs" />
     <Compile Include="Models\MongoDBHelper.cs" />
+    <Compile Include="Models\RoleSalary.cs" />
+    <Compile Include="Models\RoleSalaryService.cs" />
     <Compile Include="Models\PasswordHelper.cs" />
     <Compile Include="Models\PlaceholderEmployeeSeeder.cs" />
     <Compile Include="Models\PayrollConfiguration.cs" />

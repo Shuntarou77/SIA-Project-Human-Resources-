@@ -40,7 +40,7 @@
 
             .profile-grid {
                 display: grid;
-                grid-template-columns: 320px 1fr;
+                grid-template-columns: 380px 1fr;
                 gap: 24px;
                 margin-bottom: 24px;
             }
@@ -52,7 +52,7 @@
                 box-shadow: var(--card-shadow);
                 overflow: hidden;
                 transition: transform 0.3s ease, box-shadow 0.3s ease;
-                max-width: 320px;
+                width: 100%;
                 font-family: 'Poppins', sans-serif;
             }
 
@@ -104,13 +104,21 @@
             }
 
             .profile-body.compact .info-row {
-                padding: 10px 0;
+                padding: 12px 0;
                 border-bottom: 1px solid var(--border-color);
                 display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 8px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
                 font-family: 'Poppins', sans-serif;
+            }
+
+            @media (min-width: 300px) {
+                .profile-body.compact .info-row {
+                    flex-direction: row;
+                    justify-content: space-between;
+                    align-items: center;
+                }
             }
 
             .profile-body.compact .info-row:last-child {
@@ -133,6 +141,9 @@
                 color: var(--text-primary);
                 text-align: right;
                 font-family: 'Poppins', sans-serif;
+                word-break: break-word;
+                flex: 1;
+                margin-left: 20px;
             }
 
             /* Attendance Card */
@@ -204,6 +215,8 @@
                 cursor: pointer;
                 border: 2px solid transparent;
                 font-family: 'Poppins', sans-serif;
+                display: flex;
+                flex-direction: column;
             }
 
             .action-card:hover {
@@ -254,6 +267,7 @@
                 cursor: pointer;
                 transition: all 0.3s ease;
                 font-family: 'Poppins', sans-serif;
+                margin-top: auto;
             }
 
             .action-button:hover {
@@ -261,32 +275,142 @@
                 box-shadow: 0 5px 15px rgba(164, 79, 86, 0.3);
             }
 
-            /* Modal Styles */
-            .modal {
+            /* Attendance Tracking Specific Styles */
+            .attendance-status-info {
+                text-align: center;
+                margin-bottom: 25px;
+                padding: 15px;
+                background: var(--accent-color);
+                border-radius: 12px;
+                border: 1px solid var(--border-color);
+            }
+
+            .status-text {
+                font-size: 16px;
+                font-weight: 700;
+                color: var(--primary-color);
+            }
+
+            .attendance-time-display {
+                font-size: 24px;
+                font-weight: 700;
+                font-family: monospace;
+                background: rgba(255, 255, 255, 0.4);
+                padding: 5px 15px;
+                border-radius: 10px;
+                display: inline-block;
+                color: var(--primary-color);
+                margin-top: 10px;
+            }
+
+            .attendance-actions {
+                display: flex;
+                gap: 20px;
+                justify-content: center;
+            }
+
+            .attendance-btn {
+                padding: 15px 40px;
+                border-radius: 12px;
+                font-weight: 700;
+                font-size: 16px;
+                cursor: pointer;
+                border: none;
+                transition: all 0.3s ease;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+                text-transform: uppercase;
+                color: white;
+            }
+
+            #timeInBtn {
+                background: linear-gradient(135deg, #48BB78, #38A169);
+            }
+
+            #timeOutBtn {
+                background: linear-gradient(135deg, #F56565, #E53E3E);
+            }
+
+            .attendance-btn:hover:not(:disabled) {
+                transform: translateY(-3px);
+                box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+                filter: brightness(1.1);
+            }
+
+            .attendance-btn:disabled {
+                background: #CBD5E0;
+                cursor: not-allowed;
+                box-shadow: none;
+                transform: none;
+            }
+
+            .stats-row {
+                display: flex !important;
+                flex-direction: row !important;
+                justify-content: space-between !important;
+                gap: 16px !important;
+                margin-top: 20px !important;
+                margin-bottom: 25px !important;
+                width: 100% !important;
+            }
+
+            .stats-row .stat-box {
+                flex: 1 !important;
+                background: linear-gradient(135deg, var(--accent-color), #FFF5F5);
+                padding: 15px;
+                border-radius: 12px;
+                text-align: center;
+                border: 1px solid var(--border-color);
+                min-width: 0;
+            }
+
+            .stat-value {
+                font-size: 28px;
+                font-weight: 800;
+                color: var(--primary-color);
+                margin-bottom: 5px;
+                font-family: 'Poppins', sans-serif;
+            }
+
+            .stat-label {
+                font-size: 11px;
+                font-weight: 700;
+                color: var(--text-secondary);
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+                font-family: 'Poppins', sans-serif;
+            }
+
+            /* Custom Modal Styles (Renamed to avoid Bootstrap conflict) */
+            .custom-modal-v2 {
                 display: none;
                 position: fixed;
-                z-index: 1000;
+                z-index: 2000;
+                /* Higher than Bootstrap to stay on top if needed, but separate */
                 left: 0;
                 top: 0;
                 width: 100%;
                 height: 100%;
-                background: rgba(0, 0, 0, 0.5);
-                backdrop-filter: blur(5px);
+                background: rgba(0, 0, 0, 0.6);
+                backdrop-filter: blur(8px);
             }
 
-            .modal-content {
+            .custom-modal-v2-content {
                 background: white;
                 margin: 50px auto;
                 padding: 0;
                 border-radius: var(--border-radius);
                 width: 90%;
                 max-width: 600px;
-                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-                animation: slideDown 0.3s ease;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                animation: customSlideDown 0.3s ease;
                 font-family: 'Poppins', sans-serif;
+                position: relative;
             }
 
-            @keyframes slideDown {
+            @keyframes customSlideDown {
                 from {
                     opacity: 0;
                     transform: translateY(-50px);
@@ -298,7 +422,7 @@
                 }
             }
 
-            .modal-header {
+            .custom-modal-v2-header {
                 background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
                 color: white;
                 padding: 24px;
@@ -306,17 +430,27 @@
                 font-family: 'Poppins', sans-serif;
             }
 
-            .modal-title {
+            .custom-modal-v2-title {
                 font-size: 24px;
                 font-weight: 700;
                 font-family: 'Poppins', sans-serif;
+                margin: 0;
             }
 
-            .modal-body {
+            .custom-modal-v2-body {
                 padding: 24px;
-                max-height: 500px;
+                max-height: 70vh;
                 overflow-y: auto;
                 font-family: 'Poppins', sans-serif;
+            }
+
+            .custom-modal-v2-footer {
+                padding: 20px 24px;
+                border-top: 1px solid var(--border-color);
+                display: flex;
+                justify-content: flex-end;
+                gap: 12px;
+                border-radius: 0 0 var(--border-radius) var(--border-radius);
             }
 
             .form-group {
@@ -528,7 +662,19 @@
                             </span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">📋 Contract Type</span>
+                            <span class="info-label">🗓️ Probationary Start</span>
+                            <span class="info-value">
+                                <%= GetHiredDate() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">📅 Regularization Start</span>
+                            <span class="info-value">
+                                <%= GetRegularizationDate() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">📋 Status</span>
                             <span class="info-value" style="color: var(--success-color);">
                                 <%= GetEmployeeStatus() %>
                             </span>
@@ -539,36 +685,77 @@
                                 <%= GetEmployeeSalary() %>
                             </span>
                         </div>
+                        <div class="info-row">
+                            <span class="info-label">🏢 SSS No.</span>
+                            <span class="info-value">
+                                <%= GetSSSNumber() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">🏥 PhilHealth No.</span>
+                            <span class="info-value">
+                                <%= GetPhilHealthNumber() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">🏠 Pag-IBIG No.</span>
+                            <span class="info-value">
+                                <%= GetPagIbigNumber() %>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Right: Attendance Summary (unchanged) -->
+                <!-- Right: Attendance Tracker -->
                 <div class="attendance-card">
-                    <h2 class="card-title">📊 Attendance Summary</h2>
-                    <div class="stats-grid">
-                        <div class="stat-box">
-                            <div class="stat-value">
-                                <%= GetDaysPresent() %>
-                            </div>
-                            <div class="stat-label">Days Present</div>
+                    <h2 class="card-title">
+                        <svg style="width:24px;height:24px;fill:currentColor" viewBox="0 0 24 24">
+                            <path
+                                d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+                        </svg>
+                        Attendance Tracker
+                    </h2>
+
+                    <div class="attendance-body">
+                        <div class="attendance-status-info">
+                            <span id="attendanceStatusLabel" class="status-text">Not timed in yet</span>
+                            <div id="currentDate"
+                                style="font-size: 13px; color: var(--text-secondary); margin-top: 5px;">--</div>
+                            <div id="currentTime" class="attendance-time-display">00:00:00</div>
                         </div>
-                        <div class="stat-box">
-                            <div class="stat-value">
-                                <%= GetDaysAbsent() %>
+
+
+                        <div class="stats-row">
+                            <div class="stat-box">
+                                <div class="stat-value">
+                                    <%= GetDaysPresent() %>
+                                </div>
+                                <div class="stat-label">Present</div>
                             </div>
-                            <div class="stat-label">Days Absent</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value">
-                                <%= GetDaysLate() %>
+                            <div class="stat-box">
+                                <div class="stat-value">
+                                    <%= GetDaysAbsent() %>
+                                </div>
+                                <div class="stat-label">Absent</div>
                             </div>
-                            <div class="stat-label">Days Late</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-value" style="color: var(--success-color);">
-                                <%= GetAttendanceRate() %>%
+                            <div class="stat-box">
+                                <div class="stat-value">
+                                    <%= GetDaysLate() %>
+                                </div>
+                                <div class="stat-label">Late</div>
                             </div>
-                            <div class="stat-label">Attendance Rate</div>
+                            <div class="stat-box">
+                                <div class="stat-value" style="color: var(--warning-color);">
+                                    <%= GetRemainingAbsences() %>
+                                </div>
+                                <div class="stat-label">Remaining</div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-value" style="color: var(--success-color);">
+                                    <%= GetTargetWorkingDays() %>
+                                </div>
+                                <div class="stat-label">Target</div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -605,13 +792,13 @@
         </div>
 
         <!-- Payslip Modal -->
-        <div id="payslipModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
+        <div id="payslipModal" class="custom-modal-v2">
+            <div class="custom-modal-v2-content">
+                <div class="custom-modal-v2-header">
                     <span class="close" onclick="closeModal('payslipModal')">&times;</span>
-                    <h2 class="modal-title">💰 Payslip Details</h2>
+                    <h2 class="custom-modal-v2-title">💰 Payslip Details</h2>
                 </div>
-                <div class="modal-body">
+                <div class="custom-modal-v2-body">
                     <h3 style="margin-bottom: 16px; color: var(--text-primary);">Gross Salary</h3>
                     <div class="payslip-item">
                         <span class="payslip-label">Basic Salary</span>
@@ -664,20 +851,20 @@
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="custom-modal-v2-footer">
                     <button class="btn-cancel" onclick="closeModal('payslipModal')">Close</button>
                 </div>
             </div>
         </div>
 
         <!-- Leave Modal -->
-        <div id="leaveModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
+        <div id="leaveModal" class="custom-modal-v2">
+            <div class="custom-modal-v2-content">
+                <div class="custom-modal-v2-header">
                     <span class="close" onclick="closeModal('leaveModal')">&times;</span>
-                    <h2 class="modal-title">📝 File Leave of Absence</h2>
+                    <h2 class="custom-modal-v2-title">📝 File Leave of Absence</h2>
                 </div>
-                <div class="modal-body">
+                <div class="custom-modal-v2-body">
                     <asp:Label ID="lblLeaveMessage" runat="server" style="display: none;"></asp:Label>
                     <div class="form-group">
                         <label class="form-label">Leave Type *</label>
@@ -711,7 +898,7 @@
                             accept=".pdf,.jpg,.png,.doc,.docx" />
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="custom-modal-v2-footer">
                     <button class="btn-cancel" onclick="closeModal('leaveModal')">Cancel</button>
                     <asp:Button ID="btnSubmitLeave" runat="server" CssClass="btn-submit" Text="Submit Leave Request"
                         OnClick="btnSubmitLeave_Click" />
@@ -720,13 +907,13 @@
         </div>
 
         <!-- Concern Modal -->
-        <div id="concernModal" class="modal">
-            <div class="modal-content">
-                <div class="modal-header">
+        <div id="concernModal" class="custom-modal-v2">
+            <div class="custom-modal-v2-content">
+                <div class="custom-modal-v2-header">
                     <span class="close" onclick="closeModal('concernModal')">&times;</span>
-                    <h2 class="modal-title">💬 Submit Employee Concern</h2>
+                    <h2 class="custom-modal-v2-title">💬 Submit Employee Concern</h2>
                 </div>
-                <div class="modal-body">
+                <div class="custom-modal-v2-body">
                     <asp:Label ID="lblConcernMessage" runat="server" style="display: none;"></asp:Label>
                     <div class="form-group">
                         <label class="form-label">Concern Type *</label>
@@ -754,21 +941,12 @@
                             placeholder="Please provide detailed information about your concern..."></asp:TextBox>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Priority Level</label>
-                        <asp:DropDownList ID="ddlPriorityLevel" runat="server" CssClass="form-select">
-                            <asp:ListItem Value="low" Text="Low"></asp:ListItem>
-                            <asp:ListItem Value="medium" Text="Medium" Selected="True"></asp:ListItem>
-                            <asp:ListItem Value="high" Text="High"></asp:ListItem>
-                            <asp:ListItem Value="urgent" Text="Urgent"></asp:ListItem>
-                        </asp:DropDownList>
-                    </div>
-                    <div class="form-group">
                         <label class="form-label">Supporting Documents (Optional)</label>
                         <asp:FileUpload ID="fileSupportingDocs" runat="server" CssClass="form-input"
                             accept=".pdf,.jpg,.png,.doc,.docx" />
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="custom-modal-v2-footer">
                     <button class="btn-cancel" onclick="closeModal('concernModal')">Cancel</button>
                     <asp:Button ID="btnSubmitConcern" runat="server" CssClass="btn-submit" Text="Submit Concern"
                         OnClick="btnSubmitConcern_Click" />
@@ -776,7 +954,90 @@
             </div>
         </div>
 
+        <!-- Undertime Warning Modal -->
+        <div id="undertimeModal" class="custom-modal-v2">
+            <div class="custom-modal-v2-content" style="max-width: 450px;">
+                <div class="custom-modal-v2-header" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <span class="close" onclick="closeModal('undertimeModal')">&times;</span>
+                    <h2 class="custom-modal-v2-title">⚠️ Early Time Out</h2>
+                </div>
+                <div class="custom-modal-v2-body" style="text-align: center; padding: 30px;">
+                    <div style="font-size: 50px; margin-bottom: 20px;">🕒</div>
+                    <h3 style="color: var(--text-primary); margin-bottom: 15px;">You are timing out early!</h3>
+                    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 20px;">
+                        It is not yet 5:00 PM. Timing out now will be recorded as <strong>Undertime</strong>.
+                    </p>
+                    <div
+                        style="background: #FFFBEB; border-left: 4px solid #f59e0b; padding: 15px; text-align: left; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
+                        <p style="color: #92400e; font-size: 14px; font-weight: 600;">
+                            Note: Please make sure to inform HR or your supervisor about your undertime.
+                        </p>
+                    </div>
+                </div>
+                <div class="custom-modal-v2-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('undertimeModal')">Cancel</button>
+                    <button type="button" class="btn-submit" style="background: #f59e0b;"
+                        onclick="proceedWithTimeOut()">Proceed anyway</button>
+                </div>
+            </div>
+        </div>
+
         <script>
+            // Data from server
+            const employeeId = '<%= GetEmployeeId() %>';
+            const employeeName = '<%= GetEmployeeName() %>';
+            const employeeDepartment = '<%= GetEmployeeDepartment() %>';
+            const handlerUrl = '<%= ResolveUrl("~/webpage/api/AttendanceHandler.ashx") %>';
+            const attendanceStatus = JSON.parse('<%= GetAttendanceStatusJsonString() %>');
+
+            let hasTimedInSync = attendanceStatus.hasTimedIn || false;
+            let hasTimedOutSync = attendanceStatus.hasTimedOut || false;
+
+            function updateDateTime() {
+                const now = new Date();
+                const dateOpts = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                const timeOpts = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true };
+
+                document.getElementById('currentDate').textContent = now.toLocaleDateString(undefined, dateOpts);
+                document.getElementById('currentTime').textContent = now.toLocaleTimeString(undefined, timeOpts);
+            }
+
+            setInterval(updateDateTime, 1000);
+            updateDateTime();
+
+            function loadStatus() {
+                const statusLabel = document.getElementById('attendanceStatusLabel');
+                const timeInBtn = document.getElementById('timeInBtn');
+                const timeOutBtn = document.getElementById('timeOutBtn');
+
+                if (attendanceStatus.hasTimedIn) {
+                    if (attendanceStatus.hasTimedOut) {
+                        if (statusLabel) {
+                            statusLabel.textContent = `Timed Out at ${attendanceStatus.timeOut}`;
+                            statusLabel.style.color = 'var(--warning-color)';
+                        }
+                        if (timeInBtn) timeInBtn.disabled = false;
+                        if (timeOutBtn) timeOutBtn.disabled = true;
+                        hasTimedInSync = false;
+                    } else {
+                        if (statusLabel) {
+                            statusLabel.textContent = `Timed In at ${attendanceStatus.timeIn}`;
+                            statusLabel.style.color = 'var(--success-color)';
+                        }
+                        if (timeInBtn) timeInBtn.disabled = true;
+                        if (timeOutBtn) timeOutBtn.disabled = false;
+                        hasTimedInSync = true;
+                    }
+                } else {
+                    if (statusLabel) statusLabel.textContent = 'Not timed in yet';
+                    if (timeInBtn) timeInBtn.disabled = false;
+                    if (timeOutBtn) timeOutBtn.disabled = true;
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', loadStatus);
+
+
             function openPayslipModal(event) {
                 if (event) {
                     event.preventDefault();
@@ -809,7 +1070,7 @@
             }
 
             window.onclick = function (event) {
-                if (event.target.classList.contains('modal')) {
+                if (event.target.classList.contains('custom-modal-v2')) {
                     event.target.style.display = 'none';
                 }
             }

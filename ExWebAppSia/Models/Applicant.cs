@@ -4,11 +4,46 @@ using System;
 
 namespace ExWebAppSia.Models
 {
+    [BsonIgnoreExtraElements]
     public class Applicant
     {
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
         public string Id { get; set; }
+
+        // Additional fields from job_applicant collection
+        [BsonElement("appointmentStatus")]
+        public string AppointmentStatus { get; set; }
+
+        [BsonElement("appointmentToken")]
+        public string AppointmentToken { get; set; }
+
+        [BsonElement("appointmentConfirmedDate")]
+        public DateTime? AppointmentConfirmedDate { get; set; }
+
+        [BsonElement("rescheduleReason")]
+        public string RescheduleReason { get; set; }
+
+        [BsonElement("rescheduleRequestDate")]
+        public DateTime? RescheduleRequestDate { get; set; }
+
+        [BsonElement("declineDate")]
+        public DateTime? DeclineDate { get; set; }
+
+        [BsonElement("latitude")]
+        public double? Latitude { get; set; }
+
+        [BsonElement("longitude")]
+        public double? Longitude { get; set; }
+
+        [BsonElement("draftSavedDate")]
+        public DateTime? DraftSavedDate { get; set; }
+
+        [BsonElement("referenceNumber")]
+        public string ReferenceNumber { get; set; }
+
+        [BsonElement("isDraft")]
+        public bool IsDraft { get; set; }
 
         // Personal Info
         [BsonElement("firstName")]
@@ -37,6 +72,18 @@ namespace ExWebAppSia.Models
 
         [BsonElement("address")]
         public string Address { get; set; }
+
+        [BsonElement("street")]
+        public string Street { get; set; }
+
+        [BsonElement("city")]
+        public string City { get; set; }
+
+        [BsonElement("state")]
+        public string State { get; set; }
+
+        [BsonElement("country")]
+        public string Country { get; set; }
 
         [BsonElement("education")]
         public string Education { get; set; }
@@ -98,6 +145,9 @@ namespace ExWebAppSia.Models
         [BsonElement("appliedDate")]
         public DateTime AppliedDate { get; set; } = DateTime.UtcNow;
 
+        [BsonElement("approvedDate")]
+        public DateTime? ApprovedDate { get; set; }
+
         [BsonElement("notes")]
         public string Notes { get; set; }
 
@@ -146,6 +196,18 @@ namespace ExWebAppSia.Models
 
         [BsonElement("pagIbigNumber")]
         public string PagIbigNumber { get; set; }
+
+        [BsonElement("resumePath")]
+        public string ResumePath { get; set; }
+
+        [BsonElement("resumeFileName")]
+        public string ResumeFileName { get; set; }
+
+        [BsonElement("resumeBase64")]
+        public string ResumeBase64 { get; set; }
+
+        [BsonElement("resumeFileType")]
+        public string ResumeFileType { get; set; }
 
         [BsonElement("startingSalary")]
         public decimal StartingSalary { get; set; } = 18000;

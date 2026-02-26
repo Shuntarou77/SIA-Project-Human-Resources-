@@ -751,6 +751,114 @@
                 content: "📅";
             }
 
+            /* Custom Modal Styles */
+            .custom-modal-v2 {
+                display: none;
+                position: fixed;
+                z-index: 100000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.8);
+                backdrop-filter: blur(5px);
+                align-items: center;
+                justify-content: center;
+            }
+
+            .custom-modal-v2.active {
+                display: flex !important;
+            }
+
+            .custom-modal-v2-content {
+                background: white;
+                margin: auto;
+                padding: 0;
+                border-radius: 20px;
+                width: 90%;
+                max-width: 450px;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                animation: customSlideDown 0.3s ease;
+                font-family: 'Poppins', sans-serif;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .custom-modal-v2-header {
+                padding: 16px 24px;
+                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                color: white;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-family: 'Poppins', sans-serif;
+            }
+
+            .custom-modal-v2-title {
+                margin: 0;
+                font-size: 1.25rem;
+                font-weight: 700;
+                font-family: 'Poppins', sans-serif;
+            }
+
+            .custom-modal-v2-body {
+                padding: 24px;
+                font-family: 'Poppins', sans-serif;
+            }
+
+            .custom-modal-v2-footer {
+                padding: 16px 24px;
+                display: flex;
+                gap: 12px;
+                justify-content: flex-end;
+                border-top: 1px solid var(--border-color);
+                font-family: 'Poppins', sans-serif;
+            }
+
+            .btn-submit,
+            .btn-cancel {
+                padding: 10px 24px;
+                border: none;
+                border-radius: 10px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                font-family: 'Poppins', sans-serif;
+            }
+
+            .btn-submit {
+                background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+                color: white;
+            }
+
+            .btn-cancel {
+                background: #E5E7EB;
+                color: var(--text-primary);
+            }
+
+            .close {
+                color: white;
+                float: right;
+                font-size: 32px;
+                font-weight: bold;
+                cursor: pointer;
+                line-height: 1;
+                font-family: 'Poppins', sans-serif;
+            }
+
+            @keyframes customSlideDown {
+                from {
+                    opacity: 0;
+                    transform: translateY(-50px);
+                }
+
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+
             .time-in-icon::before {
                 content: "🔽";
             }
@@ -873,16 +981,44 @@
                         </div>
 
                         <div class="actions-section">
-                            <button id="timeInBtn" class="action-btn btn-time-in" onclick="timeIn()">
+                            <button id="timeInBtn" type="button" class="action-btn btn-time-in" onclick="timeIn()">
                                 <span class="time-in-icon icon"></span>
                                 TIME IN
                             </button>
-                            <button id="timeOutBtn" class="action-btn btn-time-out" onclick="timeOut()" disabled>
+                            <button id="timeOutBtn" type="button" class="action-btn btn-time-out" onclick="timeOut()">
                                 <span class="time-out-icon icon"></span>
                                 TIME OUT
                             </button>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Undertime Warning Modal -->
+        <div id="undertimeModal" class="custom-modal-v2">
+            <div class="custom-modal-v2-content" style="max-width: 450px;">
+                <div class="custom-modal-v2-header" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <span class="close" onclick="closeModal('undertimeModal')">&times;</span>
+                    <h2 class="custom-modal-v2-title">⚠️ Early Time Out</h2>
+                </div>
+                <div class="custom-modal-v2-body" style="text-align: center; padding: 30px;">
+                    <div style="font-size: 50px; margin-bottom: 20px;">🕒</div>
+                    <h3 style="color: var(--text-primary); margin-bottom: 15px;">You are timing out early!</h3>
+                    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 20px;">
+                        It is not yet 5:00 PM. Timing out now will be recorded as <strong>Undertime</strong>.
+                    </p>
+                    <div
+                        style="background: #FFFBEB; border-left: 4px solid #f59e0b; padding: 15px; text-align: left; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
+                        <p style="color: #92400e; font-size: 14px; font-weight: 600;">
+                            Note: Please make sure to inform HR or your supervisor about your undertime.
+                        </p>
+                    </div>
+                </div>
+                <div class="custom-modal-v2-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('undertimeModal')">Cancel</button>
+                    <button type="button" class="btn-submit" style="background: #f59e0b;"
+                        onclick="proceedWithTimeOut()">Proceed anyway</button>
                 </div>
             </div>
         </div>
@@ -933,26 +1069,27 @@
                         const timeInStr = attendanceStatus.timeIn || 'earlier today';
 
                         if (attendanceStatus.hasTimedOut) {
-                            // Employee has timed out - allow time in again for new shift
+                            // Employee has timed out
                             hasTimedOut = true;
                             const timeOutStr = attendanceStatus.timeOut || 'earlier today';
                             statusEl.textContent = `Timed Out at ${timeOutStr}`;
                             statusEl.style.color = '#f59e0b';
-                            timeInBtn.disabled = false; // Allow time in again
-                            timeOutBtn.disabled = true;
-                            hasTimedIn = false; // Reset flag to allow new time in
+                            timeInBtn.disabled = false;
+                            timeOutBtn.disabled = true; // Still disabled if already timed out for that shift
+                            hasTimedIn = false;
                         } else {
                             // Employee has timed in but not timed out yet
                             statusEl.textContent = `Timed In at ${timeInStr}`;
                             statusEl.style.color = '#10b981';
                             timeInBtn.disabled = true;
-                            timeOutBtn.disabled = false;
+                            timeOutBtn.disabled = false; // Enabled for valid timeout
                         }
                     } else {
                         statusEl.textContent = 'Not timed in yet';
                         statusEl.style.color = '';
                         timeInBtn.disabled = false;
-                        timeOutBtn.disabled = true;
+                        // We keep the button enabled visually but handle it in JS for better feedback
+                        timeOutBtn.disabled = false;
                     }
 
                     console.log('Status loaded - hasTimedIn:', hasTimedIn, 'hasTimedOut:', hasTimedOut);
@@ -1061,6 +1198,42 @@
             }
 
             async function timeOut() {
+                const now = new Date();
+                const currentHour = now.getHours();
+                const currentMinutes = now.getMinutes();
+
+                console.log(`Time Out Validation - Status: In=${hasTimedIn}, Out=${hasTimedOut}, Time=${currentHour}:${currentMinutes}`);
+
+                if (hasTimedOut) {
+                    alert('You have already timed out today.');
+                    return;
+                }
+
+                if (!hasTimedIn) {
+                    alert('Please time in first before timing out.');
+                    return;
+                }
+
+                // If it's before 5:00 PM (17:00), show undertime warning
+                if (currentHour < 17) {
+                    console.log('Undertime detected! Opening modal.');
+                    const modal = document.getElementById('undertimeModal');
+                    if (modal) {
+                        modal.classList.add('active');
+                        return;
+                    } else {
+                        console.error('Modal element "undertimeModal" not found in DOM!');
+                        if (confirm('Regular shift ends at 5:00 PM. Timing out now is considered UNDERTIME. Do you want to proceed?')) {
+                            await proceedWithTimeOut();
+                        }
+                    }
+                } else {
+                    console.log('Valid shift end. Proceeding with time out.');
+                    await proceedWithTimeOut();
+                }
+            }
+
+            async function proceedWithTimeOut() {
                 if (hasTimedOut) {
                     alert('You have already timed out today.');
                     return;
@@ -1075,6 +1248,8 @@
                     alert('Employee ID not found. Please contact HR.');
                     return;
                 }
+
+                closeModal('undertimeModal');
 
                 const timeOutBtn = document.getElementById('timeOutBtn');
                 const statusEl = document.getElementById('attendanceStatus');
@@ -1108,6 +1283,20 @@
                     timeOutBtn.disabled = false;
                 } finally {
                     timeOutBtn.textContent = 'TIME OUT';
+                }
+            }
+
+            function closeModal(modalId) {
+                document.getElementById(modalId).classList.remove('active');
+                // Fallback for old style
+                document.getElementById(modalId).style.display = 'none';
+            }
+
+            // Close modal when clicking outside
+            window.onclick = function (event) {
+                if (event.target.classList.contains('custom-modal-v2')) {
+                    event.target.classList.remove('active');
+                    event.target.style.display = 'none';
                 }
             }
 

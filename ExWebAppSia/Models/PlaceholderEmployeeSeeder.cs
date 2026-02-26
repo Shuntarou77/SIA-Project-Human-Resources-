@@ -17,7 +17,7 @@ namespace ExWebAppSia.Models
             "IT Support",
             "Operations",
             "Sales",
-            "Legal",
+            "Inventory",
             "Customer Service"
         };
 
@@ -31,7 +31,7 @@ namespace ExWebAppSia.Models
             { "IT Support", "IT Specialist" },
             { "Operations", "Operations Coordinator" },
             { "Sales", "Sales Representative" },
-            { "Legal", "Legal Assistant" },
+            { "Inventory", "Inventory Manager" },
             { "Customer Service", "Support Representative" }
         };
 

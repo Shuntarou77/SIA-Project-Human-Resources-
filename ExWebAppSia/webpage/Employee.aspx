@@ -219,8 +219,8 @@
                 border-bottom: none;
             }
 
-            /* Modal Styles */
-            .modal {
+            /* Page-specific Modal Styles */
+            .page-modal {
                 display: none;
                 position: fixed;
                 z-index: 1000;
@@ -825,15 +825,15 @@
                                     <div class="dept-name">Sales</div>
                                 </div>
                             </div>
-                            <div class="dept-card" data-dept="Legal">
+                            <div class="dept-card" data-dept="Inventory">
                                 <div class="dept-stats">
                                     <span class="dept-count">
-                                        <asp:Literal ID="litLegalCount" runat="server" Text="0"></asp:Literal>
+                                        <asp:Literal ID="litInventoryCount" runat="server" Text="0"></asp:Literal>
                                     </span>
                                     <span class="dept-label">EMPLOYEES</span>
                                 </div>
                                 <div class="dept-info">
-                                    <div class="dept-name">Legal</div>
+                                    <div class="dept-name">Inventory</div>
                                 </div>
                             </div>
                             <div class="dept-card" data-dept="Customer Service">
@@ -1060,6 +1060,20 @@
                 const pi = row.getAttribute('data-pi') === 'true';
                 const salary = row.getAttribute('data-salary');
                 const contract = row.getAttribute('data-contract');
+                const sssNum = row.getAttribute('data-sss-num') || "Not Set";
+                const phNum = row.getAttribute('data-ph-num') || "Not Set";
+                const piNum = row.getAttribute('data-pi-num') || "Not Set";
+
+                const formatGov = (num, type) => {
+                    if (!num || num === "Not Set") return "Not Set";
+                    const clean = num.replace(/\D/g, '');
+                    try {
+                        if (type === 'SSS' && clean.length === 10) return `${clean.substr(0, 2)}-${clean.substr(2, 7)}-${clean.substr(9, 1)}`;
+                        if (type === 'PH' && clean.length === 12) return `${clean.substr(0, 2)}-${clean.substr(2, 9)}-${clean.substr(11, 1)}`;
+                        if (type === 'PI' && clean.length === 12) return `${clean.substr(0, 4)}-${clean.substr(4, 4)}-${clean.substr(8, 4)}`;
+                    } catch (e) { }
+                    return num;
+                };
 
                 // Build HTML instantly on the client side
                 let html = `<div style='padding: 20px;'>`;
@@ -1087,10 +1101,13 @@
                 html += `<tr><td style='padding: 8px; font-weight: bold;'>Status:</td><td style='padding: 8px;'>${active}</td></tr>`;
 
                 // Gov Contributions
+                const checkIcon = '<i class="fas fa-check-circle" style="color: #22c55e; margin-right: 4px;"></i>';
+                const xIcon = '<i class="fas fa-times-circle" style="color: #94a3b8; margin-right: 4px;"></i>';
+
                 html += `<tr><td style='padding: 8px; font-weight: bold;'>Govt. Contributions:</td><td style='padding: 8px;'>`;
-                html += `<span style='color: ${sss ? "green" : "gray"}; margin-right: 15px;'>SSS: ${sss ? "✓" : "✗"}</span>`;
-                html += `<span style='color: ${ph ? "green" : "gray"}; margin-right: 15px;'>PhilHealth: ${ph ? "✓" : "✗"}</span>`;
-                html += `<span style='color: ${pi ? "green" : "gray"}'>Pag-IBIG: ${pi ? "✓" : "✗"}</span>`;
+                html += `<div style='margin-bottom: 8px;'><span style='margin-right: 15px;'>${sss ? checkIcon : xIcon} SSS</span> <span style='color: #64748b; font-size: 13px;'>${formatGov(sssNum, 'SSS')}</span></div>`;
+                html += `<div style='margin-bottom: 8px;'><span style='margin-right: 15px;'>${ph ? checkIcon : xIcon} PhilHealth</span> <span style='color: #64748b; font-size: 13px;'>${formatGov(phNum, 'PH')}</span></div>`;
+                html += `<div><span>${pi ? checkIcon : xIcon} Pag-IBIG</span> <span style='color: #64748b; font-size: 13px;'>${formatGov(piNum, 'PI')}</span></div>`;
                 html += `</td></tr>`;
                 html += `</table></div>`;
 
@@ -1351,7 +1368,7 @@
         <!-- View Employee Details Modal -->
         <asp:UpdatePanel ID="upDetails" runat="server">
             <ContentTemplate>
-                <div id="viewEmployeeDetailsModal" class="modal">
+                <div id="viewEmployeeDetailsModal" class="page-modal">
                     <div class="modal-content" style="max-width: 900px;">
                         <div class="modal-header">
                             <h2 class="modal-title">Employee Details</h2>
@@ -1366,7 +1383,7 @@
         </asp:UpdatePanel>
 
         <!-- Payslip Modal -->
-        <div id="payslipModal" class="modal">
+        <div id="payslipModal" class="page-modal">
             <div class="modal-content">
                 <div class="modal-header">
                     <h2 class="modal-title"><svg
@@ -1433,7 +1450,7 @@
         </div>
 
         <!-- Leave History Modal -->
-        <div id="leaveHistoryModal" class="modal">
+        <div id="leaveHistoryModal" class="page-modal">
             <div class="modal-content" style="max-width: 800px;">
                 <div class="modal-header">
                     <h2 class="modal-title"><svg
@@ -1454,7 +1471,7 @@
         </div>
 
         <!-- Concern History Modal -->
-        <div id="concernHistoryModal" class="modal">
+        <div id="concernHistoryModal" class="page-modal">
             <div class="modal-content" style="max-width: 800px;">
                 <div class="modal-header">
                     <h2 class="modal-title"><svg

@@ -98,7 +98,7 @@ namespace ExWebAppSia.Models
 
         public static IMongoCollection<Applicant> GetApplicantsCollection()
         {
-            return GetCollection<Applicant>("Applicants");
+            return GetCollection<Applicant>("job_applicant");
         }
 
         public static IMongoCollection<Interview> GetInterviewsCollection()
@@ -114,6 +114,11 @@ namespace ExWebAppSia.Models
         public static IMongoCollection<Attendance> GetAttendanceCollection()
         {
             return GetCollection<Attendance>("Attendance");
+        }
+
+        public static IMongoCollection<RoleSalary> GetRoleSalariesCollection()
+        {
+            return GetCollection<RoleSalary>("RoleSalaries");
         }
 
         public static IMongoCollection<EmployeeConcern> GetEmployeeConcernsCollection()

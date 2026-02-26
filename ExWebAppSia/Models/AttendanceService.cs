@@ -56,7 +56,7 @@ namespace ExWebAppSia.Models
                         if (localTime > shiftStart)
                         {
                             var diff = localTime - shiftStart;
-                            existingAttendance.LateTime = $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}";
+                            existingAttendance.LateTime = $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}:{(int)diff.Seconds:D2}";
                         }
 
                         existingAttendance.TimeIn = now;
@@ -104,7 +104,7 @@ namespace ExWebAppSia.Models
                     if (localTime > shiftStart)
                     {
                         var diff = localTime - shiftStart;
-                        lateTimeStr = $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}";
+                        lateTimeStr = $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}:{(int)diff.Seconds:D2}";
                     }
 
                     // Create new attendance record

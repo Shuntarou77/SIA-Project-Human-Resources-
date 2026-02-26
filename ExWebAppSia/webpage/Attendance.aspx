@@ -377,7 +377,7 @@
                         <option value="marketing">Marketing</option>
                         <option value="sales">Sales</option>
                         <option value="operations">Operations</option>
-                        <option value="legal">Legal</option>
+                        <option value="inventory">Inventory</option>
                         <option value="r&d">Research & Development</option>
                         <option value="quality">Quality Control</option>
                         <option value="customer">Customer Service</option>
@@ -425,7 +425,7 @@
                                         <%# FormatTimeOut((DateTime?)Eval("TimeOut")) %>
                                     </td>
                                     <td style="color: #ef4444; font-weight: 600;">
-                                        <%# Eval("LateTime") %>
+                                        <%# FormatLateTime((DateTime?)Eval("TimeIn"), (string)Eval("LateTime")) %>
                                     </td>
                                 </tr>
                             </ItemTemplate>

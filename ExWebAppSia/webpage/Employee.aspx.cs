@@ -31,6 +31,12 @@ namespace ExWebAppSia.webpage
         {
             try
             {
+                // Auto-fix probationary salaries and gov contributions
+                await _employeeService.FixProbationarySalariesAsync();
+                await _employeeService.FixGovContributionsAsync();
+                await _employeeService.FixMissingGovNumbersAsync();
+                await _employeeService.ProcessRegularizationAsync();
+
                 // Load data in parallel, but avoid redundant department counts task
                 var employeesTask = _employeeService.GetAllEmployeesAsync();
                 var concernsTask = _concernService.GetAllConcernsAsync();
@@ -76,7 +82,7 @@ namespace ExWebAppSia.webpage
             if (litITCount != null) litITCount.Text = GetCount(counts, "IT Support").ToString();
             if (litOperationsCount != null) litOperationsCount.Text = GetCount(counts, "Operations").ToString();
             if (litSalesCount != null) litSalesCount.Text = GetCount(counts, "Sales").ToString();
-            if (litLegalCount != null) litLegalCount.Text = GetCount(counts, "Legal").ToString();
+            if (litInventoryCount != null) litInventoryCount.Text = GetCount(counts, "Inventory").ToString();
             if (litCustomerServiceCount != null) litCustomerServiceCount.Text = GetCount(counts, "Customer Service").ToString();
         }
 
@@ -98,7 +104,7 @@ namespace ExWebAppSia.webpage
                 { "IT Support", litITManager },
                 { "Operations", litOperationsManager },
                 { "Sales", litSalesManager },
-                { "Legal", litLegalManager },
+                { "Inventory", litInventoryManager },
                 { "Customer Service", litCustomerServiceManager }
             };
 
@@ -163,14 +169,18 @@ namespace ExWebAppSia.webpage
                 sb.AppendFormat("<tr class='employee-row' onclick=\"viewEmployeeDetails(this)\" style='cursor: pointer;' " +
                                 "data-id='{0}' data-emp-id='{1}' data-fname='{2}' data-mname='{3}' data-lname='{4}' " +
                                 "data-email='{5}' data-contact='{6}' data-address='{7}' data-dept='{8}' data-role='{9}' " +
-                                "data-hired='{10}' data-active='{11}' data-sss='{12}' data-ph='{13}' data-pi='{14}' data-salary='{15}' data-contract='{16}'>",
+                                "data-hired='{10}' data-active='{11}' data-sss='{12}' data-ph='{13}' data-pi='{14}' data-salary='{15}' data-contract='{16}' " +
+                                "data-sss-num='{17}' data-ph-num='{18}' data-pi-num='{19}'>",
                     id, empId, fname, mname, lname, email, contact, address, dept, role, 
                     hired, active, 
                     employee.HasSSS.ToString().ToLower(), 
                     employee.HasPhilHealth.ToString().ToLower(), 
                     employee.HasPagIbig.ToString().ToLower(),
                     salary,
-                    contract);
+                    contract,
+                    HttpUtility.HtmlAttributeEncode(employee.SSSNumber ?? ""),
+                    HttpUtility.HtmlAttributeEncode(employee.PhilHealthNumber ?? ""),
+                    HttpUtility.HtmlAttributeEncode(employee.PagIbigNumber ?? ""));
                 
                 sb.AppendFormat("<td>{0}</td>", Server.HtmlEncode(employee.EmployeeId));
                 sb.AppendFormat("<td>{0}</td>", Server.HtmlEncode(employee.FullName));
@@ -217,8 +227,6 @@ namespace ExWebAppSia.webpage
                 var subject = Server.HtmlEncode(concern.Subject ?? "Employee Concern");
                 var description = Server.HtmlEncode(BuildConcernExcerpt(concern.Description));
                 var concernType = Server.HtmlEncode(concern.ConcernType ?? "Employee");
-                var priority = Server.HtmlEncode(concern.PriorityLevel ?? "Medium");
-                var status = Server.HtmlEncode(concern.Status ?? "Pending");
                 var submitted = concern.SubmittedDate.ToLocalTime().ToString("MMM dd, yyyy h:mm tt");
 
                 sb.Append("<div class='concern-card'>");
@@ -233,9 +241,7 @@ namespace ExWebAppSia.webpage
                 sb.AppendFormat("<strong>{0}</strong><br/>", subject);
                 sb.Append(description);
                 sb.Append("</div>");
-                sb.AppendFormat("<div style='margin-top:10px; font-size:10px; color:#999;'>Priority: {0} • Status: {1} • {2}</div>",
-                    priority,
-                    status,
+                sb.AppendFormat("<div style='margin-top:10px; font-size:10px; color:#999;'>{0}</div>",
                     submitted);
                 sb.Append("</div>");
             }
@@ -300,10 +306,13 @@ namespace ExWebAppSia.webpage
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Status:</td><td style='padding: 8px;'>{0}</td></tr>", employee.IsActive ? "Active" : "Inactive");
                 
                 // Gov Contributions
+                string checkIcon = "<i class='fas fa-check-circle' style='color: #22c55e; margin-right: 4px;'></i>";
+                string xIcon = "<i class='fas fa-times-circle' style='color: #94a3b8; margin-right: 4px;'></i>";
+
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Govt. Contributions:</td><td style='padding: 8px;'>");
-                sb.AppendFormat("<span style='color: {0}; margin-right: 15px;'>SSS: {1}</span>", employee.HasSSS ? "green" : "gray", employee.HasSSS ? "✓" : "✗");
-                sb.AppendFormat("<span style='color: {0}; margin-right: 15px;'>PhilHealth: {1}</span>", employee.HasPhilHealth ? "green" : "gray", employee.HasPhilHealth ? "✓" : "✗");
-                sb.AppendFormat("<span style='color: {0}'>Pag-IBIG: {1}</span>", employee.HasPagIbig ? "green" : "gray", employee.HasPagIbig ? "✓" : "✗");
+                sb.AppendFormat("<span style='margin-right: 15px;'>{0} SSS</span>", employee.HasSSS ? checkIcon : xIcon);
+                sb.AppendFormat("<span style='margin-right: 15px;'>{0} PhilHealth</span>", employee.HasPhilHealth ? checkIcon : xIcon);
+                sb.AppendFormat("<span>{0} Pag-IBIG</span>", employee.HasPagIbig ? checkIcon : xIcon);
                 sb.Append("</td></tr>");
                 
                 sb.Append("</table>");
@@ -434,6 +443,39 @@ namespace ExWebAppSia.webpage
             catch (Exception ex) { return "Error loading concern history: " + ex.Message; }
         }
 
+        private string FormatGovNumber(string number, string type)
+        {
+            if (string.IsNullOrEmpty(number)) return "Not Set";
+            
+            // Remove any existing hyphens/spaces to reformat cleanly
+            string clean = new string(number.Where(char.IsDigit).ToArray());
+            
+            try
+            {
+                if (type == "SSS")
+                {
+                    // Official format: 00-0000000-0 (10 digits)
+                    if (clean.Length == 10)
+                        return $"{clean.Substring(0, 2)}-{clean.Substring(2, 7)}-{clean.Substring(9, 1)}";
+                }
+                else if (type == "PhilHealth")
+                {
+                    // Official format: 00-000000000-0 (12 digits)
+                    if (clean.Length == 12)
+                        return $"{clean.Substring(0, 2)}-{clean.Substring(2, 9)}-{clean.Substring(11, 1)}";
+                }
+                else if (type == "Pag-IBIG")
+                {
+                    // Official format: 0000-0000-0000 (12 digits)
+                    if (clean.Length == 12)
+                        return $"{clean.Substring(0, 4)}-{clean.Substring(4, 4)}-{clean.Substring(8, 4)}";
+                }
+            }
+            catch { }
+            
+            return number; // Return original if formatting fails or length doesn't match
+        }
+
         protected async void btnViewEmployeeDetails_Click(object sender, EventArgs e)
         {
             string employeeId = hdnEmployeeId.Value;
@@ -473,10 +515,19 @@ namespace ExWebAppSia.webpage
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Status:</td><td style='padding: 8px;'>{0}</td></tr>", employee.IsActive ? "Active" : "Inactive");
             
             // Gov Contributions
+            string checkIconModal = "<i class='fas fa-check-circle' style='color: #22c55e; margin-right: 4px;'></i>";
+            string xIconModal = "<i class='fas fa-times-circle' style='color: #94a3b8; margin-right: 4px;'></i>";
+
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Govt. Contributions:</td><td style='padding: 8px;'>");
-            sb.AppendFormat("<span style='color: {0}; margin-right: 15px;'>SSS: {1}</span>", employee.HasSSS ? "green" : "gray", employee.HasSSS ? "✓" : "✗");
-            sb.AppendFormat("<span style='color: {0}; margin-right: 15px;'>PhilHealth: {1}</span>", employee.HasPhilHealth ? "green" : "gray", employee.HasPhilHealth ? "✓" : "✗");
-            sb.AppendFormat("<span style='color: {0}'>Pag-IBIG: {1}</span>", employee.HasPagIbig ? "green" : "gray", employee.HasPagIbig ? "✓" : "✗");
+            sb.AppendFormat("<div style='margin-bottom: 8px;'><span style='margin-right: 15px;'>{0} SSS</span> <span style='color: #64748b; font-size: 13px;'>{1}</span></div>", 
+                            employee.HasSSS ? checkIconModal : xIconModal, 
+                            FormatGovNumber(employee.SSSNumber, "SSS"));
+            sb.AppendFormat("<div style='margin-bottom: 8px;'><span style='margin-right: 15px;'>{0} PhilHealth</span> <span style='color: #64748b; font-size: 13px;'>{1}</span></div>", 
+                            employee.HasPhilHealth ? checkIconModal : xIconModal, 
+                            FormatGovNumber(employee.PhilHealthNumber, "PhilHealth"));
+            sb.AppendFormat("<div><span>{0} Pag-IBIG</span> <span style='color: #64748b; font-size: 13px;'>{1}</span></div>", 
+                            employee.HasPagIbig ? checkIconModal : xIconModal, 
+                            FormatGovNumber(employee.PagIbigNumber, "Pag-IBIG"));
             sb.Append("</td></tr>");
             
             sb.Append("</table>");
@@ -612,21 +663,10 @@ namespace ExWebAppSia.webpage
                 
                 foreach (var concern in concerns)
                 {
-                    string priorityColor = concern.PriorityLevel == "Urgent" ? "#ef4444" : 
-                                          concern.PriorityLevel == "High" ? "#f59e0b" : 
-                                          concern.PriorityLevel == "Medium" ? "#3b82f6" : "#10b981";
-                    
-                    string statusColor = concern.Status == "Resolved" ? "#10b981" : 
-                                        concern.Status == "Closed" ? "#6b7280" : 
-                                        concern.Status == "In Progress" ? "#3b82f6" : "#f59e0b";
-                    
-                    sb.Append("<div style='background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid " + priorityColor + ";'>");
+                    sb.Append("<div style='background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #8B4755;'>");
                     sb.AppendFormat("<div style='display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;'>");
                     sb.AppendFormat("<div><strong style='color: #333; font-size: 16px;'>{0}</strong></div>", Server.HtmlEncode(concern.Subject ?? ""));
-                    sb.AppendFormat("<div style='display: flex; gap: 8px; flex-wrap: wrap;'>");
-                    sb.AppendFormat("<span style='background: {0}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;'>{1}</span>", priorityColor, Server.HtmlEncode(concern.PriorityLevel ?? ""));
-                    sb.AppendFormat("<span style='background: {0}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;'>{1}</span>", statusColor, Server.HtmlEncode(concern.Status ?? ""));
-                    sb.Append("</div></div>");
+                    sb.Append("</div>");
                     sb.AppendFormat("<div style='margin-bottom: 8px; color: #666;'><strong>Type:</strong> {0}</div>", Server.HtmlEncode(concern.ConcernType ?? ""));
                     sb.AppendFormat("<div style='margin-bottom: 8px; color: #666;'><strong>Description:</strong> {0}</div>", Server.HtmlEncode(concern.Description ?? ""));
                     sb.AppendFormat("<div style='color: #999; font-size: 12px;'><strong>Submitted:</strong> {0}</div>", concern.SubmittedDate.ToLocalTime().ToString("MMM dd, yyyy h:mm tt"));

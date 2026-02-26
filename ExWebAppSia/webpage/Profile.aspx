@@ -104,13 +104,21 @@
             }
 
             .profile-body.compact .info-row {
-                padding: 10px 0;
+                padding: 12px 0;
                 border-bottom: 1px solid var(--border-color);
                 display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 8px;
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
                 font-family: 'Poppins', sans-serif;
+            }
+
+            @media (min-width: 300px) {
+                .profile-body.compact .info-row {
+                    flex-direction: row;
+                    justify-content: space-between;
+                    align-items: center;
+                }
             }
 
             .profile-body.compact .info-row:last-child {
@@ -133,6 +141,8 @@
                 color: var(--text-primary);
                 text-align: right;
                 font-family: 'Poppins', sans-serif;
+                word-break: break-all;
+                max-width: 180px;
             }
 
             /* Attendance Card */
@@ -209,6 +219,8 @@
                 cursor: pointer;
                 border: 2px solid transparent;
                 font-family: 'Poppins', sans-serif;
+                display: flex;
+                flex-direction: column;
             }
 
             .action-card:hover {
@@ -259,6 +271,7 @@
                 cursor: pointer;
                 transition: all 0.3s ease;
                 font-family: 'Poppins', sans-serif;
+                margin-top: auto;
             }
 
             .action-button:hover {
@@ -266,8 +279,8 @@
                 box-shadow: 0 5px 15px rgba(164, 79, 86, 0.3);
             }
 
-            /* Modal Styles */
-            .modal {
+            /* Page-specific Modal Styles */
+            .page-modal {
                 display: none;
                 position: fixed;
                 z-index: 1000;
@@ -476,6 +489,48 @@
                 color: var(--text-primary);
             }
 
+            /* Form Styles */
+            .form-group {
+                margin-bottom: 20px;
+                text-align: left;
+                font-family: 'Poppins', sans-serif;
+            }
+
+            .form-label {
+                display: block;
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text-secondary);
+                margin-bottom: 8px;
+                font-family: 'Poppins', sans-serif;
+            }
+
+            .form-input,
+            .form-select,
+            .form-textarea {
+                width: 100%;
+                padding: 12px 16px;
+                border: 1px solid var(--border-color);
+                border-radius: 10px;
+                font-size: 14px;
+                color: var(--text-primary);
+                font-family: 'Poppins', sans-serif;
+                transition: all 0.3s ease;
+            }
+
+            .form-input:focus,
+            .form-select:focus,
+            .form-textarea:focus {
+                outline: none;
+                border-color: var(--primary-color);
+                box-shadow: 0 0 0 3px rgba(164, 79, 86, 0.1);
+            }
+
+            .form-textarea {
+                min-height: 120px;
+                resize: vertical;
+            }
+
             /* Responsive */
             @media (max-width: 1024px) {
                 .profile-grid {
@@ -553,6 +608,18 @@
                             </span>
                         </div>
                         <div class="info-row">
+                            <span class="info-label">🗓️ Hired Date</span>
+                            <span class="info-value">
+                                <%= GetHiredDate() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">📅 Regularization</span>
+                            <span class="info-value">
+                                <%= GetRegularizationDate() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
                             <span class="info-label">📋 Status</span>
                             <span class="info-value" style="color: var(--success-color);">
                                 <%: GetEmployeeStatus() %>
@@ -562,6 +629,24 @@
                             <span class="info-label">💰 Salary</span>
                             <span class="info-value" style="font-weight: 700; color: var(--primary-color);">
                                 <%= GetEmployeeSalary() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">🏢 SSS No.</span>
+                            <span class="info-value">
+                                <%= GetSSSNumber() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">🏥 PhilHealth No.</span>
+                            <span class="info-value">
+                                <%= GetPhilHealthNumber() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">🏠 Pag-IBIG No.</span>
+                            <span class="info-value">
+                                <%= GetPagIbigNumber() %>
                             </span>
                         </div>
                     </div>
@@ -585,7 +670,7 @@
                                 <div id="currentTime" class="attendance-time-display">00:00:00</div>
                             </div>
 
-                            <div class="stats-row">
+                            <div class="stats-row" style="flex-wrap: wrap; gap: 10px;">
                                 <div class="stat-box">
                                     <div class="stat-value">
                                         <%= GetDaysPresent() %>
@@ -603,6 +688,18 @@
                                         <%= GetDaysLate() %>
                                     </div>
                                     <div class="stat-label">Late</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-value" style="color: var(--warning-color);">
+                                        <%= GetRemainingAbsences() %>
+                                    </div>
+                                    <div class="stat-label">Remaining Absents</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-value" style="color: var(--success-color);">
+                                        <%= GetTargetWorkingDays() %>
+                                    </div>
+                                    <div class="stat-label">Working Days / Year</div>
                                 </div>
                             </div>
 
@@ -633,7 +730,8 @@
                             <h3 class="action-title">View Payslip</h3>
                             <p class="action-description">View your salary breakdown including gross salary, deductions,
                                 and net pay.</p>
-                            <button type="button" class="action-button">View Details</button>
+                            <button type="button" class="action-button" onclick="openPayslipModal()">View
+                                Details</button>
                         </div>
 
                         <div class="action-card" onclick="openLeaveModal()">
@@ -641,7 +739,7 @@
                             <h3 class="action-title">File Leave of Absence</h3>
                             <p class="action-description">Submit your leave request for sick leave, vacation, or
                                 personal matters.</p>
-                            <button type="button" class="action-button">File Leave</button>
+                            <button type="button" class="action-button" onclick="openLeaveModal()">File Leave</button>
                         </div>
 
                         <div class="action-card" onclick="openConcernModal()">
@@ -649,7 +747,8 @@
                             <h3 class="action-title">Report Employee Concern</h3>
                             <p class="action-description">Submit any workplace concerns, complaints, or suggestions to
                                 HR.</p>
-                            <button type="button" class="action-button">Submit Concern</button>
+                            <button type="button" class="action-button" onclick="openConcernModal()">Submit
+                                Concern</button>
                         </div>
                     </div>
                 </div>
@@ -657,7 +756,7 @@
         </div>
 
         <!-- Payslip Modal -->
-        <div id="payslipModal" class="modal">
+        <div id="payslipModal" class="page-modal">
             <div class="modal-content">
                 <div class="modal-header">
                     <span class="close" onclick="closeModal('payslipModal')">&times;</span>
@@ -726,42 +825,88 @@
         </div>
 
         <!-- Leave Modal -->
-        <div id="leaveModal" class="modal">
+        <div id="leaveModal" class="page-modal">
             <div class="modal-content">
                 <div class="modal-header">
                     <span class="close" onclick="closeModal('leaveModal')">&times;</span>
-                    <h2 class="modal-title">📝 Employee Leave</h2>
+                    <h2 class="modal-title">📝 File Leave of Absence</h2>
                 </div>
-                <div class="modal-body" style="text-align: center;">
-                    <div style="font-size: 40px; margin-bottom: 20px;">⏳</div>
-                    <h3 style="color: var(--text-primary);">Leave Management</h3>
-                    <p style="color: var(--text-muted); line-height: 1.6;">You can view and manage leave requests in the
-                        Attendance Management section.</p>
+                <div class="modal-body">
+                    <asp:Label ID="lblLeaveMessage" runat="server" style="display: none;"></asp:Label>
+                    <div class="form-group">
+                        <label class="form-label">Leave Type *</label>
+                        <asp:DropDownList ID="ddlLeaveType" runat="server" CssClass="form-select">
+                            <asp:ListItem Value="" Text="Select leave type"></asp:ListItem>
+                            <asp:ListItem Value="sick" Text="Sick Leave"></asp:ListItem>
+                            <asp:ListItem Value="vacation" Text="Vacation Leave"></asp:ListItem>
+                            <asp:ListItem Value="personal" Text="Personal Leave"></asp:ListItem>
+                            <asp:ListItem Value="emergency" Text="Emergency Leave"></asp:ListItem>
+                            <asp:ListItem Value="maternity" Text="Maternity Leave"></asp:ListItem>
+                            <asp:ListItem Value="paternity" Text="Paternity Leave"></asp:ListItem>
+                        </asp:DropDownList>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Start Date *</label>
+                        <asp:TextBox ID="txtStartDate" runat="server" CssClass="form-input" TextMode="Date">
+                        </asp:TextBox>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">End Date *</label>
+                        <asp:TextBox ID="txtEndDate" runat="server" CssClass="form-input" TextMode="Date"></asp:TextBox>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Reason for Leave *</label>
+                        <asp:TextBox ID="txtLeaveReason" runat="server" CssClass="form-textarea" TextMode="MultiLine"
+                            placeholder="Please provide details about your leave request..."></asp:TextBox>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="closeModal('leaveModal')">Close</button>
-                    <button type="button" class="btn-submit" onclick="location.href='Attendance.aspx'">Go to
-                        Attendance</button>
+                    <button type="button" class="btn-cancel" onclick="closeModal('leaveModal')">Cancel</button>
+                    <asp:Button ID="btnSubmitLeave" runat="server" CssClass="btn-submit" Text="Submit Leave Request"
+                        OnClick="btnSubmitLeave_Click" />
                 </div>
             </div>
         </div>
 
-        <div id="concernModal" class="modal">
+        <!-- Concern Modal -->
+        <div id="concernModal" class="page-modal">
             <div class="modal-content">
                 <div class="modal-header">
                     <span class="close" onclick="closeModal('concernModal')">&times;</span>
-                    <h2 class="modal-title">💬 Admin Concern</h2>
+                    <h2 class="modal-title">💬 Submit Employee Concern</h2>
                 </div>
-                <div class="modal-body" style="text-align: center;">
-                    <div style="font-size: 40px; margin-bottom: 20px;">📢</div>
-                    <h3 style="color: var(--text-primary);">Employee Concerns</h3>
-                    <p style="color: var(--text-muted); line-height: 1.6;">Manage employee feedback, complaints, and
-                        suggestions from the specialized dashboard.</p>
+                <div class="modal-body">
+                    <asp:Label ID="lblConcernMessage" runat="server" style="display: none;"></asp:Label>
+                    <div class="form-group">
+                        <label class="form-label">Concern Type *</label>
+                        <asp:DropDownList ID="ddlConcernType" runat="server" CssClass="form-select">
+                            <asp:ListItem Value="" Text="Select concern type"></asp:ListItem>
+                            <asp:ListItem Value="workplace" Text="Workplace Issue"></asp:ListItem>
+                            <asp:ListItem Value="harassment" Text="Harassment/Bullying"></asp:ListItem>
+                            <asp:ListItem Value="safety" Text="Safety Concern"></asp:ListItem>
+                            <asp:ListItem Value="payroll" Text="Payroll Issue"></asp:ListItem>
+                            <asp:ListItem Value="benefits" Text="Benefits Inquiry"></asp:ListItem>
+                            <asp:ListItem Value="equipment" Text="Equipment/Facilities"></asp:ListItem>
+                            <asp:ListItem Value="suggestion" Text="Suggestion/Feedback"></asp:ListItem>
+                            <asp:ListItem Value="other" Text="Other"></asp:ListItem>
+                        </asp:DropDownList>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Subject *</label>
+                        <asp:TextBox ID="txtConcernSubject" runat="server" CssClass="form-input"
+                            placeholder="Brief subject of your concern"></asp:TextBox>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Description *</label>
+                        <asp:TextBox ID="txtConcernDescription" runat="server" CssClass="form-textarea"
+                            TextMode="MultiLine"
+                            placeholder="Please provide detailed information about your concern..."></asp:TextBox>
+                    </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="closeModal('concernModal')">Close</button>
-                    <button type="button" class="btn-submit" onclick="alert('Feature coming soon!')">Open
-                        Concerns</button>
+                    <button type="button" class="btn-cancel" onclick="closeModal('concernModal')">Cancel</button>
+                    <asp:Button ID="btnSubmitConcern" runat="server" CssClass="btn-submit" Text="Submit Concern"
+                        OnClick="btnSubmitConcern_Click" />
                 </div>
             </div>
         </div>
@@ -898,7 +1043,7 @@
 
             // Close modal when clicking outside
             window.onclick = function (event) {
-                if (event.target.classList.contains('modal')) {
+                if (event.target.classList.contains('page-modal')) {
                     event.target.style.display = 'none';
                 }
             }

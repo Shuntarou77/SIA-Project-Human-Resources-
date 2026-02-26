@@ -519,11 +519,12 @@
                 }
             }
 
-            /* ========== MODERN MODAL STYLING ========== */
-            .modal {
+            /* ========== MODERN PAGE MODAL STYLING ========== */
+            .page-modal {
                 display: none;
                 position: fixed;
-                z-index: 9999;
+                z-index: 1050;
+                /* Base Bootstrap modal z-index is 1050, we use it to stay on top but not excessively */
                 left: 0;
                 top: 0;
                 width: 100%;
@@ -1188,6 +1189,19 @@
             }
 
             function hireApplicant(applicantId, buttonElement) {
+                // Client-side validation for complete govt numbers
+                if (buttonElement && buttonElement.closest('tr')) {
+                    var row = buttonElement.closest('tr');
+                    var hasSSS = row.getAttribute('data-sss') === 'true';
+                    var hasPH = row.getAttribute('data-philhealth') === 'true';
+                    var hasPI = row.getAttribute('data-pagibig') === 'true';
+
+                    if (!hasSSS || !hasPH || !hasPI) {
+                        showEmailConfirmation('Cannot hire applicant. Government numbers (SSS, PhilHealth, Pag-IBIG) must be complete first. Please update them in the View details section.', false);
+                        return false;
+                    }
+                }
+
                 if (buttonElement) {
                     buttonElement.disabled = true;
                     buttonElement.textContent = 'Processing...';
@@ -1308,6 +1322,19 @@
 
             // Approve Applicant
             function approveApplicant(applicantId, buttonElement) {
+                // Client-side validation for complete govt numbers
+                if (buttonElement && buttonElement.closest('tr')) {
+                    var row = buttonElement.closest('tr');
+                    var hasSSS = row.getAttribute('data-sss') === 'true';
+                    var hasPH = row.getAttribute('data-philhealth') === 'true';
+                    var hasPI = row.getAttribute('data-pagibig') === 'true';
+
+                    if (!hasSSS || !hasPH || !hasPI) {
+                        showEmailConfirmation('Cannot approve applicant. Government numbers (SSS, PhilHealth, Pag-IBIG) must be complete first. Please update them in the View details section.', false);
+                        return false;
+                    }
+                }
+
                 if (buttonElement) {
                     buttonElement.disabled = true;
                     buttonElement.textContent = 'Processing...';
@@ -1476,32 +1503,8 @@
             }
 
             // Role Options by Department
-            var rolesByDepartment = {
-                "Research & Development": ["Research Scientist", "Lab Technician", "Product Developer", "R&D Manager"],
-                "Quality Control": ["QC Analyst", "QC Inspector", "QC Manager", "Laboratory Supervisor"],
-                "Human Resources": ["HR Generalist", "Recruitment Specialist", "HR Manager", "Training Coordinator"],
-                "Finance": ["Accountant", "Financial Analyst", "Finance Manager", "Payroll Specialist"],
-                "Marketing": ["Marketing Coordinator", "Brand Manager", "Digital Marketing Specialist", "Content Creator"],
-                "IT Support": ["IT Support Specialist", "Network Administrator", "System Administrator", "IT Manager"],
-                "Operations": ["Operations Coordinator", "Operations Manager", "Supply Chain Specialist", "Logistics Coordinator"],
-                "Sales": ["Sales Representative", "Sales Manager", "Account Executive", "Business Development Manager"],
-                "Legal": ["Legal Counsel", "Compliance Officer", "Legal Assistant", "Contract Specialist"],
-                "Customer Service": ["Customer Service Representative", "Customer Support Specialist", "Call Center Agent", "Customer Service Manager"]
-            };
-
-            // Salary mapping for small company (Exact amounts in PHP)
-            var salaryByRole = {
-                "Research Scientist": 48000, "Lab Technician": 25000, "Product Developer": 42000, "R&D Manager": 85000,
-                "QC Analyst": 30000, "QC Inspector": 24000, "QC Manager": 75000, "Laboratory Supervisor": 55000,
-                "HR Generalist": 32500, "Recruitment Specialist": 28000, "HR Manager": 75000, "Training Coordinator": 35000,
-                "Accountant": 40000, "Financial Analyst": 45000, "Finance Manager": 85000, "Payroll Specialist": 32000,
-                "Marketing Coordinator": 28000, "Brand Manager": 70000, "Digital Marketing Specialist": 35000, "Content Creator": 26000,
-                "IT Support Specialist": 32000, "Network Administrator": 55000, "System Administrator": 58000, "IT Manager": 95000,
-                "Operations Coordinator": 30000, "Operations Manager": 80000, "Supply Chain Specialist": 42000, "Logistics Coordinator": 28000,
-                "Sales Representative": 25000, "Sales Manager": 70000, "Account Executive": 45000, "Business Development Manager": 80000,
-                "Legal Counsel": 100000, "Compliance Officer": 60000, "Legal Assistant": 30000, "Contract Specialist": 48000,
-                "Customer Service Representative": 22000, "Customer Support Specialist": 28000, "Call Center Agent": 24000, "Customer Service Manager": 70000
-            };
+            var rolesByDepartment = {};
+            var salaryByRole = {};
 
             // Update Role Dropdown Based on Department Selection
             function updateRoleOptions() {
@@ -1547,6 +1550,72 @@
                     salaryField.value = "18000";
                 }
             }
+
+            // Sync Age with Birthdate
+            function syncAge() {
+                var birthDateInput = document.getElementById('<%= txtBirthDate.ClientID %>');
+                var ageInput = document.getElementById('<%= txtAge.ClientID %>');
+
+                if (!birthDateInput || !ageInput || !birthDateInput.value) return;
+
+                var birthDate = new Date(birthDateInput.value);
+                var today = new Date();
+                var age = today.getFullYear() - birthDate.getFullYear();
+                var m = today.getMonth() - birthDate.getMonth();
+
+                if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+                    age--;
+                }
+
+                ageInput.value = age >= 0 ? age : 0;
+            }
+
+            // Add event listener for birthdate change
+            document.addEventListener('DOMContentLoaded', function () {
+                var birthDateInput = document.getElementById('<%= txtBirthDate.ClientID %>');
+                if (birthDateInput) {
+                    birthDateInput.addEventListener('change', syncAge);
+                    birthDateInput.addEventListener('blur', syncAge);
+                }
+
+                // Masking for Government Numbers
+                const sssInput = document.getElementById('<%= txtSSSNumber.ClientID %>');
+                const phInput = document.getElementById('<%= txtPhilHealthNumber.ClientID %>');
+                const piInput = document.getElementById('<%= txtPagIbigNumber.ClientID %>');
+
+                if (sssInput) {
+                    sssInput.addEventListener('input', function (e) {
+                        let value = e.target.value.replace(/\D/g, '');
+                        if (value.length > 10) value = value.slice(0, 10);
+                        let formatted = value;
+                        if (value.length > 2) formatted = value.slice(0, 2) + '-' + value.slice(2);
+                        if (value.length > 9) formatted = formatted.slice(0, 11) + '-' + value.slice(9);
+                        e.target.value = formatted;
+                    });
+                }
+
+                if (phInput) {
+                    phInput.addEventListener('input', function (e) {
+                        let value = e.target.value.replace(/\D/g, '');
+                        if (value.length > 12) value = value.slice(0, 12);
+                        let formatted = value;
+                        if (value.length > 2) formatted = value.slice(0, 2) + '-' + value.slice(2);
+                        if (value.length > 11) formatted = formatted.slice(0, 12) + '-' + value.slice(11);
+                        e.target.value = formatted;
+                    });
+                }
+
+                if (piInput) {
+                    piInput.addEventListener('input', function (e) {
+                        let value = e.target.value.replace(/\D/g, '');
+                        if (value.length > 12) value = value.slice(0, 12);
+                        let formatted = value;
+                        if (value.length > 4) formatted = value.slice(0, 4) + '-' + value.slice(4);
+                        if (value.length > 8) formatted = formatted.slice(0, 9) + '-' + value.slice(8);
+                        e.target.value = formatted;
+                    });
+                }
+            });
 
             // Validate Add Applicant Form
             function validateAddApplicantForm() {
@@ -1607,33 +1676,18 @@
                 document.getElementById('<%= hdnSelectedApplicantIds.ClientID %>').value = '';
             }
 
-            // Validate Schedule Interview Form
             function validateScheduleInterviewForm() {
-                var date = document.getElementById('<%= txtInterviewDate.ClientID %>').value;
                 var time = document.getElementById('<%= txtInterviewTime.ClientID %>').value;
-                var location = document.getElementById('<%= txtInterviewLocation.ClientID %>').value.trim();
-                var interviewer = document.getElementById('<%= txtInterviewerName.ClientID %>').value.trim();
-
-                if (!date) {
-                    alert('Please select Interview Date');
-                    return false;
-                }
-
                 if (!time) {
                     alert('Please select Interview Time');
                     return false;
                 }
-
-                if (!location) {
-                    alert('Please enter Interview Location');
+                var timeParts = time.split(':');
+                var hours = parseInt(timeParts[0]);
+                if (hours < 8 || hours >= 17) {
+                    showEmailConfirmation('Interview time must be within business hours (8:00 AM to 5:00 PM).', false);
                     return false;
                 }
-
-                if (!interviewer) {
-                    alert('Please enter Interviewer Name');
-                    return false;
-                }
-
                 return true;
             }
 
@@ -1885,7 +1939,7 @@
                                     <tr>
                                         <th style="width: 40px;"></th>
                                         <th>Name</th>
-                                        <th>Position</th>
+                                        <th>Position / Role</th>
                                         <th style="text-align: center;">Actions</th>
                                     </tr>
                                 </thead>
@@ -1926,7 +1980,7 @@
                                     <tr>
                                         <th style="width: 40px;"></th>
                                         <th>Name</th>
-                                        <th>Position</th>
+                                        <th>Position / Role</th>
                                         <th style="text-align: center;">Actions</th>
                                     </tr>
                                 </thead>
@@ -1957,7 +2011,7 @@
                                     <tr>
                                         <th style="width: 40px;"></th>
                                         <th>Name</th>
-                                        <th>Position</th>
+                                        <th>Position / Role</th>
                                         <th style="text-align: center;">Status</th>
                                     </tr>
                                 </thead>
@@ -1991,7 +2045,7 @@
                                 <thead>
                                     <tr>
                                         <th>Name</th>
-                                        <th>Position</th>
+                                        <th>Position / Role</th>
                                         <th style="text-align: center;">Status</th>
                                     </tr>
                                 </thead>
@@ -2029,7 +2083,7 @@
                             <thead>
                                 <tr>
                                     <th>Name</th>
-                                    <th>Position</th>
+                                    <th>Position / Role</th>
                                     <th style="text-align: center;">Details</th>
                                     <th style="text-align: center;">Actions</th>
                                 </tr>
@@ -2052,7 +2106,7 @@
         </div>
 
         <!-- Add Applicant Modal -->
-        <div id="addApplicantModal" class="modal">
+        <div id="addApplicantModal" class="page-modal">
             <div class="modal-content">
                 <div class="modal-header">
                     <h2 class="modal-title">Add New Applicant</h2>
@@ -2083,7 +2137,7 @@
                             placeholder="Enter last name"></asp:TextBox>
                     </div>
 
-                    <div class="form-group">
+                    <div class="form-group" style="display: none;">
                         <label for="<%= txtAge.ClientID %>">Age</label>
                         <asp:TextBox ID="txtAge" runat="server" CssClass="form-control" TextMode="Number"
                             placeholder="Enter age"></asp:TextBox>
@@ -2117,22 +2171,54 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="<%= txtAddress.ClientID %>">Address</label>
+                        <label for="<%= txtAddress.ClientID %>">Complete Address *</label>
                         <asp:TextBox ID="txtAddress" runat="server" CssClass="form-control" TextMode="MultiLine"
-                            Rows="3" placeholder="Enter address"></asp:TextBox>
+                            Rows="3" placeholder="Block, Lot, Building, etc."></asp:TextBox>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                        <div class="form-group">
+                            <label for="<%= txtStreet.ClientID %>">Street</label>
+                            <asp:TextBox ID="txtStreet" runat="server" CssClass="form-control"
+                                placeholder="Enter street"></asp:TextBox>
+                        </div>
+                        <div class="form-group">
+                            <label for="<%= txtCity.ClientID %>">City *</label>
+                            <asp:TextBox ID="txtCity" runat="server" CssClass="form-control" placeholder="Enter city">
+                            </asp:TextBox>
+                        </div>
+                        <div class="form-group">
+                            <label for="<%= txtState.ClientID %>">State/Province *</label>
+                            <asp:TextBox ID="txtState" runat="server" CssClass="form-control"
+                                placeholder="Enter state/province"></asp:TextBox>
+                        </div>
+                        <div class="form-group">
+                            <label for="<%= txtCountry.ClientID %>">Country *</label>
+                            <asp:TextBox ID="txtCountry" runat="server" CssClass="form-control"
+                                placeholder="Enter country"></asp:TextBox>
+                        </div>
                     </div>
 
                     <div class="form-group">
-                        <label for="<%= txtEducation.ClientID %>">Education</label>
-                        <asp:TextBox ID="txtEducation" runat="server" CssClass="form-control"
-                            placeholder="Enter education background"></asp:TextBox>
+                        <label for="<%= ddlEducationLevel.ClientID %>">Education Level *</label>
+                        <asp:DropDownList ID="ddlEducationLevel" runat="server" CssClass="form-control">
+                            <asp:ListItem Value="">-- Select Education Level --</asp:ListItem>
+                            <asp:ListItem Value="Elementary Graduate">Elementary Graduate</asp:ListItem>
+                            <asp:ListItem Value="Junior High School Graduate">Junior High School Graduate</asp:ListItem>
+                            <asp:ListItem Value="Senior High School Graduate">Senior High School Graduate</asp:ListItem>
+                            <asp:ListItem Value="Vocational Course">Vocational Course</asp:ListItem>
+                            <asp:ListItem Value="College Undergraduate">College Undergraduate</asp:ListItem>
+                            <asp:ListItem Value="College Graduate">College Graduate</asp:ListItem>
+                            <asp:ListItem Value="Master's Degree">Master's Degree</asp:ListItem>
+                            <asp:ListItem Value="Doctorate Degree">Doctorate Degree</asp:ListItem>
+                        </asp:DropDownList>
                     </div>
 
-                    <h4>Previous Company</h4>
+                    <h4>Work Experience</h4>
 
                     <div class="form-group">
-                        <asp:CheckBox ID="chkPreviousCompany" runat="server" Text="Has Previous Company"
-                            onclick="togglePreviousCompany();" />
+                        <asp:CheckBox ID="chkPreviousCompany" runat="server"
+                            Text="Do you have previous work experience?" onclick="togglePreviousCompany();" />
                     </div>
 
                     <div id="previousCompanySection" style="display: none;">
@@ -2167,7 +2253,7 @@
                         </div>
                     </div>
 
-                    <h4>Guardian Information</h4>
+                    <h4>Guardian/Emergency Contact</h4>
 
                     <div class="form-group">
                         <label for="<%= txtGuardianName.ClientID %>">Guardian Name</label>
@@ -2176,25 +2262,25 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="<%= txtGuardianContactNo.ClientID %>">Contact No.</label>
+                        <label for="<%= txtGuardianContactNo.ClientID %>">Guardian Contact Number *</label>
                         <asp:TextBox ID="txtGuardianContactNo" runat="server" CssClass="form-control"
                             placeholder="Enter guardian contact number"></asp:TextBox>
                     </div>
 
                     <div class="form-group">
-                        <label for="<%= txtGuardianEmail.ClientID %>">Email Address</label>
+                        <label for="<%= txtGuardianEmail.ClientID %>">Guardian Email</label>
                         <asp:TextBox ID="txtGuardianEmail" runat="server" CssClass="form-control" TextMode="Email"
                             placeholder="Enter guardian email"></asp:TextBox>
                     </div>
 
                     <div class="form-group">
-                        <label for="<%= txtGuardianHomeAddress.ClientID %>">Home Address</label>
+                        <label for="<%= txtGuardianHomeAddress.ClientID %>">Guardian Home Address *</label>
                         <asp:TextBox ID="txtGuardianHomeAddress" runat="server" CssClass="form-control"
                             TextMode="MultiLine" Rows="3" placeholder="Enter guardian home address">
                         </asp:TextBox>
                     </div>
 
-                    <h4>Application Information</h4>
+                    <h4>Application Details</h4>
 
                     <!-- Application Information -->
                     <div class="form-group">
@@ -2203,17 +2289,6 @@
                         <asp:DropDownList ID="ddlAppliedPosition" runat="server" CssClass="form-control"
                             onchange="updateRoleOptions();">
                             <asp:ListItem Value="">-- Select Department --</asp:ListItem>
-                            <asp:ListItem Value="Research & Development">Research & Development
-                            </asp:ListItem>
-                            <asp:ListItem Value="Quality Control">Quality Control</asp:ListItem>
-                            <asp:ListItem Value="Human Resources">Human Resources</asp:ListItem>
-                            <asp:ListItem Value="Finance">Finance</asp:ListItem>
-                            <asp:ListItem Value="Marketing">Marketing</asp:ListItem>
-                            <asp:ListItem Value="IT Support">IT Support</asp:ListItem>
-                            <asp:ListItem Value="Operations">Operations</asp:ListItem>
-                            <asp:ListItem Value="Sales">Sales</asp:ListItem>
-                            <asp:ListItem Value="Legal">Legal</asp:ListItem>
-                            <asp:ListItem Value="Customer Service">Customer Service</asp:ListItem>
                         </asp:DropDownList>
                     </div>
 
@@ -2226,13 +2301,16 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="<%= ddlHowDidYouHearUs.ClientID %>">How did you hear us? *</label>
+                        <label for="<%= ddlHowDidYouHearUs.ClientID %>">How did you hear about us? *</label>
                         <asp:DropDownList ID="ddlHowDidYouHearUs" runat="server" CssClass="form-control"
                             onchange="toggleReferralName();">
-                            <asp:ListItem Value="">-- Select --</asp:ListItem>
-                            <asp:ListItem Value="Job Caravan">Job Caravan</asp:ListItem>
-                            <asp:ListItem Value="Social Media">Social Media</asp:ListItem>
+                            <asp:ListItem Value="">-- Select Option --</asp:ListItem>
+                            <asp:ListItem Value="LinkedIn">LinkedIn</asp:ListItem>
+                            <asp:ListItem Value="Facebook">Facebook</asp:ListItem>
+                            <asp:ListItem Value="TikTok">TikTok</asp:ListItem>
+                            <asp:ListItem Value="Indeed">Indeed</asp:ListItem>
                             <asp:ListItem Value="Referral">Referral</asp:ListItem>
+                            <asp:ListItem Value="Others">Others</asp:ListItem>
                         </asp:DropDownList>
                     </div>
 
@@ -2243,6 +2321,36 @@
                                 placeholder="Who referred you?"></asp:TextBox>
                         </div>
                     </div>
+
+                    <div class="form-group">
+                        <label for="<%= fileResume.ClientID %>">Upload Resume *</label>
+                        <div style="border: 2px dashed #e5e7eb; border-radius: 12px; padding: 20px; text-align: center; background: #fafafa; cursor: pointer; transition: all 0.2s;"
+                            onclick="document.getElementById('<%= fileResume.ClientID %>').click();"
+                            onmouseover="this.style.borderColor='#3b82f6'; this.style.backgroundColor='#eff6ff';"
+                            onmouseout="this.style.borderColor='#e5e7eb'; this.style.backgroundColor='#fafafa';">
+                            <i class="fas fa-cloud-upload-alt"
+                                style="font-size: 24px; color: #3b82f6; margin-bottom: 8px;"></i>
+                            <div style="font-size: 13px; font-weight: 500; color: #374151;" id="resumeDisplay">Drag &
+                                drop your resume here or click to browse</div>
+                            <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Accepted formats: PDF, DOC,
+                                DOCX (Max 5MB)</div>
+                            <asp:FileUpload ID="fileResume" runat="server" style="display: none;"
+                                onchange="updateResumeDisplay(this);" />
+                        </div>
+                    </div>
+
+                    <script type="text/javascript">
+                        function updateResumeDisplay(input) {
+                            var display = document.getElementById('resumeDisplay');
+                            if (input.files && input.files[0]) {
+                                display.innerText = "Selected: " + input.files[0].name;
+                                display.style.color = "#3b82f6";
+                            } else {
+                                display.innerText = "Drag & drop your resume here or click to browse";
+                                display.style.color = "#374151";
+                            }
+                        }
+                    </script>
 
                     <div class="form-group">
                         <label>Contract Type</label>
@@ -2265,17 +2373,24 @@
 
                     <div class="form-group"
                         style="background: rgba(163, 106, 102, 0.05); padding: 15px; border-radius: 12px; border: 1px dashed var(--primary-light); margin-bottom: 10px;">
-                        <label style="margin-bottom: 15px; display: block;">Government Contributions</label>
+                        <label style="margin-bottom: 10px; display: block;">Government Contributions Tracking</label>
                         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                             <div style="display: flex; align-items: center;">
-                                <asp:CheckBox ID="chkSSS" runat="server" Text=" SSS" />
+                                <asp:CheckBox ID="chkSSS" runat="server" Text=" SSS" Checked="true" />
                             </div>
                             <div style="display: flex; align-items: center;">
-                                <asp:CheckBox ID="chkPhilHealth" runat="server" Text=" PhilHealth" />
+                                <asp:CheckBox ID="chkPhilHealth" runat="server" Text=" PhilHealth" Checked="true" />
                             </div>
                             <div style="display: flex; align-items: center;">
-                                <asp:CheckBox ID="chkPagIbig" runat="server" Text=" Pag-IBIG" />
+                                <asp:CheckBox ID="chkPagIbig" runat="server" Text=" Pag-IBIG" Checked="true" />
                             </div>
+                        </div>
+                        <p style="font-size: 11px; color: #666; margin-top: 8px;">* Actual numbers will be encoded
+                            during the viewing stage.</p>
+                        <div style="display:none;">
+                            <asp:TextBox ID="txtAddSSSNumber" runat="server"></asp:TextBox>
+                            <asp:TextBox ID="txtAddPhilHealthNumber" runat="server"></asp:TextBox>
+                            <asp:TextBox ID="txtAddPagIbigNumber" runat="server"></asp:TextBox>
                         </div>
                     </div>
 
@@ -2293,7 +2408,7 @@
         </div>
 
         <!-- View Details Modal -->
-        <div id="viewDetailsModal" class="modal">
+        <div id="viewDetailsModal" class="page-modal">
             <div class="modal-content" style="max-width: 700px;">
                 <div class="modal-header">
                     <h2 class="modal-title">Applicant Details</h2>
@@ -2341,7 +2456,7 @@
         </div>
 
         <!-- Schedule Interview Modal -->
-        <div id="scheduleInterviewModal" class="modal">
+        <div id="scheduleInterviewModal" class="page-modal">
             <div class="modal-content" style="max-width: 600px;">
                 <div class="modal-header">
                     <h2 class="modal-title">Schedule Interview</h2>
@@ -2354,10 +2469,23 @@
                         <ul id="selectedApplicantsList" style="margin: 10px 0 0 20px; padding: 0;"></ul>
                     </div>
 
-                    <div class="form-group">
-                        <label for="<%= txtInterviewDate.ClientID %>">Interview Date *</label>
-                        <asp:TextBox ID="txtInterviewDate" runat="server" CssClass="form-control" TextMode="Date">
-                        </asp:TextBox>
+                    <div class="form-group"
+                        style="background: rgba(40, 167, 69, 0.05); padding: 15px; border-radius: 12px; border: 1.5px solid rgba(40, 167, 69, 0.2); margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; gap: 10px; color: #28a745; margin-bottom: 8px;">
+                            <svg style="width: 20px; height: 20px;" fill="none" stroke="currentColor"
+                                viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <strong style="font-size: 15px;">Automated Date Assignment</strong>
+                        </div>
+                        <p style="font-size: 13px; color: #666; margin: 0; line-height: 1.5;">
+                            All interviews are automatically scheduled for the <strong>upcoming Monday</strong>. Please
+                            select a preferred time slot during business hours.
+                        </p>
+                        <div style="display:none;">
+                            <asp:TextBox ID="txtInterviewDate" runat="server"></asp:TextBox>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="<%= txtInterviewTime.ClientID %>">Interview Time *</label>
@@ -2393,7 +2521,7 @@
         </div>
 
         <!-- Decline Reason Modal -->
-        <div id="declineReasonModal" class="modal">
+        <div id="declineReasonModal" class="page-modal">
             <div class="modal-content" style="max-width: 500px;">
                 <div class="modal-header">
                     <h2 class="modal-title">Reason for Decline</h2>
@@ -2432,7 +2560,7 @@
         <asp:HiddenField ID="hdnDeclineReason" runat="server" />
         <asp:HiddenField ID="hdnActiveSubTab" runat="server" Value="new" />
         <!-- Email Confirmation Modal -->
-        <div id="emailConfirmationModal" class="modal">
+        <div id="emailConfirmationModal" class="page-modal">
             <div class="modal-content">
                 <div id="statusIconWrapper" class="status-icon-wrapper">
                     <div id="statusIconContent"></div>

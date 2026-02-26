@@ -17,6 +17,36 @@ namespace ExWebAppSia.Models
             try { _employees = MongoDBHelper.GetEmployeesCollection(); } catch { _employees = null; }
         }
 
+        public async Task<bool> IsNameDuplicateAsync(string firstName, string lastName)
+        {
+            try
+            {
+                if (_employees == null) return false;
+                var filter = Builders<Employee>.Filter.And(
+                    Builders<Employee>.Filter.Eq(e => e.IsActive, true),
+                    Builders<Employee>.Filter.Regex(e => e.FirstName, new MongoDB.Bson.BsonRegularExpression($"^{firstName}$", "i")),
+                    Builders<Employee>.Filter.Regex(e => e.LastName, new MongoDB.Bson.BsonRegularExpression($"^{lastName}$", "i"))
+                );
+                return await _employees.Find(filter).AnyAsync();
+            }
+            catch { return false; }
+        }
+
+        private void GenerateGovNumbers(Employee emp)
+        {
+            Random rand = new Random();
+            if (string.IsNullOrEmpty(emp.SSSNumber))
+                emp.SSSNumber = $"{rand.Next(10, 99)}-{rand.Next(1000000, 9999999)}-{rand.Next(0, 9)}";
+            if (string.IsNullOrEmpty(emp.PhilHealthNumber))
+                emp.PhilHealthNumber = $"{rand.Next(10, 99)}-{rand.Next(100000000, 999999999)}-{rand.Next(0, 9)}";
+            if (string.IsNullOrEmpty(emp.PagIbigNumber))
+                emp.PagIbigNumber = $"{rand.Next(1000, 9999)}-{rand.Next(1000, 9999)}-{rand.Next(1000, 9999)}";
+            
+            emp.HasSSS = true;
+            emp.HasPhilHealth = true;
+            emp.HasPagIbig = true;
+        }
+
         // Standardized salary table for small company (Internal Source of Truth)
         private static readonly Dictionary<string, decimal> _regularSalaries = new Dictionary<string, decimal>
         {
@@ -28,7 +58,7 @@ namespace ExWebAppSia.Models
             { "IT Support Specialist", 32000 }, { "Network Administrator", 55000 }, { "System Administrator", 58000 }, { "IT Manager", 95000 },
             { "Operations Coordinator", 30000 }, { "Operations Manager", 80000 }, { "Supply Chain Specialist", 42000 }, { "Logistics Coordinator", 28000 },
             { "Sales Representative", 25000 }, { "Sales Manager", 70000 }, { "Account Executive", 45000 }, { "Business Development Manager", 80000 },
-            { "Legal Counsel", 100000 }, { "Compliance Officer", 60000 }, { "Legal Assistant", 30000 }, { "Contract Specialist", 48000 },
+            { "Inventory Manager", 75000 }, { "Inventory Specialist", 40000 }, { "Warehouseman", 22000 }, { "Storekeeper", 28000 },
             { "Customer Service Representative", 22000 }, { "Customer Support Specialist", 28000 }, { "Call Center Agent", 24000 }, { "Customer Service Manager", 70000 }
         };
 
@@ -104,6 +134,170 @@ namespace ExWebAppSia.Models
             return updatedCount;
         }
 
+        /// <summary>
+        /// Ensures all employees have mandatory government contributions (SSS, PhilHealth, Pag-IBIG) marked as checked.
+        /// </summary>
+        public async Task<int> FixGovContributionsAsync()
+        {
+            if (_employees == null) return 0;
+
+            var filter = Builders<Employee>.Filter.And(
+                Builders<Employee>.Filter.Eq(e => e.IsActive, true),
+                Builders<Employee>.Filter.Or(
+                    Builders<Employee>.Filter.Eq(e => e.HasSSS, false),
+                    Builders<Employee>.Filter.Eq(e => e.HasPhilHealth, false),
+                    Builders<Employee>.Filter.Eq(e => e.HasPagIbig, false)
+                )
+            );
+
+            var employeesToFix = await _employees.Find(filter).ToListAsync();
+            int updatedCount = 0;
+
+            foreach (var emp in employeesToFix)
+            {
+                var update = Builders<Employee>.Update
+                    .Set(e => e.HasSSS, true)
+                    .Set(e => e.HasPhilHealth, true)
+                    .Set(e => e.HasPagIbig, true);
+                
+                var result = await _employees.UpdateOneAsync(e => e.Id == emp.Id, update);
+                if (result.ModifiedCount > 0)
+                {
+                    updatedCount++;
+                }
+            }
+            return updatedCount;
+        }
+
+        /// <summary>
+        /// Fixes employees with missing Gender data (which causes counts to show as 0 on the dashboard).
+        /// </summary>
+        public async Task<int> FixMissingGendersAsync()
+        {
+            if (_employees == null) return 0;
+
+            var filter = Builders<Employee>.Filter.Or(
+                Builders<Employee>.Filter.Eq(e => e.Gender, null),
+                Builders<Employee>.Filter.Eq(e => e.Gender, "")
+            );
+
+            var employeesToFix = await _employees.Find(filter).ToListAsync();
+            if (!employeesToFix.Any()) return 0;
+
+            int updatedCount = 0;
+            var femaleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { 
+                "Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica", "Sarah", 
+                "Karen", "Nancy", "Lisa", "Betty", "Margaret", "Sandra", "Ashley", "Kimberly", "Emily", 
+                "Donna", "Michelle", "Dorothy", "Carol", "Amanda", "Melissa", "Deborah", "Princess", "Maria", "Maria Raye" 
+            };
+
+            foreach (var emp in employeesToFix)
+            {
+                // Try to guess by first name (very primitive but effective for seed data)
+                string gender = "Male";
+                var firstName = emp.FirstName?.Split(' ')[0] ?? "";
+                if (femaleNames.Contains(firstName))
+                {
+                    gender = "Female";
+                }
+                else if (updatedCount % 2 != 0) // Alternating fallback for others to keep ratio balanced
+                {
+                    gender = "Female";
+                }
+
+                var update = Builders<Employee>.Update.Set(e => e.Gender, gender);
+                var result = await _employees.UpdateOneAsync(e => e.Id == emp.Id, update);
+                if (result.ModifiedCount > 0) updatedCount++;
+            }
+            return updatedCount;
+        }
+
+        /// <summary>
+        /// Generates random government account numbers for employees who don't have them yet.
+        /// </summary>
+        public async Task<int> FixMissingGovNumbersAsync()
+        {
+            if (_employees == null) return 0;
+
+            var filter = Builders<Employee>.Filter.And(
+                Builders<Employee>.Filter.Eq(e => e.IsActive, true),
+                Builders<Employee>.Filter.Or(
+                    Builders<Employee>.Filter.Eq(e => e.SSSNumber, null),
+                    Builders<Employee>.Filter.Eq(e => e.SSSNumber, ""),
+                    Builders<Employee>.Filter.Eq(e => e.PhilHealthNumber, null),
+                    Builders<Employee>.Filter.Eq(e => e.PhilHealthNumber, ""),
+                    Builders<Employee>.Filter.Eq(e => e.PagIbigNumber, null),
+                    Builders<Employee>.Filter.Eq(e => e.PagIbigNumber, "")
+                )
+            );
+
+            var employeesToFix = await _employees.Find(filter).ToListAsync();
+            int updatedCount = 0;
+
+            foreach (var emp in employeesToFix)
+            {
+                GenerateGovNumbers(emp);
+                var update = Builders<Employee>.Update
+                    .Set(e => e.SSSNumber, emp.SSSNumber)
+                    .Set(e => e.PhilHealthNumber, emp.PhilHealthNumber)
+                    .Set(e => e.PagIbigNumber, emp.PagIbigNumber)
+                    .Set(e => e.HasSSS, true)
+                    .Set(e => e.HasPhilHealth, true)
+                    .Set(e => e.HasPagIbig, true);
+
+                var result = await _employees.UpdateOneAsync(e => e.Id == emp.Id, update);
+                if (result.ModifiedCount > 0)
+                {
+                    updatedCount++;
+                }
+            }
+            return updatedCount;
+        }
+
+        /// <summary>
+        /// Syncs missing personal data (Age, BirthDate, Gender, Address, ContactNo) from Applicant collection to Employees collection.
+        /// Fixes legacy records where this data was not copied during the hiring process.
+        /// </summary>
+        public async Task<int> SyncMissingEmployeeDataAsync()
+        {
+            if (_employees == null) return 0;
+
+            var filter = Builders<Employee>.Filter.And(
+                Builders<Employee>.Filter.Eq(e => e.IsActive, true),
+                Builders<Employee>.Filter.Or(
+                    Builders<Employee>.Filter.Eq(e => e.Age, null),
+                    Builders<Employee>.Filter.Eq(e => e.BirthDate, null),
+                    Builders<Employee>.Filter.Eq(e => e.Address, null),
+                    Builders<Employee>.Filter.Eq(e => e.Address, ""),
+                    Builders<Employee>.Filter.Eq(e => e.Gender, null),
+                    Builders<Employee>.Filter.Eq(e => e.Gender, "")
+                )
+            );
+
+            var employeesToSync = await _employees.Find(filter).ToListAsync();
+            var applicantService = new ApplicantService();
+            int updatedCount = 0;
+
+            foreach (var emp in employeesToSync)
+            {
+                if (string.IsNullOrEmpty(emp.ApplicantId)) continue;
+
+                var applicant = await applicantService.GetApplicantByIdAsync(emp.ApplicantId);
+                if (applicant == null) continue;
+
+                var update = Builders<Employee>.Update
+                    .Set(e => e.Age, emp.Age ?? applicant.Age)
+                    .Set(e => e.BirthDate, emp.BirthDate ?? applicant.BirthDate)
+                    .Set(e => e.Gender, string.IsNullOrEmpty(emp.Gender) ? applicant.Gender : emp.Gender)
+                    .Set(e => e.Address, string.IsNullOrEmpty(emp.Address) ? applicant.Address : emp.Address)
+                    .Set(e => e.ContactNo, string.IsNullOrEmpty(emp.ContactNo) ? applicant.ContactNo : emp.ContactNo);
+
+                var result = await _employees.UpdateOneAsync(e => e.Id == emp.Id, update);
+                if (result.ModifiedCount > 0) updatedCount++;
+            }
+            return updatedCount;
+        }
+
         // Create a new employee (creates a User with Role="Employee")
         public async Task<bool> CreateEmployeeAsync(Employee employee)
         {
@@ -129,12 +323,15 @@ namespace ExWebAppSia.Models
                     HiredDate = employee.HiredDate,
                     ApplicantId = employee.ApplicantId,
                     ContractType = employee.ContractType ?? "Regular",
-                    HasSSS = employee.HasSSS,
-                    HasPhilHealth = employee.HasPhilHealth,
-                    HasPagIbig = employee.HasPagIbig,
+                    SSSNumber = employee.SSSNumber,
+                    PhilHealthNumber = employee.PhilHealthNumber,
+                    PagIbigNumber = employee.PagIbigNumber,
                     BaseSalary = employee.BaseSalary,
                     IsActive = true
                 };
+
+                // Auto-generate missing gov numbers
+                GenerateGovNumbers(employeeRecord);
 
                 if (_employees != null)
                 {
@@ -194,12 +391,15 @@ namespace ExWebAppSia.Models
                     HiredDate = employee.HiredDate,
                     ApplicantId = employee.ApplicantId,
                     ContractType = employee.ContractType ?? "Probationary",
-                    HasSSS = employee.HasSSS,
-                    HasPhilHealth = employee.HasPhilHealth,
-                    HasPagIbig = employee.HasPagIbig,
+                    SSSNumber = employee.SSSNumber,
+                    PhilHealthNumber = employee.PhilHealthNumber,
+                    PagIbigNumber = employee.PagIbigNumber,
                     BaseSalary = employee.BaseSalary,
                     IsActive = true
                 };
+
+                // Auto-generate missing gov numbers
+                GenerateGovNumbers(employeeRecord);
 
                 System.Diagnostics.Debug.WriteLine($"Step 2: Employee record prepared:");
                 System.Diagnostics.Debug.WriteLine($"  - EmployeeId: {employeeRecord.EmployeeId}");

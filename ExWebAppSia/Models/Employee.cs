@@ -32,6 +32,18 @@ namespace ExWebAppSia.Models
         [BsonElement("address")]
         public string Address { get; set; }
 
+        [BsonElement("street")]
+        public string Street { get; set; }
+
+        [BsonElement("city")]
+        public string City { get; set; }
+
+        [BsonElement("state")]
+        public string State { get; set; }
+
+        [BsonElement("country")]
+        public string Country { get; set; }
+
         [BsonElement("age")]
         public int? Age { get; set; }
 
@@ -70,6 +82,21 @@ namespace ExWebAppSia.Models
 
         [BsonElement("baseSalary")]
         public decimal BaseSalary { get; set; }
+
+        [BsonElement("sssNumber")]
+        public string SSSNumber { get; set; }
+
+        [BsonElement("philHealthNumber")]
+        public string PhilHealthNumber { get; set; }
+
+        [BsonElement("pagIbigNumber")]
+        public string PagIbigNumber { get; set; }
+
+        [BsonElement("resumePath")]
+        public string ResumePath { get; set; }
+
+        [BsonElement("resumeFileName")]
+        public string ResumeFileName { get; set; }
 
         [BsonElement("isActive")]
         public bool IsActive { get; set; } = true;

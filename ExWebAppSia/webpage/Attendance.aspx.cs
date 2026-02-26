@@ -129,7 +129,7 @@ namespace ExWebAppSia.webpage
                     {
                         if (a.TimeIn == null) return false;
                         var localTime = a.TimeIn.Value.ToLocalTime();
-                        return localTime.Hour > 9 || (localTime.Hour == 9 && localTime.Minute > 0);
+                        return localTime.Hour > 8 || (localTime.Hour == 8 && localTime.Minute > 0) || (localTime.Hour == 8 && localTime.Second > 0);
                     });
 
                 ViewState["PresentCount"] = presentCount;
@@ -183,20 +183,34 @@ namespace ExWebAppSia.webpage
         protected string FormatTimeIn(DateTime? time)
         {
             if (time == null) return "<span class=\"time-empty\">-</span>";
-            string timeStr = time.Value.ToLocalTime().ToString("h:mm tt");
+            string timeStr = time.Value.ToLocalTime().ToString("h:mm:ss tt");
             return $"<span class=\"time-in-box\">{Server.HtmlEncode(timeStr)}</span>";
         }
 
         protected string FormatTimeOut(DateTime? time)
         {
             if (time == null) return "<span class=\"time-empty\">-</span>";
-            string timeStr = time.Value.ToLocalTime().ToString("h:mm tt");
+            string timeStr = time.Value.ToLocalTime().ToString("h:mm:ss tt");
             return $"<span class=\"time-out-box\">{Server.HtmlEncode(timeStr)}</span>";
         }
 
         protected string GetDateDisplay()
         {
             return SelectedDate.ToString("MMMM dd, yyyy");
+        }
+
+        protected string FormatLateTime(DateTime? timeIn, string storedLateTime)
+        {
+            if (timeIn == null) return "<span class=\"time-empty\">-</span>";
+            
+            // Recalculate late time on the fly to include seconds accurately
+            var localTime = timeIn.Value.ToLocalTime();
+            var shiftStart = new DateTime(localTime.Year, localTime.Month, localTime.Day, 8, 0, 0);
+            
+            if (localTime <= shiftStart) return "<span class=\"time-empty\">-</span>";
+            
+            var diff = localTime - shiftStart;
+            return $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}:{(int)diff.Seconds:D2}";
         }
 
         protected int GetPresentCount()

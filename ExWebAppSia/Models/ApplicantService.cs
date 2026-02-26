@@ -14,6 +14,20 @@ namespace ExWebAppSia.Models
             _applicants = MongoDBHelper.GetApplicantsCollection();
         }
 
+        public async Task<bool> IsNameDuplicateAsync(string firstName, string lastName)
+        {
+            try
+            {
+                var filter = Builders<Applicant>.Filter.And(
+                    Builders<Applicant>.Filter.Eq(a => a.IsActive, true),
+                    Builders<Applicant>.Filter.Regex(a => a.FirstName, new MongoDB.Bson.BsonRegularExpression($"^{firstName}$", "i")),
+                    Builders<Applicant>.Filter.Regex(a => a.LastName, new MongoDB.Bson.BsonRegularExpression($"^{lastName}$", "i"))
+                );
+                return await _applicants.Find(filter).AnyAsync();
+            }
+            catch { return false; }
+        }
+
         // Create a new applicant
         public async Task<bool> CreateApplicantAsync(Applicant applicant)
         {
@@ -24,7 +38,10 @@ namespace ExWebAppSia.Models
                 System.Diagnostics.Debug.WriteLine($"Department: {applicant.AppliedPosition}");
                 System.Diagnostics.Debug.WriteLine($"Role: {applicant.Role}");
                 
-                applicant.Status = "New";
+                if (string.IsNullOrEmpty(applicant.Status))
+                {
+                    applicant.Status = "Pending Review";
+                }
                 applicant.AppliedDate = DateTime.UtcNow;
                 applicant.IsActive = true;
 
@@ -79,7 +96,24 @@ namespace ExWebAppSia.Models
         // Get new applicants (status = "New")
         public async Task<List<Applicant>> GetNewApplicantsAsync()
         {
-            return await GetApplicantsByStatusAsync("New");
+            try
+            {
+                var filter = Builders<Applicant>.Filter.And(
+                    Builders<Applicant>.Filter.Eq(a => a.IsActive, true),
+                    Builders<Applicant>.Filter.Or(
+                        Builders<Applicant>.Filter.Eq(a => a.Status, "New"),
+                        Builders<Applicant>.Filter.Eq(a => a.Status, "Pending Review")
+                    )
+                );
+                return await _applicants.Find(filter)
+                    .SortByDescending(a => a.AppliedDate)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting new applicants: {ex.Message}");
+                return new List<Applicant>();
+            }
         }
 
         // Get approved applicants (status = "Approved")
@@ -115,6 +149,12 @@ namespace ExWebAppSia.Models
 
                 var filter = Builders<Applicant>.Filter.Eq(a => a.Id, applicantId);
                 var update = Builders<Applicant>.Update.Set(a => a.Status, newStatus);
+                
+                if (newStatus == "Approved")
+                {
+                    update = update.Set(a => a.ApprovedDate, DateTime.UtcNow);
+                }
+
                 var result = await _applicants.UpdateOneAsync(filter, update);
                 
                 return result.ModifiedCount > 0 || result.MatchedCount > 0;
@@ -187,11 +227,25 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                var filter = Builders<Applicant>.Filter.And(
-                    Builders<Applicant>.Filter.Eq(a => a.IsActive, true),
-                    Builders<Applicant>.Filter.Eq(a => a.Status, status)
-                );
-                return (int)await _applicants.CountDocumentsAsync(filter);
+                if (status == "New")
+                {
+                    var filter = Builders<Applicant>.Filter.And(
+                        Builders<Applicant>.Filter.Eq(a => a.IsActive, true),
+                        Builders<Applicant>.Filter.Or(
+                            Builders<Applicant>.Filter.Eq(a => a.Status, "New"),
+                            Builders<Applicant>.Filter.Eq(a => a.Status, "Pending Review")
+                        )
+                    );
+                    return (int)await _applicants.CountDocumentsAsync(filter);
+                }
+                else
+                {
+                    var filter = Builders<Applicant>.Filter.And(
+                        Builders<Applicant>.Filter.Eq(a => a.IsActive, true),
+                        Builders<Applicant>.Filter.Eq(a => a.Status, status)
+                    );
+                    return (int)await _applicants.CountDocumentsAsync(filter);
+                }
             }
             catch (Exception ex)
             {

@@ -159,22 +159,22 @@ namespace ExWebAppSia.webpage
         protected global::System.Web.UI.WebControls.Literal litSalesCount;
 
         /// <summary>
-        /// litLegalManager control.
+        /// litInventoryManager control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Literal litLegalManager;
+        protected global::System.Web.UI.WebControls.Literal litInventoryManager;
 
         /// <summary>
-        /// litLegalCount control.
+        /// litInventoryCount control.
         /// </summary>
         /// <remarks>
         /// Auto-generated field.
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
-        protected global::System.Web.UI.WebControls.Literal litLegalCount;
+        protected global::System.Web.UI.WebControls.Literal litInventoryCount;
 
         /// <summary>
         /// litCustomerServiceManager control.

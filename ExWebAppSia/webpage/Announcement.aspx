@@ -485,7 +485,7 @@
                         <option value="IT Support">IT Support</option>
                         <option value="Operations">Operations</option>
                         <option value="Sales">Sales</option>
-                        <option value="Legal">Legal</option>
+                        <option value="Inventory">Inventory</option>
                         <option value="Customer Service">Customer Service</option>
                     </select>
                     <button type="button" id="btnPinToggle" class="pin-toggle-btn" onclick="togglePinState()">
@@ -569,7 +569,7 @@
                 <div class="dept-tab" data-dept="Operations" onclick="setDeptFilter('Operations', this)">Operations
                 </div>
                 <div class="dept-tab" data-dept="Sales" onclick="setDeptFilter('Sales', this)">Sales</div>
-                <div class="dept-tab" data-dept="Legal" onclick="setDeptFilter('Legal', this)">Legal</div>
+                <div class="dept-tab" data-dept="Inventory" onclick="setDeptFilter('Inventory', this)">Inventory</div>
                 <div class="dept-tab" data-dept="Customer Service" onclick="setDeptFilter('Customer Service', this)">
                     Customer Service</div>
             </div>

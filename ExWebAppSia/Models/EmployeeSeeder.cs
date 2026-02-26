@@ -18,7 +18,7 @@ namespace ExWebAppSia.Models
             { "IT Support", new[] { "IT Support Specialist", "Network Administrator", "System Administrator", "IT Manager" } },
             { "Operations", new[] { "Operations Coordinator", "Operations Manager", "Supply Chain Specialist", "Logistics Coordinator" } },
             { "Sales", new[] { "Sales Representative", "Sales Manager", "Account Executive", "Business Development Manager" } },
-            { "Legal", new[] { "Legal Counsel", "Compliance Officer", "Legal Assistant", "Contract Specialist" } },
+            { "Inventory", new[] { "Inventory Manager", "Inventory Specialist", "Warehouseman", "Storekeeper" } },
             { "Customer Service", new[] { "Customer Service Representative", "Customer Support Specialist", "Call Center Agent", "Customer Service Manager" } }
         };
 
@@ -32,7 +32,7 @@ namespace ExWebAppSia.Models
             { "IT Support Specialist", 32000 }, { "Network Administrator", 55000 }, { "System Administrator", 58000 }, { "IT Manager", 95000 },
             { "Operations Coordinator", 30000 }, { "Operations Manager", 80000 }, { "Supply Chain Specialist", 42000 }, { "Logistics Coordinator", 28000 },
             { "Sales Representative", 25000 }, { "Sales Manager", 70000 }, { "Account Executive", 45000 }, { "Business Development Manager", 80000 },
-            { "Legal Counsel", 100000 }, { "Compliance Officer", 60000 }, { "Legal Assistant", 30000 }, { "Contract Specialist", 48000 },
+            { "Inventory Manager", 75000 }, { "Inventory Specialist", 40000 }, { "Warehouseman", 22000 }, { "Storekeeper", 28000 },
             { "Customer Service Representative", 22000 }, { "Customer Support Specialist", 28000 }, { "Call Center Agent", 24000 }, { "Customer Service Manager", 70000 }
         };
 
@@ -59,7 +59,8 @@ namespace ExWebAppSia.Models
                 for (int i = 0; i < needed; i++)
                 {
                     // Ensure unique names/emails by using a global index
-                    string firstName = FirstNames[(nameIndex + nameIndex / 5) % FirstNames.Length];
+                    int firstNameIndex = (nameIndex + nameIndex / 5) % FirstNames.Length;
+                    string firstName = FirstNames[firstNameIndex];
                     string lastName = LastNames[(nameIndex + nameIndex / 10) % LastNames.Length];
                     string email = $"emp.{firstName.ToLower()}.{lastName.ToLower()}{Guid.NewGuid().ToString().Substring(0, 4)}@shessentials.com";
                     string role = roles[i % roles.Length];
@@ -75,11 +76,15 @@ namespace ExWebAppSia.Models
                         (RegularSalaries.ContainsKey(role) ? RegularSalaries[role] : 18000) : 
                         18000;
 
+                    // Alternating genders in our FirstNames list
+                    string gender = (firstNameIndex % 2 == 0) ? "Male" : "Female";
+
                     var employee = new Employee
                     {
                         FirstName = firstName,
                         LastName = lastName,
                         Email = email,
+                        Gender = gender,
                         Department = departmentName,
                         Role = role,
                         ContractType = contractType,
@@ -100,11 +105,11 @@ namespace ExWebAppSia.Models
             var employeeService = new EmployeeService();
             var hREmployees = new[]
             {
-                new { Email = "princessm.peregrino@gmail.com", FirstName = "Princess M.", LastName = "Peregrino", Role = "HR Generalist" },
-                new { Email = "santos.francisniel.bitoon@gmail.com", FirstName = "Francis Niel", LastName = "Bitoon", Role = "Recruitment Specialist" },
-                new { Email = "steven.andrei.baliong@gmail.com", FirstName = "Steven Andrei", LastName = "Baliong", Role = "HR Manager" },
-                new { Email = "tan.mariaraye.tante@gmail.com", FirstName = "Maria Raye", LastName = "Tante", Role = "Training Coordinator" },
-                new { Email = "jhonrey.loreno77@gmail.com", FirstName = "Jhonrey", LastName = "Loreno", Role = "Payroll Specialist" }
+                new { Email = "princessm.peregrino@gmail.com", FirstName = "Princess M.", LastName = "Peregrino", Role = "HR Generalist", Gender = "Female" },
+                new { Email = "santos.francisniel.bitoon@gmail.com", FirstName = "Francis Niel", LastName = "Bitoon", Role = "Recruitment Specialist", Gender = "Male" },
+                new { Email = "steven.andrei.baliong@gmail.com", FirstName = "Steven Andrei", LastName = "Baliong", Role = "HR Manager", Gender = "Male" },
+                new { Email = "tan.mariaraye.tante@gmail.com", FirstName = "Maria Raye", LastName = "Tante", Role = "Training Coordinator", Gender = "Female" },
+                new { Email = "jhonrey.loreno77@gmail.com", FirstName = "Jhonrey", LastName = "Loreno", Role = "Payroll Specialist", Gender = "Male" }
             };
 
             foreach (var data in hREmployees)
@@ -120,6 +125,7 @@ namespace ExWebAppSia.Models
                     FirstName = data.FirstName,
                     LastName = data.LastName,
                     Email = data.Email,
+                    Gender = data.Gender,
                     Department = "Human Resources",
                     Role = data.Role,
                     ContractType = "Regular",

@@ -61,6 +61,9 @@ namespace ExWebAppSia.webpage
                 // Ensure all probationary employees have the correct starting salary
                 await _employeeService.FixProbationarySalariesAsync();
 
+                // Fix missing genders for dashboard counts
+                await _employeeService.FixMissingGendersAsync();
+
                 // Seed specific HR employees requested by the user
                 await EmployeeSeeder.SeedSpecificHREmployeesAsync();
 
@@ -164,7 +167,10 @@ namespace ExWebAppSia.webpage
                 int totalActiveEmployees = allEmployees.Count(e => e.IsActive);
                 int onLeaveCount = leavesToday.Count(l => l.Status == "Approved");
                 int presentCount = attendanceRecords.Count(a => a.TimeIn.HasValue);
-                int lateCount = attendanceRecords.Count(a => a.TimeIn.HasValue && a.TimeIn.Value.ToLocalTime().Hour >= 9);
+                int lateCount = attendanceRecords.Count(a => a.TimeIn.HasValue && 
+                    (a.TimeIn.Value.ToLocalTime().Hour > 8 || 
+                     (a.TimeIn.Value.ToLocalTime().Hour == 8 && a.TimeIn.Value.ToLocalTime().Minute > 0) ||
+                     (a.TimeIn.Value.ToLocalTime().Hour == 8 && a.TimeIn.Value.ToLocalTime().Second > 0)));
                 
                 int absentCount = totalActiveEmployees - presentCount - onLeaveCount;
                 if (absentCount < 0) absentCount = 0;
