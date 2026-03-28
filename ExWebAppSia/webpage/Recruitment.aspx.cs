@@ -21,6 +21,27 @@ namespace ExWebAppSia.webpage
         private readonly EmailService _emailService = new EmailService();
         private readonly RoleSalaryService _roleSalaryService = new RoleSalaryService();
 
+        private void LogActivity(string action, string targetInfo)
+        {
+            try
+            {
+                var context = System.Web.HttpContext.Current;
+                if (context != null && context.Session != null)
+                {
+                    string username = context.Session["Username"] as string ?? "Unknown HR";
+                    string hrName = "Admin";
+                    var emp = context.Session["Employee"] as Employee;
+                    if (emp != null) hrName = emp.FullName;
+
+                    var logService = new ActivityLogService();
+                    System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
+                        Task.Run(() => logService.LogActionAsync(username, hrName, action, "Recruitment", targetInfo))
+                    );
+                }
+            }
+            catch { /* Ignore */ }
+        }
+
         protected async void Page_Load(object sender, EventArgs e)
         {
             if (Request.QueryString["reset"] == "true")
@@ -64,6 +85,22 @@ namespace ExWebAppSia.webpage
 
                 string firstName = txtFirstName.Text.Trim();
                 string lastName = txtLastName.Text.Trim();
+                string selectedRole = hdnSelectedRole.Value;
+
+                // 0. Restriction: Role Need Check (Cannot hire if role is not active or already occupied)
+                var roleInfo = await _roleSalaryService.GetSalaryByRoleAsync(selectedRole);
+                if (roleInfo == null || !roleInfo.IsActive)
+                {
+                    ShowMessage($"Cannot add applicant. The role '{selectedRole}' is not currently marked for hiring.", false);
+                    return;
+                }
+
+                bool isRoleOccupied = await _employeeService.IsRoleOccupiedAsync(selectedRole);
+                if (isRoleOccupied)
+                {
+                    ShowMessage($"Cannot add applicant. The role '{selectedRole}' is already occupied.", false);
+                    return;
+                }
 
                 // 1. Restriction: Unique Name Check
                 bool nameExistsInApplicants = await _applicantService.IsNameDuplicateAsync(firstName, lastName);
@@ -189,6 +226,7 @@ namespace ExWebAppSia.webpage
                 bool success = await _applicantService.CreateApplicantAsync(applicant);
                 if (success)
                 {
+                    LogActivity("Added Applicant", $"Created new applicant profile: {applicant.FirstName} {applicant.LastName} ({applicant.AppliedPosition})");
                     ShowMessage("Applicant added successfully!", true);
                     ClearForm();
                     await LoadApplicantsData();
@@ -376,6 +414,7 @@ namespace ExWebAppSia.webpage
                 var approvedApplicantsTask = _applicantService.GetApprovedApplicantsAsync();
                 var declinedApplicantsTask = _applicantService.GetDeclinedApplicantsAsync();
                 var inProgressApplicantsTask = _applicantService.GetInProgressApplicantsAsync();
+                var onboardingApplicantsTask = _applicantService.GetApplicantsByStatusAsync("Onboarding");
 
                 var newCountTask = _applicantService.GetCountByStatusAsync("New");
                 var forViewingCountTask = _applicantService.GetCountByStatusAsync("For Viewing");
@@ -384,6 +423,7 @@ namespace ExWebAppSia.webpage
                 var declinedCountTask = _applicantService.GetCountByStatusAsync("Declined");
 
                 var employeesTask = _employeeService.GetAllEmployeesAsync();
+                var resignedEmployeesTask = _employeeService.GetAllResignedEmployeesAsync();
                 var roleSalariesTask = _roleSalaryService.GetAllRoleSalariesAsync();
 
                 await Task.WhenAll(
@@ -392,34 +432,51 @@ namespace ExWebAppSia.webpage
                     approvedApplicantsTask,
                     declinedApplicantsTask,
                     inProgressApplicantsTask,
+                    onboardingApplicantsTask,
                     newCountTask,
                     forViewingCountTask,
                     inProgressCountTask,
                     approvedCountTask,
                     declinedCountTask,
                     employeesTask,
+                    resignedEmployeesTask,
                     roleSalariesTask
                 );
+
+                var probationaryEmployees = employeesTask.Result
+                    .Where(e => e.ContractType == "Probationary")
+                    .OrderBy(e => e.HiredDate)
+                    .ToList();
 
                 PopulateNewApplicantsTable(newApplicantsTask.Result);
                 PopulateForViewingApplicantsTable(forViewingApplicantsTask.Result);
                 PopulateApprovedApplicantsTable(approvedApplicantsTask.Result);
                 PopulateDeclinedApplicantsTable(declinedApplicantsTask.Result);
-                await PopulateInProgressApplicantsTableAsync(inProgressApplicantsTask.Result);
+                await PopulateInProgressTablesAsync(inProgressApplicantsTask.Result);
+                await PopulateOnboardingTableAsync(onboardingApplicantsTask.Result);
+                PopulateRehiringTable(probationaryEmployees);
+
 
                 int newCount = newCountTask.Result;
                 int forViewingCount = forViewingCountTask.Result;
-                int inProgressCount = inProgressCountTask.Result;
+                int inProgressCount = inProgressApplicantsTask.Result.Count;
+                int inProgressHiringCount = inProgressApplicantsTask.Result.Count(a => a.RecruitmentType != "Regularization" && a.Status == "In-Progress");
+                int onboardingCount = onboardingApplicantsTask.Result.Count(a => a.RecruitmentType != "Regularization");
+                int inProgressRegCount = inProgressApplicantsTask.Result.Count(a => a.RecruitmentType == "Regularization");
                 int approvedCount = approvedCountTask.Result;
                 int declinedCount = declinedCountTask.Result;
+                int rehiringCount = probationaryEmployees.Count;
                 int currentEmployeeCount = employeesTask.Result.Count;
 
-                if (litNewCount != null) litNewCount.Text = (newCount + forViewingCount + inProgressCount).ToString();
-                if (litInProgressCount != null) litInProgressCount.Text = inProgressCount.ToString();
+                if (litNewCount != null) litNewCount.Text = (newCount + forViewingCount + inProgressHiringCount).ToString();
+                if (litInProgressHiringCount != null) litInProgressHiringCount.Text = inProgressHiringCount.ToString();
+                if (litInProgressRegularizationCount != null) litInProgressRegularizationCount.Text = inProgressRegCount.ToString();
+                if (litOnboardingCount != null) litOnboardingCount.Text = onboardingCount.ToString();
                 if (litNewSubCount != null) litNewSubCount.Text = newCount.ToString();
                 if (litForViewingCount != null) litForViewingCount.Text = forViewingCount.ToString();
                 if (litApprovedCount != null) litApprovedCount.Text = approvedCount.ToString();
                 if (litDeclinedCount != null) litDeclinedCount.Text = declinedCount.ToString();
+                if (litRehiringCount != null) litRehiringCount.Text = rehiringCount.ToString();
 
                 // Calculate available positions: 50 slots minus (Current Employees + Applicants in pipeline)
                 int totalCapacity = 50;
@@ -431,40 +488,79 @@ namespace ExWebAppSia.webpage
 
                 if (litAvailablePositionsList != null)
                 {
-                    // Identify roles that are occupied or reserved
+                    // --- Step 1: Build the set of roles currently held by ACTIVE employees ---
+                    // This is the authoritative source of truth. Never modify this set using
+                    // resigned employee data, as a resigned employee may have previously held
+                    // the same role now held by a different active employee.
                     var occupiedRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-                    // 1. Occupied by hired employees
                     if (employeesTask.Result != null)
                     {
                         foreach (var emp in employeesTask.Result)
                         {
-                            if (!string.IsNullOrEmpty(emp.Role)) 
+                            if (!string.IsNullOrEmpty(emp.Role))
                                 occupiedRoles.Add(emp.Role.Trim());
                         }
                     }
 
-                    // 2. Reserved by applicants in critical pipeline stages (Removed per user request)
-                    // Roles should now stay in "Currently Hiring" until someone is actually hired.
+                    // --- Step 2: Collect roles freed by ALL past resigned employees ---
+                    // A role is "freed" only if it was held by a resigned employee AND is NOT
+                    // currently occupied by any active employee. This covers all historical
+                    // resigned employees (new and old/legacy data).
+                    var resignedFreeRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    if (resignedEmployeesTask.Result != null)
+                    {
+                        foreach (var resigned in resignedEmployeesTask.Result)
+                        {
+                            if (!string.IsNullOrEmpty(resigned.Role))
+                            {
+                                string role = resigned.Role.Trim();
+                                // Only add to the free list if no active employee holds this role
+                                if (!occupiedRoles.Contains(role))
+                                    resignedFreeRoles.Add(role);
+                            }
+                        }
+                    }
 
-
+                    // --- Step 3: Build the display positions list ---
+                    // Source A: Roles from RoleSalary that are active and not occupied.
+                    // Source B: Roles freed by resignation that aren't already in Source A
+                    //           (handles cases where RoleSalary.IsActive may be false for a role,
+                    //           or the role isn't in RoleSalary at all due to legacy data).
                     var activeRoleSalaries = (roleSalariesTask.Result ?? new List<RoleSalary>())
                                             .Where(r => r.IsActive == true)
                                             .ToList();
-                    var positions = activeRoleSalaries.Select(r => r.RoleName).ToArray();
+
+                    // Roles available from RoleSalary (not occupied)
+                    var roleSalaryAvailable = new HashSet<string>(
+                        activeRoleSalaries.Select(r => r.RoleName.Trim()),
+                        StringComparer.OrdinalIgnoreCase);
+
+                    // Extra roles from resigned employees NOT already in the RoleSalary display
+                    // (ensures legacy/custom roles that resigned employees held also appear)
+                    var extraResignedRoles = resignedFreeRoles
+                        .Where(r => !roleSalaryAvailable.Contains(r))
+                        .OrderBy(r => r)
+                        .ToList();
 
                     var sbPos = new StringBuilder();
                     int visibleCount = 0;
 
-                    foreach (var pos in positions)
+                    // Display RoleSalary-sourced available positions
+                    foreach (var rs in activeRoleSalaries)
                     {
-                        string trimmedPos = pos.Trim();
-                        // Only show roles that are NOT yet occupied or reserved
+                        string trimmedPos = rs.RoleName.Trim();
                         if (!occupiedRoles.Contains(trimmedPos))
                         {
-                            sbPos.AppendFormat("<div class='pos-item' style='display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; padding: 4px 0;' onclick=\"filterByPosition('{0}')\" onmouseover=\"this.style.color='#3b82f6'\" onmouseout=\"this.style.color=''\" ><svg style='width:14px; height:14px; color:#3b82f6;' fill='currentColor' viewBox='0 0 20 20'><path fill-rule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' clip-rule='evenodd'></path></svg>{0}</div>", Server.HtmlEncode(pos));
+                            sbPos.AppendFormat("<div class='pos-item' style='display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; padding: 4px 0;' onclick=\"filterByPosition('{0}')\" onmouseover=\"this.style.color='#3b82f6'\" onmouseout=\"this.style.color=''\" ><svg style='width:14px; height:14px; color:#3b82f6;' fill='currentColor' viewBox='0 0 20 20'><path fill-rule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' clip-rule='evenodd'></path></svg>{0}</div>", Server.HtmlEncode(rs.RoleName));
                             visibleCount++;
                         }
+                    }
+
+                    // Display extra roles freed by resigned employees (not in RoleSalary active list)
+                    foreach (var extraRole in extraResignedRoles)
+                    {
+                        sbPos.AppendFormat("<div class='pos-item' style='display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; padding: 4px 0;' onclick=\"filterByPosition('{0}')\" onmouseover=\"this.style.color='#3b82f6'\" onmouseout=\"this.style.color=''\" ><svg style='width:14px; height:14px; color:#3b82f6;' fill='currentColor' viewBox='0 0 20 20'><path fill-rule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' clip-rule='evenodd'></path></svg>{0}</div>", Server.HtmlEncode(extraRole));
+                        visibleCount++;
                     }
 
                     if (visibleCount == 0)
@@ -474,10 +570,18 @@ namespace ExWebAppSia.webpage
 
                     litAvailablePositionsList.Text = sbPos.ToString();
 
-                    // Dynamic Dropdowns and JS Objects
+                    // --- Step 4: Populate dropdowns and JS role/salary objects ---
+                    // For dropdowns we use only RoleSalary-backed roles (they carry salary data).
+                    // Resigned-only freed roles without a RoleSalary entry are excluded here
+                    // since there's no salary information to associate with them.
                     if (activeRoleSalaries.Count > 0)
                     {
-                        var deptGrouped = activeRoleSalaries.GroupBy(r => r.Department)
+                        // Filter out occupied roles for the dropdowns as well
+                        var availableRoleSalaries = activeRoleSalaries
+                                                    .Where(r => !occupiedRoles.Contains(r.RoleName.Trim()))
+                                                    .ToList();
+
+                        var deptGrouped = availableRoleSalaries.GroupBy(r => r.Department)
                                                             .OrderBy(g => g.Key)
                                                             .ToDictionary(g => g.Key, g => g.Select(r => r.RoleName).ToList());
 
@@ -623,42 +727,321 @@ namespace ExWebAppSia.webpage
             declinedApplicantsTableBody.InnerHtml = sb.ToString();
         }
 
-        private async Task PopulateInProgressApplicantsTableAsync(List<Applicant> applicants)
+        private async Task PopulateInProgressTablesAsync(List<Applicant> applicants)
+        {
+            var hiredEmployees = await _employeeService.GetAllEmployeesAsync();
+            var hiredIds = new HashSet<string>(hiredEmployees.Where(e => !string.IsNullOrEmpty(e.ApplicantId)).Select(e => e.ApplicantId));
+
+            // Only show those who are NOT in onboarding yet for the waitlist
+            var hiringApplicants = applicants.Where(a => a.RecruitmentType != "Regularization" && a.Status == "In-Progress").ToList();
+            var regApplicants = applicants.Where(a => a.RecruitmentType == "Regularization").ToList();
+
+            PopulateInProgressTable(hiringApplicants, inProgressHiringTableBody, hiredIds, "hiring");
+            PopulateInProgressTable(regApplicants, inProgressRegularizationTableBody, hiredIds, "regularization");
+        }
+
+        private async Task PopulateOnboardingTableAsync(List<Applicant> applicants)
+        {
+            var hiredEmployees = await _employeeService.GetAllEmployeesAsync();
+            var hiredIds = new HashSet<string>(hiredEmployees.Where(e => !string.IsNullOrEmpty(e.ApplicantId)).Select(e => e.ApplicantId));
+
+            // Applicants are already pre-filtered for "Onboarding" status in the task
+            PopulateInProgressTable(applicants, onboardingTableBody, hiredIds, "onboarding");
+        }
+
+        private void PopulateInProgressTable(List<Applicant> applicants, HtmlGenericControl tableBody, HashSet<string> hiredIds, string mode)
         {
             if (applicants == null || applicants.Count == 0)
             {
-                inProgressApplicantsTableBody.InnerHtml = "<tr><td colspan='4' class='empty-state'>No in-progress applicants</td></tr>";
+                string emptyMsg = "No records found";
+                if (mode == "hiring") emptyMsg = "No applicants awaiting orientation found";
+                else if (mode == "regularization") emptyMsg = "No in-progress regularization found";
+                else if (mode == "onboarding") emptyMsg = "No employees ready for final onboarding";
+
+                tableBody.InnerHtml = string.Format("<tr><td colspan='4' class='empty-state'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor'><circle cx='12' cy='12' r='10' /><polyline points='12 6 12 12 16 14' /></svg><p>{0}</p></td></tr>", emptyMsg);
                 return;
             }
-
-            // Optimization: Fetch all employee records in one go to check hiring status
-            var employees = await _employeeService.GetAllEmployeesAsync();
-            var hiredApplicantIds = new HashSet<string>(employees.Where(e => !string.IsNullOrEmpty(e.ApplicantId)).Select(e => e.ApplicantId));
 
             var sb = new StringBuilder();
             foreach (var applicant in applicants)
             {
-                bool isHired = hiredApplicantIds.Contains(applicant.Id);
-                string hireText = isHired ? "Already Hired" : "Hire";
+                bool isHired = hiredIds.Contains(applicant.Id);
+                
+                string hireText = "Hire";
+                if (isHired) hireText = "Already Hired";
+                else if (mode == "regularization") hireText = "Regularize";
+                else if (mode == "hiring") hireText = "Mark Hired (Orientation)";
+                else if (mode == "onboarding") hireText = "Finalize Onboarding";
+
                 string disabled = isHired ? "disabled" : "";
                 string onclick = isHired ? "" : string.Format("hireApplicant('{0}', this); return false;", Server.HtmlEncode(applicant.Id));
                 string dept = Server.HtmlEncode(applicant.AppliedPosition ?? "");
                 string role = Server.HtmlEncode(applicant.Role ?? "");
+                string tag = "";
+                
+                if (applicant.RecruitmentType == "Regularization")
+                {
+                    tag = "<span class='status-badge' style='background: #fef3c7; color: #92400e; font-size: 10px; margin-left: 8px;'>Regularization</span>";
+                }
+                else if (applicant.Status == "Onboarding")
+                {
+                    tag = "<span class='status-badge' style='background: #dcfce7; color: #166534; font-size: 10px; margin-left: 8px;'>Orientation Done</span>";
+                }
+
+                string btnStyle = "";
+                if (mode == "regularization") btnStyle = "background: #A36A66;";
+                else if (mode == "onboarding") btnStyle = "background: #A36A66;";
+                else if (mode == "hiring") btnStyle = "background: #A36A66;";
+
+                string notHireButton = "";
+                if (mode != "onboarding")
+                {
+                    notHireButton = string.Format("<button class='btn btn-not-hire' onclick=\"notHireApplicant('{0}', this); return false;\">Not Hired</button>", Server.HtmlEncode(applicant.Id));
+                }
+
                 sb.AppendFormat(@"<tr data-fullname='{0}' data-position='{10}' data-sss='{6}' data-philhealth='{7}' data-pagibig='{8}' data-dept='{9}' data-role='{10}'>
-                    <td><strong>{0}</strong></td>
+                    <td><strong>{0}</strong>{11}</td>
                     <td>{10}</td>
                     <td style='text-align: center;'>
                         <a href='#' class='status-link' onclick=""viewApplicantDetails('{2}'); return false;"">View Details</a>
                     </td>
                     <td style='text-align: center;'>
                         <div class='action-buttons'>
-                            <button class='btn btn-hire' {3} onclick=""{4}"">{5}</button>
-                            <button class='btn btn-not-hire' onclick=""notHireApplicant('{2}', this); return false;"">Not Hired</button>
+                            <button class='btn btn-hire' {3} onclick=""{4}"" style='{12}'>{5}</button>
+                            {13}
                         </div>
                     </td>
-                </tr>", Server.HtmlEncode(applicant.FullName), Server.HtmlEncode(applicant.AppliedPosition ?? ""), Server.HtmlEncode(applicant.Id), disabled, onclick, hireText, applicant.HasSSS.ToString().ToLower(), applicant.HasPhilHealth.ToString().ToLower(), applicant.HasPagIbig.ToString().ToLower(), dept, role);
+                </tr>", 
+                Server.HtmlEncode(applicant.FullName), 
+                Server.HtmlEncode(applicant.AppliedPosition ?? ""), 
+                Server.HtmlEncode(applicant.Id), 
+                disabled, 
+                onclick, 
+                hireText, 
+                applicant.HasSSS.ToString().ToLower(), 
+                applicant.HasPhilHealth.ToString().ToLower(), 
+                applicant.HasPagIbig.ToString().ToLower(), 
+                dept, 
+                role, 
+                tag,
+                btnStyle,
+                notHireButton);
             }
-            inProgressApplicantsTableBody.InnerHtml = sb.ToString();
+            tableBody.InnerHtml = sb.ToString();
+        }
+
+        private void PopulateRehiringTable(List<Employee> employees)
+        {
+            if (employees == null || employees.Count == 0)
+            {
+                rehiringTableBody.InnerHtml = "<tr><td colspan='5' class='empty-state'>No probationary employees found</td></tr>";
+                return;
+            }
+
+            var sb = new StringBuilder();
+            var today = DateTime.UtcNow;
+
+            foreach (var emp in employees)
+            {
+                var regularizationDate = emp.HiredDate.AddMonths(6);
+                var timeRemaining = regularizationDate - today;
+                
+                string countdownText;
+                string progressColor;
+                
+                if (timeRemaining.TotalDays <= 0)
+                {
+                    countdownText = "Eligible for Regularization";
+                    progressColor = "#4CAF50"; // Green
+                }
+                else
+                {
+                    int months = (int)(timeRemaining.TotalDays / 30);
+                    int days = (int)(timeRemaining.TotalDays % 30);
+                    countdownText = months > 0 ? $"{months}m {days}d remaining" : $"{days}d remaining";
+                    progressColor = timeRemaining.TotalDays < 30 ? "#FF9800" : "#A36A66"; // Orange if < 1 month
+                }
+
+                // Calculate progress percentage for a 6-month period
+                double totalDays = (regularizationDate - emp.HiredDate).TotalDays;
+                double elapsedDays = (today - emp.HiredDate).TotalDays;
+                int progressPercent = (int)Math.Min(100, Math.Max(0, (elapsedDays / totalDays) * 100));
+
+                sb.AppendFormat(@"<tr>
+                    <td>
+                        <input type='checkbox' value='{7}' class='rehire-checkbox' onclick='toggleBulkRehireButton()' />
+                    </td>
+                    <td>
+                        <div style='display: flex; flex-direction: column;'>
+                            <strong style='color: var(--text-primary);'>{0}</strong>
+                            <span style='font-size: 11px; color: var(--text-secondary);'>{1}</span>
+                        </div>
+                    </td>
+                    <td>{2}</td>
+                    <td>{3:MMM dd, yyyy}</td>
+                    <td>
+                        <div style='width: 100%; max-width: 150px; margin: 0 auto;'>
+                            <div style='display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 4px;'>
+                                <span style='color: {5}; font-weight: 700;'>{4}</span>
+                                <span>{6}%</span>
+                            </div>
+                            <div style='height: 6px; background: #eee; border-radius: 3px; overflow: hidden;'>
+                                <div style='height: 100%; width: {6}%; background: {5}; border-radius: 3px;'></div>
+                            </div>
+                        </div>
+                    </td>
+                </tr>", 
+                Server.HtmlEncode(emp.FullName), 
+                Server.HtmlEncode(emp.EmployeeId), 
+                Server.HtmlEncode(emp.Role), 
+                emp.HiredDate, 
+                countdownText, 
+                progressColor, 
+                progressPercent,
+                Server.HtmlEncode(emp.Id));
+            }
+            rehiringTableBody.InnerHtml = sb.ToString();
+        }
+
+        protected async void btnRehireEmployee_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                string employeeId = hdnRehireEmployeeId.Value;
+                if (string.IsNullOrEmpty(employeeId)) return;
+
+                var employee = await _employeeService.GetEmployeeByIdAsync(employeeId);
+                if (employee == null) return;
+
+                var roleSalary = await _roleSalaryService.GetSalaryByRoleAsync(employee.Role);
+                decimal startingSalary = roleSalary != null ? roleSalary.BaseSalary : 18000;
+
+                // Create a new applicant record from the existing employee data for "Regularization" process
+                var applicant = new Applicant
+                {
+                    FirstName = employee.FirstName,
+                    MiddleName = employee.MiddleName,
+                    LastName = employee.LastName,
+                    Email = employee.Email,
+                    ContactNo = employee.ContactNo,
+                    Address = employee.Address,
+                    Street = employee.Street,
+                    City = employee.City,
+                    State = employee.State,
+                    Country = employee.Country,
+                    Age = employee.Age,
+                    BirthDate = employee.BirthDate,
+                    Gender = employee.Gender,
+                    AppliedPosition = employee.Department,
+                    Role = employee.Role,
+                    ContractType = "Regular", // Goal is to become regular
+                    RecruitmentType = "Regularization",
+                    LinkedEmployeeId = employee.Id,
+                    StartingSalary = startingSalary,
+                    Status = "In-Progress", // Send straight to In-Progress/Interview
+                    ReferenceNumber = "REG-" + DateTime.Now.ToString("yyyyMMdd") + "-" + employee.EmployeeId,
+                    AppliedDate = DateTime.UtcNow,
+                    HasSSS = employee.HasSSS,
+                    HasPhilHealth = employee.HasPhilHealth,
+                    HasPagIbig = employee.HasPagIbig,
+                    SSSNumber = employee.SSSNumber,
+                    PhilHealthNumber = employee.PhilHealthNumber,
+                    PagIbigNumber = employee.PagIbigNumber,
+                    ResumePath = employee.ResumePath,
+                    ResumeFileName = employee.ResumeFileName,
+                    IsActive = true
+                };
+
+                bool success = await _applicantService.CreateApplicantAsync(applicant);
+                if (success)
+                {
+                    ShowMessage($"Regularization process started for {employee.FullName}. They are now in the Interview phase.", true);
+                    await LoadApplicantsData();
+                }
+                else
+                {
+                    ShowMessage("Failed to start regularization process.", false);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowMessage("Error: " + ex.Message, false);
+            }
+        }
+
+        protected async void btnBulkRehire_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                string selectedIds = hdnSelectedRehireIds.Value;
+                if (string.IsNullOrEmpty(selectedIds)) return;
+
+                string[] employeeIds = selectedIds.Split(',');
+                int successCount = 0;
+
+                foreach (string id in employeeIds)
+                {
+                    var employee = await _employeeService.GetEmployeeByIdAsync(id);
+                    if (employee == null) continue;
+
+                    var roleSalary = await _roleSalaryService.GetSalaryByRoleAsync(employee.Role);
+                    decimal startingSalary = roleSalary != null ? roleSalary.BaseSalary : 18000;
+
+                    var applicant = new Applicant
+                    {
+                        FirstName = employee.FirstName,
+                        MiddleName = employee.MiddleName,
+                        LastName = employee.LastName,
+                        Email = employee.Email,
+                        ContactNo = employee.ContactNo,
+                        Address = employee.Address,
+                        Street = employee.Street,
+                        City = employee.City,
+                        State = employee.State,
+                        Country = employee.Country,
+                        Age = employee.Age,
+                        BirthDate = employee.BirthDate,
+                        Gender = employee.Gender,
+                        AppliedPosition = employee.Department,
+                        Role = employee.Role,
+                        ContractType = "Regular",
+                        RecruitmentType = "Regularization",
+                        LinkedEmployeeId = employee.Id,
+                        StartingSalary = startingSalary,
+                        Status = "In-Progress",
+                        ReferenceNumber = "REG-" + DateTime.Now.ToString("yyyyMMdd") + "-" + employee.EmployeeId,
+                        AppliedDate = DateTime.UtcNow,
+                        HasSSS = employee.HasSSS,
+                        HasPhilHealth = employee.HasPhilHealth,
+                        HasPagIbig = employee.HasPagIbig,
+                        SSSNumber = employee.SSSNumber,
+                        PhilHealthNumber = employee.PhilHealthNumber,
+                        PagIbigNumber = employee.PagIbigNumber,
+                        ResumePath = employee.ResumePath,
+                        ResumeFileName = employee.ResumeFileName,
+                        IsActive = true
+                    };
+
+                    if (await _applicantService.CreateApplicantAsync(applicant))
+                    {
+                        successCount++;
+                    }
+                }
+
+                if (successCount > 0)
+                {
+                    ShowMessage($"{successCount} employees sent to regularization process.", true);
+                    await LoadApplicantsData();
+                }
+                else
+                {
+                    ShowMessage("Failed to process selected employees.", false);
+                }
+            }
+            catch (Exception ex)
+            {
+                ShowMessage("Error: " + ex.Message, false);
+            }
         }
 
         protected async void btnHireApplicant_Click(object sender, EventArgs e)
@@ -680,7 +1063,71 @@ namespace ExWebAppSia.webpage
                     return;
                 }
 
-                // Simple check for existing employee
+                // Restriction: Role Need Check (Skip for regularization)
+                if (applicant.RecruitmentType != "Regularization")
+                {
+                    var roleInfo = await _roleSalaryService.GetSalaryByRoleAsync(applicant.Role);
+                    if (roleInfo == null || !roleInfo.IsActive)
+                    {
+                        ShowMessage($"Cannot hire applicant. The role '{applicant.Role}' is no longer marked for active hiring.", false);
+                        return;
+                    }
+
+                    bool isRoleOccupied = await _employeeService.IsRoleOccupiedAsync(applicant.Role);
+                    if (isRoleOccupied)
+                    {
+                        ShowMessage($"Cannot hire applicant. The role '{applicant.Role}' is already occupied by someone else.", false);
+                        return;
+                    }
+                }
+
+                // Check for regularization case
+                if (applicant.RecruitmentType == "Regularization" && !string.IsNullOrEmpty(applicant.LinkedEmployeeId))
+                {
+                    var empToUpdate = await _employeeService.GetEmployeeByIdAsync(applicant.LinkedEmployeeId);
+                    if (empToUpdate != null)
+                    {
+                        empToUpdate.ContractType = "Regular";
+                        empToUpdate.BaseSalary = applicant.StartingSalary;
+                        empToUpdate.SSSNumber = applicant.SSSNumber;
+                        empToUpdate.PhilHealthNumber = applicant.PhilHealthNumber;
+                        empToUpdate.PagIbigNumber = applicant.PagIbigNumber;
+                        
+                        bool updateSuccess = await _employeeService.UpdateEmployeeAsync(empToUpdate.Id, empToUpdate);
+                        if (updateSuccess || true) 
+                        {
+                            await _applicantService.UpdateApplicantStatusAsync(applicantId, "Hired");
+                            await _emailService.SendHiredEmailAsync(empToUpdate.Email, empToUpdate.FullName, empToUpdate.Department, empToUpdate.Role, empToUpdate.Email, empToUpdate.EmployeeId, true, false);
+                            await LoadApplicantsData();
+                            LogActivity("Regularization Created", $"Promoted {empToUpdate.FullName} ({empToUpdate.EmployeeId}) to regular employee status");
+                            ShowMessage($"{empToUpdate.FullName} has been regularized successfully!", true);
+                            ScriptManager.RegisterStartupScript(this, GetType(), "regSuccess", "setTimeout(function() { window.location.reload(); }, 2000);", true);
+                            return;
+                        }
+                    }
+                }
+
+                // If currently In-Progress (Waitlist), move to Onboarding first
+                if (applicant.Status == "In-Progress" && applicant.RecruitmentType != "Regularization")
+                {
+                    // Update status to Onboarding 
+                    await _applicantService.UpdateApplicantStatusAsync(applicantId, "Onboarding");
+                    
+                    // Create account skeleton (pre-hiring step)
+                    string tempEmployeeId = "PENDING-" + DateTime.Now.Ticks.ToString().Substring(10);
+                    await _userService.EnsureEmployeeAccountAsync(applicant.Email, tempEmployeeId, applicant.FirstName, applicant.LastName,
+                        applicant.MiddleName, applicant.AppliedPosition, applicant.Role, applicant.HasSSS, applicant.HasPhilHealth, applicant.HasPagIbig);
+                    
+                    // Send Orientation Email
+                    await _emailService.SendHiredEmailAsync(applicant.Email, applicant.FullName, applicant.AppliedPosition, applicant.Role, applicant.Email, tempEmployeeId, false, true);
+                    
+                    await LoadApplicantsData();
+                    LogActivity("Moved To Onboarding", $"Moved applicant {applicant.FirstName} {applicant.LastName} into the mandatory orientation funnel.");
+                    ShowMessage("Applicant moved to Onboarding! Orientation email with pre-launch credentials has been sent.", true);
+                    return;
+                }
+
+                // Simple check for existing employee (for new hires)
                 var existing = await _employeeService.GetEmployeeByApplicantIdAsync(applicantId);
                 if (existing != null)
                 {
@@ -728,9 +1175,10 @@ namespace ExWebAppSia.webpage
                     await _userService.EnsureEmployeeAccountAsync(created.Email, created.EmployeeId, created.FirstName, created.LastName,
                         created.MiddleName, created.Department, created.Role, created.HasSSS, created.HasPhilHealth, created.HasPagIbig);
                     await _applicantService.UpdateApplicantStatusAsync(applicantId, "Hired");
-                    await _emailService.SendHiredEmailAsync(created.Email, created.FullName, created.Department, created.Role, created.Email, created.EmployeeId, false);
+                    await _emailService.SendHiredEmailAsync(created.Email, created.FullName, created.Department, created.Role, created.Email, created.EmployeeId, false, false);
                     await LoadApplicantsData();
-                    ShowMessage("Employee hired successfully and welcome email sent!", true);
+                    LogActivity("Hired Applicant", $"Officially hired applicant: {created.FirstName} {created.LastName} into {created.Department} ({created.Role})");
+                    ShowMessage("Onboarding finalized! Employee profile created and official welcome email sent.", true);
                     ScriptManager.RegisterStartupScript(this, GetType(), "hireSuccess", "setTimeout(function() { window.location.reload(); }, 2000);", true);
                 }
             }
@@ -765,6 +1213,17 @@ namespace ExWebAppSia.webpage
 
                 var applicant = await _applicantService.GetApplicantByIdAsync(id);
                 if (applicant == null) return;
+
+                // Restriction: Role Need Check (Skip for regularization)
+                if (applicant.RecruitmentType != "Regularization")
+                {
+                    var roleInfo = await _roleSalaryService.GetSalaryByRoleAsync(applicant.Role);
+                    if (roleInfo == null || !roleInfo.IsActive)
+                    {
+                        ShowMessage($"Cannot approve applicant. The role '{applicant.Role}' is not currently marked for active hiring.", false);
+                        return;
+                    }
+                }
 
                 // Restriction: Must have complete government numbers BEFORE approval
                 if (string.IsNullOrEmpty(applicant.SSSNumber) || 

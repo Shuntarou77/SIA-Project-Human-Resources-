@@ -9,12 +9,14 @@ namespace ExWebAppSia.Models
     public class EmployeeService
     {
         private readonly IMongoCollection<User> _users;
-        private readonly IMongoCollection<Employee> _employees; // optional separate collection
+        private readonly IMongoCollection<Employee> _employees; // active employees
+        private readonly IMongoCollection<Employee> _resignedEmployees; // resigned employees
 
         public EmployeeService()
         {
             _users = MongoDBHelper.GetUsersCollection();
             try { _employees = MongoDBHelper.GetEmployeesCollection(); } catch { _employees = null; }
+            try { _resignedEmployees = MongoDBHelper.GetDatabase().GetCollection<Employee>("ResignedEmployees"); } catch { _resignedEmployees = null; }
         }
 
         public async Task<bool> IsNameDuplicateAsync(string firstName, string lastName)
@@ -26,6 +28,20 @@ namespace ExWebAppSia.Models
                     Builders<Employee>.Filter.Eq(e => e.IsActive, true),
                     Builders<Employee>.Filter.Regex(e => e.FirstName, new MongoDB.Bson.BsonRegularExpression($"^{firstName}$", "i")),
                     Builders<Employee>.Filter.Regex(e => e.LastName, new MongoDB.Bson.BsonRegularExpression($"^{lastName}$", "i"))
+                );
+                return await _employees.Find(filter).AnyAsync();
+            }
+            catch { return false; }
+        }
+
+        public async Task<bool> IsRoleOccupiedAsync(string roleName)
+        {
+            try
+            {
+                if (_employees == null || string.IsNullOrEmpty(roleName)) return false;
+                var filter = Builders<Employee>.Filter.And(
+                    Builders<Employee>.Filter.Eq(e => e.IsActive, true),
+                    Builders<Employee>.Filter.Eq(e => e.Role, roleName)
                 );
                 return await _employees.Find(filter).AnyAsync();
             }
@@ -115,23 +131,12 @@ namespace ExWebAppSia.Models
             var filter = Builders<Employee>.Filter.And(
                 Builders<Employee>.Filter.Eq(e => e.IsActive, true),
                 Builders<Employee>.Filter.Eq(e => e.ContractType, "Probationary"),
-                Builders<Employee>.Filter.Lte(e => e.BaseSalary, 0) // Fix if 0 or missing
+                Builders<Employee>.Filter.Lte(e => e.BaseSalary, 0)
             );
 
-            var probEmployeesWithNoSalary = await _employees.Find(filter).ToListAsync();
-            int updatedCount = 0;
-
-            foreach (var emp in probEmployeesWithNoSalary)
-            {
-                var update = Builders<Employee>.Update.Set(e => e.BaseSalary, 18000);
-                var result = await _employees.UpdateOneAsync(e => e.Id == emp.Id, update);
-                if (result.ModifiedCount > 0)
-                {
-                    updatedCount++;
-                    System.Diagnostics.Debug.WriteLine($"[Automation] Fixed Salary for {emp.FullName}: Set to 18,000 PHP");
-                }
-            }
-            return updatedCount;
+            var update = Builders<Employee>.Update.Set(e => e.BaseSalary, 18000);
+            var result = await _employees.UpdateManyAsync(filter, update).ConfigureAwait(false);
+            return (int)result.ModifiedCount;
         }
 
         /// <summary>
@@ -150,23 +155,13 @@ namespace ExWebAppSia.Models
                 )
             );
 
-            var employeesToFix = await _employees.Find(filter).ToListAsync();
-            int updatedCount = 0;
+            var update = Builders<Employee>.Update
+                .Set(e => e.HasSSS, true)
+                .Set(e => e.HasPhilHealth, true)
+                .Set(e => e.HasPagIbig, true);
 
-            foreach (var emp in employeesToFix)
-            {
-                var update = Builders<Employee>.Update
-                    .Set(e => e.HasSSS, true)
-                    .Set(e => e.HasPhilHealth, true)
-                    .Set(e => e.HasPagIbig, true);
-                
-                var result = await _employees.UpdateOneAsync(e => e.Id == emp.Id, update);
-                if (result.ModifiedCount > 0)
-                {
-                    updatedCount++;
-                }
-            }
-            return updatedCount;
+            var result = await _employees.UpdateManyAsync(filter, update).ConfigureAwait(false);
+            return (int)result.ModifiedCount;
         }
 
         /// <summary>
@@ -252,6 +247,40 @@ namespace ExWebAppSia.Models
                 }
             }
             return updatedCount;
+        }
+
+        /// <summary>
+        /// Moves all employees who were previously marked as IsActive = false from Employees to ResignedEmployees collection.
+        /// </summary>
+        public async Task<int> MigrateLegacyResignedEmployeesAsync()
+        {
+            if (_employees == null || _resignedEmployees == null) return 0;
+            
+            try
+            {
+                var filter = Builders<Employee>.Filter.Eq(e => e.IsActive, false);
+                var legacyResigned = await _employees.Find(filter).ToListAsync();
+                
+                int migratedCount = 0;
+                if (legacyResigned.Count > 0)
+                {
+                    await _resignedEmployees.InsertManyAsync(legacyResigned);
+                    
+                    var idsToDelete = legacyResigned.Select(e => e.Id).ToList();
+                    var deleteFilter = Builders<Employee>.Filter.In(e => e.Id, idsToDelete);
+                    var result = await _employees.DeleteManyAsync(deleteFilter);
+                    
+                    migratedCount = (int)result.DeletedCount;
+                    System.Diagnostics.Debug.WriteLine($"[MigrateLegacyResignedEmployeesAsync] Migrated {migratedCount} legacy resigned employees.");
+                }
+                
+                return migratedCount;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error migrating legacy resigned employees: {ex.Message}");
+                return 0;
+            }
         }
 
         /// <summary>
@@ -357,6 +386,83 @@ namespace ExWebAppSia.Models
                 System.Diagnostics.Debug.WriteLine($"Error creating employee: {ex.Message}");
                 return false;
             }
+        }
+
+        // Resign employee (move to ResignedEmployees collection, mark inactive for speed)
+        public async Task<bool> ResignEmployeeAsync(string id)
+        {
+            if (_employees == null || _resignedEmployees == null) return false;
+            try
+            {
+                // Atomically find and remove the employee in one single fast operation (Reduces 2 network calls to 1)
+                var emp = await _employees.FindOneAndDeleteAsync(e => e.Id == id);
+                if (emp != null)
+                {
+                    emp.IsActive = false;
+                    
+                    // Concurrently insert into Resigned and update the Users login account
+                    var task1 = _resignedEmployees.InsertOneAsync(emp);
+                    var task2 = _users.UpdateOneAsync(u => u.EmployeeId == emp.EmployeeId, Builders<User>.Update.Set(u => u.IsActive, false));
+                    
+                    await Task.WhenAll(task1, task2);
+                    
+                    return true;
+                }
+                return false;
+            }
+            catch { return false; }
+        }
+
+        // Rehire employee (move back to active Employees collection, mark active)
+        public async Task<bool> RehireEmployeeAsync(string id)
+        {
+            if (_employees == null || _resignedEmployees == null) return false;
+            try
+            {
+                // First check if they are in ResignedEmployees
+                var emp = await _resignedEmployees.Find(e => e.Id == id).FirstOrDefaultAsync();
+                
+                if (emp != null)
+                {
+                    emp.IsActive = true;
+                    emp.HiredDate = DateTime.UtcNow; // Optionally update hire date
+                    
+                    // Move back to Employees collection
+                    await _employees.InsertOneAsync(emp);
+                    var result = await _resignedEmployees.DeleteOneAsync(e => e.Id == id);
+
+                    // Reactivate user account
+                    await _users.UpdateOneAsync(u => u.EmployeeId == emp.EmployeeId, Builders<User>.Update.Set(u => u.IsActive, true));
+                    
+                    return result.DeletedCount > 0;
+                }
+                else
+                {
+                    // Fallback to active employees just in case they weren't moved properly
+                    var update = Builders<Employee>.Update.Set(e => e.IsActive, true);
+                    var result = await _employees.UpdateOneAsync(e => e.Id == id, update);
+                    emp = await GetEmployeeByIdAsync(id);
+                    if (emp != null)
+                    {
+                        await _users.UpdateOneAsync(u => u.EmployeeId == emp.EmployeeId, Builders<User>.Update.Set(u => u.IsActive, true));
+                    }
+                    return result.ModifiedCount > 0;
+                }
+            }
+            catch { return false; }
+        }
+
+        // Update employee department (deploy to another department)
+        public async Task<bool> UpdateEmployeeDepartmentAsync(string id, string newDepartment)
+        {
+            if (_employees == null) return false;
+            try
+            {
+                var update = Builders<Employee>.Update.Set(e => e.Department, newDepartment);
+                var result = await _employees.UpdateOneAsync(e => e.Id == id, update);
+                return result.ModifiedCount > 0;
+            }
+            catch { return false; }
         }
 
         // Create a new employee and return the created employee (backwards compatibility)
@@ -525,6 +631,25 @@ namespace ExWebAppSia.Models
                 
                 System.Diagnostics.Debug.WriteLine("========================================");
                 return null;
+            }
+        }
+
+        // Get all resigned/inactive employees from the ResignedEmployees collection
+        public async Task<List<Employee>> GetAllResignedEmployeesAsync()
+        {
+            try
+            {
+                if (_resignedEmployees == null) return new List<Employee>();
+                var resigned = await _resignedEmployees.Find(_ => true)
+                    .ToListAsync()
+                    .ConfigureAwait(false);
+                System.Diagnostics.Debug.WriteLine($"[GetAllResignedEmployeesAsync] Retrieved {resigned.Count} resigned employees.");
+                return resigned;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetAllResignedEmployeesAsync] Error: {ex.Message}");
+                return new List<Employee>();
             }
         }
 
@@ -795,6 +920,7 @@ namespace ExWebAppSia.Models
                         existingEmployee.Department = employee.Department;
                         existingEmployee.Role = employee.Role;
                         existingEmployee.ContractType = employee.ContractType;
+                        existingEmployee.BaseSalary = employee.BaseSalary;
 
                         var filter = Builders<Employee>.Filter.Eq(e => e.Id, id);
                         var result = await _employees.ReplaceOneAsync(filter, existingEmployee);
@@ -852,13 +978,19 @@ namespace ExWebAppSia.Models
                 // Delete from Employees collection
                 if (_employees != null)
                 {
-                    var empFilter = Builders<Employee>.Filter.Eq(e => e.Id, id);
-                    var empUpdate = Builders<Employee>.Update.Set(e => e.IsActive, false);
-                    var empResult = await _employees.UpdateOneAsync(empFilter, empUpdate);
-                    if (empResult.ModifiedCount > 0)
+                    var emp = await _employees.Find(e => e.Id == id).FirstOrDefaultAsync();
+                    if (emp != null)
                     {
-                        success = true;
-                        System.Diagnostics.Debug.WriteLine($"? Employee deactivated in Employees collection: {id}");
+                        emp.IsActive = false;
+                        if (_resignedEmployees != null) {
+                            await _resignedEmployees.InsertOneAsync(emp);
+                        }
+                        var empResult = await _employees.DeleteOneAsync(e => e.Id == id);
+                        if (empResult.DeletedCount > 0)
+                        {
+                            success = true;
+                            System.Diagnostics.Debug.WriteLine($"? Employee moved to ResignedEmployees collection: {id}");
+                        }
                     }
                 }
 
@@ -877,6 +1009,40 @@ namespace ExWebAppSia.Models
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error deleting employee: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// PERMANENTLY deletes an employee and their associated user account from the system.
+        /// </summary>
+        public async Task<bool> HardDeleteEmployeeAsync(string id)
+        {
+            try
+            {
+                if (_employees == null) return false;
+
+                var employee = await _employees.Find(e => e.Id == id).FirstOrDefaultAsync();
+                if (employee == null && _resignedEmployees != null) {
+                    employee = await _resignedEmployees.Find(e => e.Id == id).FirstOrDefaultAsync();
+                }
+
+                if (employee == null) return false;
+
+                // 1. Delete from Employees collection or ResignedEmployees
+                var empResult = await _employees.DeleteOneAsync(e => e.Id == id);
+                if (empResult.DeletedCount == 0 && _resignedEmployees != null) {
+                    empResult = await _resignedEmployees.DeleteOneAsync(e => e.Id == id);
+                }
+                
+                // 2. Delete from Users collection (linked by EmployeeId)
+                await _users.DeleteOneAsync(u => u.EmployeeId == employee.EmployeeId);
+
+                return empResult.DeletedCount > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error hard-deleting employee: {ex.Message}");
                 return false;
             }
         }

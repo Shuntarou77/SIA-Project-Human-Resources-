@@ -128,6 +128,21 @@ namespace ExWebAppSia.webpage.api
 
 			_col.InsertOne(doc);
 
+            try
+            {
+                var username = ctx.Session["Username"] as string ?? "Unknown HR";
+                var hrName = "Admin";
+                var emp = ctx.Session["Employee"] as Employee;
+                if (emp != null) hrName = emp.FullName;
+                string titleSnippet = content.Length > 30 ? content.Substring(0, 30) + "..." : content;
+                
+                var logService = new ActivityLogService();
+                System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
+                    System.Threading.Tasks.Task.Run(() => logService.LogActionAsync(username, hrName, "Created Announcement", "Announcements", $"Posted: {titleSnippet}"))
+                );
+            }
+            catch { /* Ignore */ }
+
 			ctx.Response.StatusCode = 201;
 			ctx.Response.Write(_json.Serialize(doc));
 		}

@@ -341,7 +341,7 @@
                 width: 100%;
                 padding: 10px 20px;
                 background: linear-gradient(135deg, #905A57 0%, #A36A66 100%);
-                /* slightly darker → standard */
+                /* slightly darker ? standard */
                 color: white;
                 border: none;
                 border-radius: 8px;
@@ -620,6 +620,14 @@
                 border: 1px solid #eaeaea;
                 margin-bottom: 14px;
                 box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+
+            .concern-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(163, 106, 102, 0.15);
+                border-color: var(--primary-color);
             }
 
             .concern-header-row {
@@ -859,6 +867,15 @@
                                 <input type="text" class="search-bar" id="searchInput" placeholder="Search..." />
                             </div>
                             <div class="filter-group">
+                                <select id="statusFilter" class="form-control"
+                                    style="height: 48px; border-radius: 12px; border: 1.5px solid #e5e7eb; min-width: 150px; font-size: 14px; padding: 0 16px; background: #fff; cursor: pointer;"
+                                    onchange="applyFilter(currentSelectedDept)">
+                                    <option value="Active">Active Employees</option>
+                                    <option value="Inactive">Resigned/Inactive</option>
+                                    <option value="all">All Status</option>
+                                </select>
+                            </div>
+                            <div class="filter-group">
                                 <select id="govtFilter" class="form-control"
                                     style="height: 48px; border-radius: 12px; border: 1.5px solid #e5e7eb; min-width: 220px; font-size: 14px; padding: 0 16px; background: #fff; cursor: pointer;"
                                     onchange="applyFilter(currentSelectedDept)">
@@ -980,7 +997,11 @@
                             matchesGovt = pagibig;
                         }
 
-                        if (matchesDept && matchesSearch && matchesGovt) {
+                        const statusFilter = document.getElementById('statusFilter').value;
+                        const rowStatus = row.getAttribute('data-active');
+                        const matchesStatus = statusFilter === 'all' ? true : rowStatus === statusFilter;
+
+                        if (matchesDept && matchesSearch && matchesGovt && matchesStatus) {
                             row.classList.remove('filtered-out');
                         } else {
                             row.classList.add('filtered-out');
@@ -1018,7 +1039,7 @@
                     const activeCard = document.querySelector('.dept-card.active');
                     const dept = activeCard ? activeCard.getAttribute('data-dept') : null;
                     if (!dept) {
-                        alert('Please select a department first.');
+                        showAlert('Required', 'Please select a department first.', 'info');
                         return;
                     }
 
@@ -1116,27 +1137,51 @@
 
                 // Card 1: Payslip
                 html += `<div class='action-card' onclick='openPayslipModal()'>
-                    <div class='action-icon'>💰</div>
+                    <div class='action-icon'><i class='fas fa-file-invoice-dollar'></i></div>
                     <h3 class='action-title'>View Payslip</h3>
                     <p class='action-description'>View salary breakdown including gross salary, deductions, and net pay.</p>
-                    <button class='action-button'>View Details</button>
+                    <button type="button" class="action-button">View Details</button>
                 </div>`;
 
                 // Card 2: Leave History (Still needs AJAX when clicked)
                 html += `<div class='action-card' onclick='openLeaveHistoryModal("${id}")'>
-                    <div class='action-icon'>📝</div>
+                    <div class='action-icon'><i class='fas fa-calendar-alt'></i></div>
                     <h3 class='action-title'>History Leave of Absence</h3>
                     <p class='action-description'>View leave history including sick leave, vacation, and personal matters.</p>
-                    <button class='action-button'>View History</button>
+                    <button type="button" class="action-button">View History</button>
                 </div>`;
 
                 // Card 3: Concern History (Still needs AJAX when clicked)
                 html += `<div class='action-card' onclick='openConcernHistoryModal("${id}")'>
-                    <div class='action-icon'>💬</div>
+                    <div class='action-icon'><i class='fas fa-exclamation-triangle'></i></div>
                     <h3 class='action-title'>History of Employee Concern</h3>
                     <p class='action-description'>View all workplace concerns, complaints, or suggestions submitted to HR.</p>
-                    <button class='action-button'>View History</button>
+                    <button type="button" class="action-button">View History</button>
                 </div>`;
+
+                // Add Resign/Rehire/Deploy Cards
+                if (active === "Active") {
+                    html += `<div class='action-card' onclick='resignEmployee("${id}")'>
+                        <div class='action-icon'><i class='fas fa-user-slash'></i></div>
+                        <h3 class='action-title'>Resigned</h3>
+                        <p class='action-description'>Mark this employee as resigned and deactivate their account.</p>
+                        <button type="button" class="action-button" style='background: #ef4444;'>Process Resignation</button>
+                    </div>`;
+
+                    html += `<div class='action-card' onclick='openDeployModal("${id}", "${dept}")'>
+                        <div class='action-icon'><i class='fas fa-exchange-alt'></i></div>
+                        <h3 class='action-title'>Deploy to Department</h3>
+                        <p class='action-description'>Transfer this employee to a different department or team.</p>
+                        <button type="button" class="action-button" style='background: #3b82f6;'>Redeploy</button>
+                    </div>`;
+                } else {
+                    html += `<div class='action-card' onclick='rehireEmployee("${id}")'>
+                        <div class='action-icon'><i class='fas fa-user-plus'></i></div>
+                        <h3 class='action-title'>Rehired</h3>
+                        <p class='action-description'>Reactivate this employee's account for active duty.</p>
+                        <button type="button" class="action-button" style='background: #10b981;'>Process Rehire</button>
+                    </div>`;
+                }
 
                 html += `</div>`;
 
@@ -1178,8 +1223,31 @@
                 const modal = document.getElementById('concernHistoryModal');
                 const content = document.getElementById('<%= concernHistoryContent.ClientID %>');
 
-                content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #A36A66;"></i><p style="margin-top: 10px;">Loading concern history...</p></div>';
+                // Speed optimization: Show modal instantly
                 modal.style.display = 'block';
+
+                // 1. Try to find the human-readable Employee ID (e.g., "26-2214") from the table row data
+                const row = document.querySelector(`.employee-row[data-id="${employeeId}"]`);
+                const humanId = row ? row.getAttribute('data-emp-id') : null;
+
+                // 2. See if we have the data already in our local cache
+                const json = document.getElementById('<%= hdnConcernsJson.ClientID %>').value;
+                if (json && humanId) {
+                    try {
+                        const allConcerns = JSON.parse(json);
+                        const filtered = allConcerns.filter(c => c.employeeId === humanId || c.EmployeeId === humanId);
+
+                        if (filtered.length > 0) {
+                            renderConcernsLocally(filtered, content);
+                            return; // Success! No server call needed.
+                        }
+                    } catch (e) {
+                        console.warn("Local concern lookup failed:", e);
+                    }
+                }
+
+                // Fallback: If local lookup fails, use the server (PageMethod)
+                content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #A36A66;"></i><p style="margin-top: 10px;">Loading concern history...</p></div>';
 
                 PageMethods.GetConcernHistory(employeeId, function (response) {
                     content.innerHTML = response;
@@ -1188,8 +1256,134 @@
                 });
             }
 
+            // Helper to render concerns instantly on the client side
+            function renderConcernsLocally(concerns, container) {
+                let html = '<div style="padding: 20px;">';
+                html += '<h3 style="color: #8B4755; margin-bottom: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px;">Concern History</h3>';
+
+                // Sort by date descending
+                concerns.sort((a, b) => new Date(b.submittedDate || b.SubmittedDate) - new Date(a.submittedDate || b.SubmittedDate));
+
+                concerns.forEach(c => {
+                    const priority = c.priorityLevel || c.PriorityLevel || "Medium";
+                    const status = c.status || c.Status || "Pending";
+                    const subject = c.subject || c.Subject || "No Subject";
+                    const desc = c.description || c.Description || "";
+                    const type = c.concernType || c.ConcernType || "Employee";
+                    const dateRaw = c.submittedDate || c.SubmittedDate;
+                    const dateStr = dateRaw ? new Date(dateRaw).toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : "";
+
+                    const priorityColor = priority === "Urgent" ? "#ef4444" : priority === "High" ? "#f59e0b" : priority === "Medium" ? "#3b82f6" : "#10b981";
+                    const statusColor = status === "Resolved" ? "#10b981" : status === "Closed" ? "#6b7280" : status === "In Progress" ? "#3b82f6" : "#f59e0b";
+
+                    html += `<div style="background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid ${priorityColor};">`;
+                    html += `  <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">`;
+                    html += `    <div><strong style="color: #333; font-size: 16px;">${subject}</strong></div>`;
+                    html += `    <div style="display: flex; gap: 8px; flex-wrap: wrap;">`;
+                    html += `      <span style="background: ${priorityColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;">${priority}</span>`;
+                    html += `      <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;">${status}</span>`;
+                    html += `    </div></div>`;
+                    html += `  <div style="margin-bottom: 8px; color: #666;"><strong>Type:</strong> ${type}</div>`;
+                    html += `  <div style="margin-bottom: 8px; color: #666;"><strong>Description:</strong> ${desc}</div>`;
+                    html += `  <div style="color: #999; font-size: 12px;"><strong>Submitted:</strong> ${dateStr}</div>`;
+                    html += `</div>`;
+                });
+
+                html += '</div>';
+                container.innerHTML = html;
+            }
+
             function closeConcernHistoryModal() {
                 document.getElementById('concernHistoryModal').style.display = 'none';
+            }
+
+            // New Employee Action Functions
+            function resignEmployee(id) {
+                console.log("Resignation initiated for ID:", id);
+                showConfirm("Confirm Resignation", "Are you sure you want to mark this employee as Resigned? This will deactivate their account and notify them via email.", function () {
+                    console.log("Resignation confirmed, calling server...");
+                    PageMethods.ResignEmployee(id, function (r) {
+                        console.log("Server raw response:", r);
+                        try {
+                            var result = (typeof r === 'string') ? JSON.parse(r) : r;
+                            closeEmployeeDetailsModal(); // Close details modal first
+                            if (result.success) {
+                                showAlert("Success", result.message, "success");
+                                setTimeout(function () { window.location.reload(); }, 700);
+                            } else {
+                                showAlert("Process Failed", result.message, "error");
+                            }
+                        } catch (pe) {
+                            console.error("Parse error:", pe);
+                            showAlert("Error", "Unexpected response from server.", "error");
+                        }
+                    }, function (e) {
+                        console.error("Server error:", e);
+                        showAlert("Error", e.get_message ? e.get_message() : "Server error.", "error");
+                    });
+                });
+            }
+
+            function rehireEmployee(id) {
+                console.log("Rehire initiated for ID:", id);
+                showConfirm("Confirm Rehire", "Rehire this employee? This will reactivate their account.", function () {
+                    console.log("Rehire confirmed, calling server...");
+                    PageMethods.RehireEmployee(id, function (r) {
+                        console.log("Server raw response:", r);
+                        try {
+                            var result = (typeof r === 'string') ? JSON.parse(r) : r;
+                            closeEmployeeDetailsModal(); // Close details modal first
+                            if (result.success) {
+                                showAlert("Success", result.message, "success");
+                                setTimeout(function () { window.location.reload(); }, 700);
+                            } else {
+                                showAlert("Process Failed", result.message, "error");
+                            }
+                        } catch (pe) {
+                            console.error("Parse error:", pe);
+                            showAlert("Error", "Unexpected response from server.", "error");
+                        }
+                    }, function (e) {
+                        console.error("Server error:", e);
+                        showAlert("Error", e.get_message ? e.get_message() : "Server error.", "error");
+                    });
+                });
+            }
+
+            function openDeployModal(id, currentDept) {
+                document.getElementById('hdnDeployId').value = id;
+                document.getElementById('ddlNewDept').value = currentDept;
+                document.getElementById('deployModal').style.display = 'block';
+            }
+
+            function closeDeployModal() {
+                document.getElementById('deployModal').style.display = 'none';
+            }
+
+            function submitDeployment() {
+                const id = document.getElementById('hdnDeployId').value;
+                const dept = document.getElementById('ddlNewDept').value;
+
+                if (!dept) {
+                    showAlert("Required", "Please select a department.", "info");
+                    return;
+                }
+
+                PageMethods.DeployEmployee(id, dept, function (r) {
+                    try {
+                        var result = (typeof r === 'string') ? JSON.parse(r) : r;
+                        closeEmployeeDetailsModal(); // Close details modal first
+                        closeDeployModal(); // Close deploy modal
+                        if (result.success) {
+                            showAlert("Success", result.message, "success");
+                            setTimeout(function () { window.location.reload(); }, 700);
+                        } else {
+                            showAlert("Process Failed", result.message, "error");
+                        }
+                    } catch (pe) {
+                        showAlert("Error", "Unexpected response from server.", "error");
+                    }
+                }, function (e) { showAlert("Error", e.get_message ? e.get_message() : "Server error.", "error"); });
             }
 
             // Close modal when clicking outside
@@ -1198,6 +1392,9 @@
                 var payslipModal = document.getElementById('payslipModal');
                 var leaveHistoryModal = document.getElementById('leaveHistoryModal');
                 var concernHistoryModal = document.getElementById('concernHistoryModal');
+                var deployModal = document.getElementById('deployModal');
+                var confirmModal = document.getElementById('confirmActionModal');
+                var alertModal = document.getElementById('genericAlertModal');
 
                 if (event.target == detailsModal) {
                     closeEmployeeDetailsModal();
@@ -1207,7 +1404,69 @@
                     closeLeaveHistoryModal();
                 } else if (event.target == concernHistoryModal) {
                     closeConcernHistoryModal();
+                } else if (event.target == deployModal) {
+                    closeDeployModal();
+                } else if (event.target == confirmModal) {
+                    closeConfirmModal();
+                } else if (event.target == alertModal) {
+                    closeAlertModal();
                 }
+            }
+
+            // Custom Dialog Helpers
+            function showConfirm(title, message, onConfirm) {
+                const modal = document.getElementById('confirmActionModal');
+                document.getElementById('confirmModalTitle').textContent = title;
+                document.getElementById('confirmModalMessage').textContent = message;
+                const confirmBtn = document.getElementById('btnConfirmAction');
+
+                // Simply assign the new handler (this automatically clears previous handler)
+                confirmBtn.onclick = function () {
+                    modal.style.display = 'none';
+                    if (onConfirm) onConfirm();
+                };
+
+                modal.style.display = 'block';
+            }
+
+            function closeConfirmModal() {
+                document.getElementById('confirmActionModal').style.display = 'none';
+            }
+
+            function showAlert(title, message, type = 'info') {
+                // Force close other modals so alert is visible at the very top
+                try { closeEmployeeDetailsModal(); } catch (e) { }
+                try { closeConfirmModal(); } catch (e) { }
+                try { closeDeployModal(); } catch (e) { }
+
+                const modal = document.getElementById('genericAlertModal');
+                document.getElementById('alertModalTitle').textContent = title;
+                document.getElementById('alertModalMessage').textContent = message;
+
+                const icon = document.getElementById('alertModalIcon');
+                const status = document.getElementById('alertModalStatus');
+
+                if (type === 'success') {
+                    icon.innerHTML = '<i class="fas fa-check-circle" style="color: #10b981;"></i>';
+                    status.textContent = 'Success!';
+                    status.style.color = '#10b981';
+                } else if (type === 'error') {
+                    icon.innerHTML = '<i class="fas fa-times-circle" style="color: #ef4444;"></i>';
+                    status.textContent = 'Error';
+                    status.style.color = '#ef4444';
+                } else {
+                    icon.innerHTML = '<i class="fas fa-info-circle" style="color: #3b82f6;"></i>';
+                    status.textContent = 'Information';
+                    status.style.color = '#3b82f6';
+                }
+
+                // Force high z-index to break through any frozen overlay issues
+                modal.style.zIndex = "9999";
+                modal.style.display = 'block';
+            }
+
+            function closeAlertModal() {
+                document.getElementById('genericAlertModal').style.display = 'none';
             }
 
             // ========== LEAVE REQUEST FUNCTIONS ==========
@@ -1236,7 +1495,7 @@
                         var initials = getInitials(leave.employeeName);
                         var dateRange = leave.startDate === leave.endDate
                             ? leave.startDate
-                            : leave.startDate + ' – ' + leave.endDate;
+                            : leave.startDate + ' - ' + leave.endDate;
 
                         return '<tr data-leave-id="' + leave.id + '">' +
                             '<td><span class="avatar-initial">' + initials + '</span>' + leave.employeeName + '</td>' +
@@ -1269,96 +1528,94 @@
             }
 
             function approveLeave(leaveId, employeeName, buttonElement) {
-                if (!confirm('Approve leave for ' + employeeName + '?')) {
-                    return;
-                }
+                showConfirm("Approve Leave", "Are you sure you want to approve the leave request for " + employeeName + "?", function () {
+                    // Disable buttons while processing
+                    var row = buttonElement.closest('tr');
+                    var buttons = row.querySelectorAll('button');
+                    buttons.forEach(function (btn) { btn.disabled = true; });
+                    buttonElement.textContent = 'Processing...';
 
-                // Disable buttons while processing
-                var row = buttonElement.closest('tr');
-                var buttons = row.querySelectorAll('button');
-                buttons.forEach(function (btn) { btn.disabled = true; });
-                buttonElement.textContent = 'Processing...';
+                    PageMethods.ApproveLeaveRequest(leaveId, function (response) {
+                        var result = typeof response === 'string' ? JSON.parse(response) : response;
 
-                PageMethods.ApproveLeaveRequest(leaveId, function (response) {
-                    var result = typeof response === 'string' ? JSON.parse(response) : response;
+                        if (result.success) {
+                            // Update the row to show approved status
+                            var actionCell = buttonElement.parentNode;
+                            actionCell.innerHTML = '<span class="leave-status status-approved"><svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approved</span>';
 
-                    if (result.success) {
-                        // Update the row to show approved status
-                        var actionCell = buttonElement.parentNode;
-                        actionCell.innerHTML = '<span class="leave-status status-approved"><svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approved</span>';
+                            // Update the status cell
+                            var statusCell = row.querySelector('td:nth-child(7)');
+                            if (statusCell) {
+                                statusCell.innerHTML = '<span class="leave-status status-approved">Approved</span>';
+                            }
 
-                        // Update the status cell
-                        var statusCell = row.querySelector('td:nth-child(7)');
-                        if (statusCell) {
-                            statusCell.innerHTML = '<span class="leave-status status-approved">Approved</span>';
+                            // Optionally remove the row after a delay
+                            setTimeout(function () {
+                                row.style.opacity = '0.5';
+                            }, 1000);
+                        } else {
+                            showAlert("Error", "Failed to approve leave: " + result.message, "error");
+                            // Re-enable buttons
+                            buttons.forEach(function (btn) { btn.disabled = false; });
+                            buttonElement.innerHTML = '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approve';
                         }
-
-                        // Optionally remove the row after a delay
-                        setTimeout(function () {
-                            row.style.opacity = '0.5';
-                        }, 1000);
-                    } else {
-                        alert('Failed to approve leave: ' + result.message);
+                    }, function (error) {
+                        console.error('Error approving leave:', error);
+                        showAlert("Error", "Error approving leave request. Please try again.", "error");
                         // Re-enable buttons
                         buttons.forEach(function (btn) { btn.disabled = false; });
-                        buttonElement.innerHTML = '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approve';
-                    }
-                }, function (error) {
-                    console.error('Error approving leave:', error);
-                    alert('Error approving leave request. Please try again.');
-                    // Re-enable buttons
-                    buttons.forEach(function (btn) { btn.disabled = false; });
-                    buttonElement.innerHTML = '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approve';
+                        buttonElement.innerHTML = '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.41-1.41z"/></svg>Approve';
+                    });
                 });
             }
 
             function declineLeave(leaveId, employeeName, buttonElement) {
-                if (!confirm('Decline leave for ' + employeeName + '?')) {
-                    return;
-                }
+                showConfirm("Decline Leave", "Are you sure you want to decline the leave request for " + employeeName + "?", function () {
+                    // Disable buttons while processing
+                    var row = buttonElement.closest('tr');
+                    var buttons = row.querySelectorAll('button');
+                    buttons.forEach(function (btn) { btn.disabled = true; });
+                    buttonElement.textContent = 'Processing...';
 
-                // Disable buttons while processing
-                var row = buttonElement.closest('tr');
-                var buttons = row.querySelectorAll('button');
-                buttons.forEach(function (btn) { btn.disabled = true; });
-                buttonElement.textContent = 'Processing...';
+                    PageMethods.DeclineLeaveRequest(leaveId, function (response) {
+                        var result = typeof response === 'string' ? JSON.parse(response) : response;
 
-                PageMethods.DeclineLeaveRequest(leaveId, function (response) {
-                    var result = typeof response === 'string' ? JSON.parse(response) : response;
+                        if (result.success) {
+                            // Update the row to show declined status
+                            var actionCell = buttonElement.parentNode;
+                            actionCell.innerHTML = '<span class="leave-status status-declined"><svg style="width:14px;height:14px;vertical-align:middle;fill:#DC3545;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Declined</span>';
 
-                    if (result.success) {
-                        // Update the row to show declined status
-                        var actionCell = buttonElement.parentNode;
-                        actionCell.innerHTML = '<span class="leave-status status-declined"><svg style="width:14px;height:14px;vertical-align:middle;fill:#DC3545;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Declined</span>';
+                            // Update the status cell
+                            var statusCell = row.querySelector('td:nth-child(7)');
+                            if (statusCell) {
+                                statusCell.innerHTML = '<span class="leave-status status-declined">Declined</span>';
+                            }
 
-                        // Update the status cell
-                        var statusCell = row.querySelector('td:nth-child(7)');
-                        if (statusCell) {
-                            statusCell.innerHTML = '<span class="leave-status status-declined">Declined</span>';
+                            // Optionally remove the row after a delay
+                            setTimeout(function () {
+                                row.style.opacity = '0.5';
+                            }, 1000);
+                        } else {
+                            showAlert("Error", "Failed to decline leave: " + result.message, "error");
+                            // Re-enable buttons
+                            buttons.forEach(function (btn) { btn.disabled = false; });
+                            buttonElement.innerHTML = '<svg style="width:14px;height:14px;vertical-align:middle;fill:white;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Decline';
                         }
-
-                        // Optionally remove the row after a delay
-                        setTimeout(function () {
-                            row.style.opacity = '0.5';
-                        }, 1000);
-                    } else {
-                        alert('Failed to decline leave: ' + result.message);
+                    }, function (error) {
+                        console.error('Error declining leave:', error);
+                        showAlert("Error", "Error declining leave request. Please try again.", "error");
                         // Re-enable buttons
                         buttons.forEach(function (btn) { btn.disabled = false; });
                         buttonElement.innerHTML = '<svg style="width:14px;height:14px;vertical-align:middle;fill:white;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Decline';
-                    }
-                }, function (error) {
-                    console.error('Error declining leave:', error);
-                    alert('Error declining leave request. Please try again.');
-                    // Re-enable buttons
-                    buttons.forEach(function (btn) { btn.disabled = false; });
-                    buttonElement.innerHTML = '<svg style="width:14px;height:14px;vertical-align:middle;fill:white;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Decline';
+                    });
                 });
             }
         </script>
 
         <!-- Hidden fields and buttons for postback -->
         <asp:HiddenField ID="hdnEmployeeId" runat="server" />
+        <asp:HiddenField ID="hdnConcernsJson" runat="server" />
+        <input type="hidden" id="hdnDeployId" />
         <asp:Button ID="btnViewEmployeeDetails" runat="server" OnClick="btnViewEmployeeDetails_Click"
             Style="display:none;" />
         <asp:Button ID="btnViewLeaveHistory" runat="server" OnClick="btnViewLeaveHistory_Click" Style="display:none;" />
@@ -1381,6 +1638,37 @@
                 </div>
             </ContentTemplate>
         </asp:UpdatePanel>
+
+        <!-- Deploy to Department Modal -->
+        <div id="deployModal" class="page-modal">
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2 class="modal-title">Deploy to Department</h2>
+                    <span class="close" onclick="closeDeployModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Select Department</label>
+                        <select id="ddlNewDept" class="form-select">
+                            <option value="Research & Development">Research & Development</option>
+                            <option value="Quality Control">Quality Control</option>
+                            <option value="Human Resources">Human Resources</option>
+                            <option value="Finance">Finance</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="IT Support">IT Support</option>
+                            <option value="Operations">Operations</option>
+                            <option value="Sales">Sales</option>
+                            <option value="Inventory">Inventory</option>
+                            <option value="Customer Service">Customer Service</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeDeployModal()">Cancel</button>
+                    <button type="button" class="btn-submit" onclick="submitDeployment()">Confirm Deployment</button>
+                </div>
+            </div>
+        </div>
 
         <!-- Payslip Modal -->
         <div id="payslipModal" class="page-modal">
@@ -1487,6 +1775,46 @@
                 </div>
                 <div class="modal-footer">
                     <button class="btn-cancel" onclick="closeConcernHistoryModal()">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Confirmation Modal -->
+        <div id="confirmActionModal" class="page-modal" style="z-index: 5000;">
+            <div class="modal-content" style="max-width: 450px; margin-top: 15vh;">
+                <div class="modal-header" style="background: #8B4755; color: white;">
+                    <h2 id="confirmModalTitle" class="modal-title">Confirm Action</h2>
+                    <span class="close" onclick="closeConfirmModal()" style="color: white;">&times;</span>
+                </div>
+                <div class="modal-body" style="padding: 25px;">
+                    <p id="confirmModalMessage" style="font-size: 16px; color: #4b5563; line-height: 1.5;"></p>
+                </div>
+                <div class="modal-footer"
+                    style="padding: 15px 25px; background: #f9fafb; border-top: 1px solid #e5e7eb; display: flex; justify-content: flex-end; gap: 12px;">
+                    <button type="button" class="btn-cancel" onclick="closeConfirmModal()"
+                        style="margin: 0; min-width: 100px;">Cancel</button>
+                    <button type="button" id="btnConfirmAction" class="btn-submit"
+                        style="margin: 0; background: #8B4755; min-width: 100px;">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generic Alert Modal -->
+        <div id="genericAlertModal" class="page-modal" style="z-index: 5001;">
+            <div class="modal-content" style="max-width: 450px; margin-top: 15vh;">
+                <div class="modal-header" style="background: #8B4755; color: white;">
+                    <h2 id="alertModalTitle" class="modal-title">Notification</h2>
+                    <span class="close" onclick="closeAlertModal()" style="color: white;">&times;</span>
+                </div>
+                <div class="modal-body" style="text-align: center; padding: 40px 25px;">
+                    <div id="alertModalIcon" style="font-size: 64px; margin-bottom: 20px;"></div>
+                    <h3 id="alertModalStatus" style="font-size: 20px; color: #111827; margin-bottom: 10px;"></h3>
+                    <p id="alertModalMessage" style="font-size: 15px; color: #6b7280; line-height: 1.6;"></p>
+                </div>
+                <div class="modal-footer"
+                    style="padding: 15px 25px; background: #f9fafb; border-top: 1px solid #e5e7eb; display: flex; justify-content: center;">
+                    <button type="button" class="btn-submit" onclick="closeAlertModal()"
+                        style="min-width: 140px; margin: 0; background: #8B4755;">Got it</button>
                 </div>
             </div>
         </div>

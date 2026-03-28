@@ -7,6 +7,7 @@ using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
 using ExWebAppSia.Models;
+using Newtonsoft.Json;
 
 namespace ExWebAppSia.webpage
 {
@@ -31,39 +32,41 @@ namespace ExWebAppSia.webpage
         {
             try
             {
-                // Auto-fix probationary salaries and gov contributions
-                await _employeeService.FixProbationarySalariesAsync();
-                await _employeeService.FixGovContributionsAsync();
-                await _employeeService.FixMissingGovNumbersAsync();
-                await _employeeService.ProcessRegularizationAsync();
+                // Speed optimization: Start maintenance tasks and data fetching in parallel
+                var scrubTask = Task.WhenAll(
+                    _employeeService.FixProbationarySalariesAsync(),
+                    _employeeService.FixGovContributionsAsync(),
+                    _employeeService.FixMissingGovNumbersAsync(),
+                    _employeeService.ProcessRegularizationAsync(),
+                    _employeeService.MigrateLegacyResignedEmployeesAsync()
+                );
 
-                // Load data in parallel, but avoid redundant department counts task
                 var employeesTask = _employeeService.GetAllEmployeesAsync();
                 var concernsTask = _concernService.GetAllConcernsAsync();
                 var managersTask = _managerService.GetAllManagersAsync();
 
-                await Task.WhenAll(employeesTask, concernsTask, managersTask);
+                // Wait for all data tasks to complete
+                await Task.WhenAll(employeesTask, concernsTask, managersTask).ConfigureAwait(false);
 
                 var employees = employeesTask.Result ?? new List<Employee>();
                 var concerns = concernsTask.Result ?? new List<EmployeeConcern>();
                 var managers = managersTask.Result ?? new List<Manager>();
 
-                // Optimization: Derive department counts locally from the fetched list 
-                // instead of making another database call for the same data.
+                // Derive department counts locally
                 var departmentCounts = employees
-                    .Where(e => !string.IsNullOrEmpty(e.Department))
+                    .Where(e => e.IsActive && !string.IsNullOrEmpty(e.Department))
                     .GroupBy(e => e.Department)
                     .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
 
-                // Update department counts
                 UpdateDepartmentCounts(departmentCounts);
-                // UpdateDepartmentHeads(managers); // Removed as per request to remove "Head" text
-
-                // Populate employee table
                 PopulateEmployeeTable(employees);
-
-                // Populate employee concerns panel
                 PopulateEmployeeConcerns(concerns, employees);
+
+                // Speed optimization: Store ALL concerns in a hidden field for instant client-side history lookup
+                hdnConcernsJson.Value = JsonConvert.SerializeObject(concerns);
+
+                // Ensure maintenance tasks finish
+                await scrubTask.ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -222,6 +225,12 @@ namespace ExWebAppSia.webpage
                 .OrderByDescending(c => c.SubmittedDate)
                 .Take(MaxConcernsToDisplay))
             {
+                Employee employeeMatch = null;
+                if (!string.IsNullOrEmpty(concern.EmployeeId))
+                {
+                    employeeLookup.TryGetValue(concern.EmployeeId, out employeeMatch);
+                }
+
                 var employeeName = ResolveEmployeeName(concern.EmployeeId, employeeLookup);
                 var initials = GetInitials(employeeName);
                 var subject = Server.HtmlEncode(concern.Subject ?? "Employee Concern");
@@ -229,7 +238,11 @@ namespace ExWebAppSia.webpage
                 var concernType = Server.HtmlEncode(concern.ConcernType ?? "Employee");
                 var submitted = concern.SubmittedDate.ToLocalTime().ToString("MMM dd, yyyy h:mm tt");
 
-                sb.Append("<div class='concern-card'>");
+                string onclick = employeeMatch != null 
+                    ? string.Format("onclick=\"openConcernHistoryModal('{0}')\"", HttpUtility.HtmlAttributeEncode(employeeMatch.Id))
+                    : "";
+
+                sb.AppendFormat("<div class='concern-card' {0}>", onclick);
                 sb.Append("<div class='concern-header-row'>");
                 sb.AppendFormat("<div class='concern-avatar concern-initials'>{0}</div>", initials);
                 sb.Append("<div>");
@@ -277,7 +290,7 @@ namespace ExWebAppSia.webpage
             try
             {
                 var employeeService = new EmployeeService();
-                var employee = Task.Run(() => employeeService.GetEmployeeByIdAsync(id)).Result;
+                var employee = employeeService.GetEmployeeByIdAsync(id).ConfigureAwait(false).GetAwaiter().GetResult();
 
                 if (employee == null) return "Employee not found.";
 
@@ -340,6 +353,34 @@ namespace ExWebAppSia.webpage
                 sb.Append("<p class='action-description'>View all workplace concerns, complaints, or suggestions submitted to HR.</p>");
                 sb.Append("<button class='action-button'>View History</button>");
                 sb.Append("</div>");
+
+                // New Action Cards: Resigned, Rehired, Deploy
+                if (employee.IsActive)
+                {
+                    sb.AppendFormat("<div class='action-card' onclick='resignEmployee(\"{0}\")'>", HttpUtility.HtmlEncode(employee.Id));
+                    sb.Append("<div class='action-icon'>👋</div>");
+                    sb.Append("<h3 class='action-title'>Resigned</h3>");
+                    sb.Append("<p class='action-description'>Mark this employee as resigned and deactivate their account.</p>");
+                    sb.Append("<button class='action-button' style='background: #ef4444;'>Process Resignation</button>");
+                    sb.Append("</div>");
+
+                    sb.AppendFormat("<div class='action-card' onclick='openDeployModal(\"{0}\", \"{1}\")'>", HttpUtility.HtmlEncode(employee.Id), HttpUtility.HtmlEncode(employee.Department ?? ""));
+                    sb.Append("<div class='action-icon'>🔄</div>");
+                    sb.Append("<h3 class='action-title'>Deploy to Department</h3>");
+                    sb.Append("<p class='action-description'>Transfer this employee to a different department or team.</p>");
+                    sb.Append("<button class='action-button' style='background: #3b82f6;'>Redeploy</button>");
+                    sb.Append("</div>");
+                }
+                else
+                {
+                    sb.AppendFormat("<div class='action-card' onclick='rehireEmployee(\"{0}\")'>", HttpUtility.HtmlEncode(employee.Id));
+                    sb.Append("<div class='action-icon'>🤝</div>");
+                    sb.Append("<h3 class='action-title'>Rehired</h3>");
+                    sb.Append("<p class='action-description'>Reactivate this employee's account for active duty.</p>");
+                    sb.Append("<button class='action-button' style='background: #10b981;'>Process Rehire</button>");
+                    sb.Append("</div>");
+                }
+
                 sb.Append("</div>");
 
                 return sb.ToString();
@@ -355,8 +396,13 @@ namespace ExWebAppSia.webpage
         {
             try
             {
+                var employeeService = new EmployeeService();
+                var employee = employeeService.GetEmployeeByIdAsync(id).ConfigureAwait(false).GetAwaiter().GetResult();
+                
+                if (employee == null) return "<div style='padding: 20px;'>Employee not found.</div>";
+
                 var leaveService = new LeaveService();
-                var leaves = Task.Run(() => leaveService.GetLeavesByEmployeeIdAsync(id)).Result;
+                var leaves = leaveService.GetLeavesByEmployeeIdAsync(employee.EmployeeId).ConfigureAwait(false).GetAwaiter().GetResult();
                 
                 var sb = new StringBuilder();
                 sb.Append("<div style='padding: 20px;'>");
@@ -376,7 +422,7 @@ namespace ExWebAppSia.webpage
                                             leave.Status == "Rejected" ? "#ef4444" : "#f59e0b";
                         
                         sb.Append("<div style='background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid " + statusColor + ";'>");
-                        sb.AppendFormat("<div style='display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;'>");
+                        sb.Append("<div style='display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px;'>");
                         sb.AppendFormat("<div><strong style='color: #333; font-size: 16px;'>{0}</strong></div>", HttpUtility.HtmlEncode(leave.LeaveType ?? ""));
                         sb.AppendFormat("<span style='background: {0}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;'>{1}</span>", statusColor, HttpUtility.HtmlEncode(leave.Status ?? ""));
                         sb.Append("</div>");
@@ -399,8 +445,13 @@ namespace ExWebAppSia.webpage
         {
             try
             {
+                var employeeService = new EmployeeService();
+                var employee = employeeService.GetEmployeeByIdAsync(id).ConfigureAwait(false).GetAwaiter().GetResult();
+                
+                if (employee == null) return "<div style='padding: 20px;'>Employee not found.</div>";
+
                 var concernService = new EmployeeConcernService();
-                var concerns = Task.Run(() => concernService.GetConcernsByEmployeeIdAsync(id)).Result;
+                var concerns = concernService.GetConcernsByEmployeeIdAsync(employee.EmployeeId).ConfigureAwait(false).GetAwaiter().GetResult();
                 
                 var sb = new StringBuilder();
                 sb.Append("<div style='padding: 20px;'>");
@@ -425,9 +476,9 @@ namespace ExWebAppSia.webpage
                                             concern.Status == "In Progress" ? "#3b82f6" : "#f59e0b";
                         
                         sb.Append("<div style='background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid " + priorityColor + ";'>");
-                        sb.AppendFormat("<div style='display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;'>");
+                        sb.Append("<div style='display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;'>");
                         sb.AppendFormat("<div><strong style='color: #333; font-size: 16px;'>{0}</strong></div>", HttpUtility.HtmlEncode(concern.Subject ?? ""));
-                        sb.AppendFormat("<div style='display: flex; gap: 8px; flex-wrap: wrap;'>");
+                        sb.Append("<div style='display: flex; gap: 8px; flex-wrap: wrap;'>");
                         sb.AppendFormat("<span style='background: {0}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;'>{1}</span>", priorityColor, HttpUtility.HtmlEncode(concern.PriorityLevel ?? ""));
                         sb.AppendFormat("<span style='background: {0}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;'>{1}</span>", statusColor, HttpUtility.HtmlEncode(concern.Status ?? ""));
                         sb.Append("</div></div>");
@@ -441,6 +492,137 @@ namespace ExWebAppSia.webpage
                 return sb.ToString();
             }
             catch (Exception ex) { return "Error loading concern history: " + ex.Message; }
+        }
+
+        [System.Web.Services.WebMethod]
+        public static string ResignEmployee(string id)
+        {
+            System.Diagnostics.Debug.WriteLine("==============================================");
+            System.Diagnostics.Debug.WriteLine("[ResignEmployee] WebMethod CALLED");
+            System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Received ID: '{id}'");
+            System.Diagnostics.Debug.WriteLine("==============================================");
+
+            try
+            {
+                if (string.IsNullOrEmpty(id))
+                {
+                    System.Diagnostics.Debug.WriteLine("[ResignEmployee] ERROR: ID is null or empty!");
+                    return "{\"success\":false,\"message\":\"Employee ID is missing.\"}";
+                }
+
+                var employeeService = new EmployeeService();
+                var emailService = new EmailService();
+
+                // Use Task.Run to avoid deadlock on Async="true" page
+                System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Step 1: Looking up employee with ID: {id}");
+                var employee = Task.Run(() => employeeService.GetEmployeeByIdAsync(id)).GetAwaiter().GetResult();
+
+                if (employee == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ResignEmployee] ERROR: No employee found for ID: {id}");
+                    return "{\"success\":false,\"message\":\"Employee not found.\"}";
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Employee found: {employee.FullName}, IsActive: {employee.IsActive}");
+
+                string toEmail = employee.Email;
+                string fullName = (employee.FullName ?? "").Replace("\"", "'");
+
+                System.Diagnostics.Debug.WriteLine("[ResignEmployee] Step 2: Calling ResignEmployeeAsync...");
+                bool success = Task.Run(() => employeeService.ResignEmployeeAsync(id)).GetAwaiter().GetResult();
+                System.Diagnostics.Debug.WriteLine($"[ResignEmployee] ResignEmployeeAsync result: {success}");
+
+                if (success)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Step 3: Sending email to {toEmail}...");
+                    try { 
+                        System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
+                            Task.Run(() => emailService.SendTerminationEmailAsync(toEmail, fullName))
+                        ); 
+                    }
+                    catch (Exception emailEx) { System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Email error: {emailEx.Message}"); }
+
+                    System.Diagnostics.Debug.WriteLine("[ResignEmployee] SUCCESS");
+                    LogActivity("Resigned Employee", $"Resigned {fullName} ({id})");
+                    return "{\"success\":true,\"message\":\"Employee resigned successfully.\"}";
+                }
+
+                System.Diagnostics.Debug.WriteLine("[ResignEmployee] FAILED - ResignEmployeeAsync returned false.");
+                return "{\"success\":false,\"message\":\"Failed to process resignation.\"}";
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("==============================================");
+                System.Diagnostics.Debug.WriteLine($"[ResignEmployee] EXCEPTION: {ex.GetType().FullName}");
+                System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Message: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[ResignEmployee] StackTrace: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                    System.Diagnostics.Debug.WriteLine($"[ResignEmployee] InnerException: {ex.InnerException.Message}");
+                System.Diagnostics.Debug.WriteLine("==============================================");
+
+                string msg = (ex.Message ?? "Unknown error").Replace("\"", "'");
+                return "{\"success\":false,\"message\":\"" + msg + "\"}";
+            }
+        }
+
+        private static void LogActivity(string action, string targetInfo)
+        {
+            try
+            {
+                var context = System.Web.HttpContext.Current;
+                if (context != null && context.Session != null)
+                {
+                    string username = context.Session["Username"] as string ?? "Unknown HR";
+                    string hrName = "Admin";
+                    var emp = context.Session["Employee"] as Employee;
+                    if (emp != null) hrName = emp.FullName;
+
+                    var logService = new ActivityLogService();
+                    System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
+                        Task.Run(() => logService.LogActionAsync(username, hrName, action, "Employee Management", targetInfo))
+                    );
+                }
+            }
+            catch { /* Ignore logging errors to prevent breaking core functions */ }
+        }
+
+        [System.Web.Services.WebMethod]
+        public static string RehireEmployee(string id)
+        {
+            try
+            {
+                var employeeService = new EmployeeService();
+                bool success = employeeService.RehireEmployeeAsync(id).ConfigureAwait(false).GetAwaiter().GetResult();
+                if (success) LogActivity("Rehired Employee", $"Reactivated employee ID: {id}");
+                return success
+                    ? "{\"success\":true,\"message\":\"Employee rehired successfully.\"}"
+                    : "{\"success\":false,\"message\":\"Failed to process rehire.\"}";
+            }
+            catch (Exception ex)
+            {
+                string msg = (ex.Message ?? "Unknown error").Replace("\"", "'");
+                return "{\"success\":false,\"message\":\"" + msg + "\"}";
+            }
+        }
+
+        [System.Web.Services.WebMethod]
+        public static string DeployEmployee(string id, string department)
+        {
+            try
+            {
+                var employeeService = new EmployeeService();
+                bool success = employeeService.UpdateEmployeeDepartmentAsync(id, department).ConfigureAwait(false).GetAwaiter().GetResult();
+                string dept = (department ?? "").Replace("\"", "'");
+                if (success) LogActivity("Deployed Employee", $"Transferred employee {id} to {dept}");
+                return success
+                    ? "{\"success\":true,\"message\":\"Employee deployed to " + dept + " successfully.\"}"
+                    : "{\"success\":false,\"message\":\"Failed to deploy employee.\"}";
+            }
+            catch (Exception ex)
+            {
+                string msg = (ex.Message ?? "Unknown error").Replace("\"", "'");
+                return "{\"success\":false,\"message\":\"" + msg + "\"}";
+            }
         }
 
         private string FormatGovNumber(string number, string type)
@@ -576,7 +758,10 @@ namespace ExWebAppSia.webpage
                     return;
                 }
 
-                var leaves = await _leaveService.GetLeavesByEmployeeIdAsync(employeeId);
+                var employee = await _employeeService.GetEmployeeByIdAsync(employeeId);
+                if (employee == null) return;
+
+                var leaves = await _leaveService.GetLeavesByEmployeeIdAsync(employee.EmployeeId);
                 DisplayLeaveHistory(leaves);
                 ScriptManager.RegisterStartupScript(this, GetType(), "openLeaveHistoryModal", 
                     "document.getElementById('leaveHistoryModal').style.display = 'block';", true);
@@ -597,7 +782,10 @@ namespace ExWebAppSia.webpage
                     return;
                 }
 
-                var concerns = await _concernService.GetConcernsByEmployeeIdAsync(employeeId);
+                 var employee = await _employeeService.GetEmployeeByIdAsync(employeeId);
+                if (employee == null) return;
+
+                var concerns = await _concernService.GetConcernsByEmployeeIdAsync(employee.EmployeeId);
                 DisplayConcernHistory(concerns);
                 ScriptManager.RegisterStartupScript(this, GetType(), "openConcernHistoryModal", 
                     "document.getElementById('concernHistoryModal').style.display = 'block';", true);

@@ -10,6 +10,8 @@ namespace ExWebAppSia.webpage.api
     public class AttendanceHandler : IHttpHandler
     {
         private readonly AttendanceService _attendanceService = new AttendanceService();
+        private readonly EmployeeService _employeeService = new EmployeeService();
+        private readonly ActivityLogService _logService = new ActivityLogService();
 
         public void ProcessRequest(HttpContext context)
         {
@@ -73,61 +75,72 @@ namespace ExWebAppSia.webpage.api
                                 System.Diagnostics.Debug.WriteLine($"EmployeeId: {employeeId}");
                                 System.Diagnostics.Debug.WriteLine($"EmployeeName: {employeeName}");
                                 System.Diagnostics.Debug.WriteLine($"Department: {department}");
-                                
-                                // Use async method synchronously with ConfigureAwait(false) to avoid deadlock
-                                var timeInTask = Task.Run(async () => 
+
+                                // NEW: Restriction - Newly hired employees cannot time in on their hiring date
+                                var employee = Task.Run(() => _employeeService.GetByEmployeeIdAsync(employeeId)).GetAwaiter().GetResult();
+                                if (employee != null && employee.HiredDate.Date == DateTime.UtcNow.Date)
                                 {
-                                    try
-                                    {
-                                        return await _attendanceService.TimeInAsync(employeeId, employeeName, department).ConfigureAwait(false);
-                                    }
-                                    catch (Exception taskEx)
-                                    {
-                                        System.Diagnostics.Debug.WriteLine($"Exception in TimeInAsync task: {taskEx.Message}\n{taskEx.StackTrace}");
-                                        if (taskEx.InnerException != null)
-                                        {
-                                            System.Diagnostics.Debug.WriteLine($"Inner exception: {taskEx.InnerException.Message}\n{taskEx.InnerException.StackTrace}");
-                                        }
-                                        throw;
-                                    }
-                                });
-                                
-                                result = timeInTask.GetAwaiter().GetResult();
-                                message = result ? "Time in recorded successfully" : "Failed to record time in or already timed in today";
-                                System.Diagnostics.Debug.WriteLine($"TimeIn result: {result}, Message: {message}");
-                                
-                                if (result)
+                                    result = false;
+                                    message = "New employees are restricted from timing in on their first day of hiring. You may begin clocking in starting tomorrow. Welcome to the team!";
+                                    System.Diagnostics.Debug.WriteLine($"Blocked TimeIn for new hire: {employeeId} (Hired today)");
+                                }
+                                else
                                 {
-                                    // Verify the record was saved
-                                    var verifyTask = Task.Run(async () => 
+                                    // Use async method synchronously with ConfigureAwait(false) to avoid deadlock
+                                    var timeInTask = Task.Run(async () =>
                                     {
                                         try
                                         {
-                                            await System.Threading.Tasks.Task.Delay(200); // Wait a bit for write to complete
-                                            var today = DateTime.UtcNow.Date;
-                                            System.Diagnostics.Debug.WriteLine($"Verifying record for EmployeeId: {employeeId}, Date: {today:yyyy-MM-dd}");
-                                            var record = await _attendanceService.GetTodayAttendanceAsync(employeeId);
-                                            if (record != null)
-                                            {
-                                                System.Diagnostics.Debug.WriteLine($"Verified: Record saved with Date={record.Date:yyyy-MM-dd}, TimeIn={record.TimeIn:yyyy-MM-dd HH:mm:ss}, ID={record.Id}");
-                                            }
-                                            else
-                                            {
-                                                System.Diagnostics.Debug.WriteLine($"WARNING: Record not found after save! Trying to get all records...");
-                                                var allRecords = await _attendanceService.GetAllActiveAttendanceAsync();
-                                                System.Diagnostics.Debug.WriteLine($"Total active records in database: {allRecords.Count}");
-                                                foreach (var r in allRecords.Take(5))
-                                                {
-                                                    System.Diagnostics.Debug.WriteLine($"  - EmployeeId: {r.EmployeeId}, Date: {r.Date:yyyy-MM-dd}, TimeIn: {r.TimeIn?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}");
-                                                }
-                                            }
+                                            return await _attendanceService.TimeInAsync(employeeId, employeeName, department).ConfigureAwait(false);
                                         }
-                                        catch (Exception verifyEx)
+                                        catch (Exception taskEx)
                                         {
-                                            System.Diagnostics.Debug.WriteLine($"Error during verification: {verifyEx.Message}\n{verifyEx.StackTrace}");
+                                            System.Diagnostics.Debug.WriteLine($"Exception in TimeInAsync task: {taskEx.Message}\n{taskEx.StackTrace}");
+                                            if (taskEx.InnerException != null)
+                                            {
+                                                System.Diagnostics.Debug.WriteLine($"Inner exception: {taskEx.InnerException.Message}\n{taskEx.InnerException.StackTrace}");
+                                            }
+                                            throw;
                                         }
                                     });
-                                    verifyTask.Wait(TimeSpan.FromSeconds(5)); // 5 second timeout
+
+                                    result = timeInTask.GetAwaiter().GetResult();
+                                    message = result ? "Time in recorded successfully" : "Failed to record time in or already timed in today";
+                                    System.Diagnostics.Debug.WriteLine($"TimeIn result: {result}, Message: {message}");
+
+                                    if (result)
+                                    {
+                                        // Verify the record was saved
+                                        var verifyTask = Task.Run(async () =>
+                                        {
+                                            try
+                                            {
+                                                await System.Threading.Tasks.Task.Delay(200); // Wait a bit for write to complete
+                                                var today = DateTime.UtcNow.Date;
+                                                System.Diagnostics.Debug.WriteLine($"Verifying record for EmployeeId: {employeeId}, Date: {today:yyyy-MM-dd}");
+                                                var record = await _attendanceService.GetTodayAttendanceAsync(employeeId);
+                                                if (record != null)
+                                                {
+                                                    System.Diagnostics.Debug.WriteLine($"Verified: Record saved with Date={record.Date:yyyy-MM-dd}, TimeIn={record.TimeIn:yyyy-MM-dd HH:mm:ss}, ID={record.Id}");
+                                                }
+                                                else
+                                                {
+                                                    System.Diagnostics.Debug.WriteLine($"WARNING: Record not found after save! Trying to get all records...");
+                                                    var allRecords = await _attendanceService.GetAllActiveAttendanceAsync();
+                                                    System.Diagnostics.Debug.WriteLine($"Total active records in database: {allRecords.Count}");
+                                                    foreach (var r in allRecords.Take(5))
+                                                    {
+                                                        System.Diagnostics.Debug.WriteLine($"  - EmployeeId: {r.EmployeeId}, Date: {r.Date:yyyy-MM-dd}, TimeIn: {r.TimeIn?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}");
+                                                    }
+                                                }
+                                            }
+                                            catch (Exception verifyEx)
+                                            {
+                                                System.Diagnostics.Debug.WriteLine($"Error during verification: {verifyEx.Message}\n{verifyEx.StackTrace}");
+                                            }
+                                        });
+                                        verifyTask.Wait(TimeSpan.FromSeconds(5)); // 5 second timeout
+                                    }
                                 }
                             }
                             catch (Exception ex)
@@ -156,6 +169,28 @@ namespace ExWebAppSia.webpage.api
                                 result = Task.Run(async () => await _attendanceService.TimeOutAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
                                 message = result ? "Time out recorded successfully" : "Failed to record time out or not timed in yet";
                                 System.Diagnostics.Debug.WriteLine($"TimeOut result: {result}, Message: {message}");
+
+                                // NEW: Notify HR via Activity Log for Undertime or OT
+                                if (result)
+                                {
+                                    try 
+                                    {
+                                        var nowLocal = DateTime.UtcNow.AddHours(8); // UTC+8
+                                        if (nowLocal.Hour < 17) // Before 5:00 PM
+                                        {
+                                            System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
+                                                Task.Run(() => _logService.LogActionAsync(employeeId, employeeName, "Undertime Notification", "Attendance", $"Clocked out early at {nowLocal:hh:mm tt}"))
+                                            );
+                                        }
+                                        else if (nowLocal.Hour >= 18) // 6:00 PM or later is considered OT
+                                        {
+                                            System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
+                                                Task.Run(() => _logService.LogActionAsync(employeeId, employeeName, "Overtime Notification", "Attendance", $"Clocked out at {nowLocal:hh:mm tt} (OT) "))
+                                            );
+                                        }
+                                    }
+                                    catch { /* Silent fail */ }
+                                }
                             }
                             catch (Exception ex)
                             {

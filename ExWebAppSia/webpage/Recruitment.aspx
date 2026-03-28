@@ -255,6 +255,56 @@
                 color: white;
             }
 
+            /* Main Navigation Tabs */
+            .main-toggle-tabs {
+                display: flex;
+                gap: 16px;
+                margin-bottom: 32px;
+                background: white;
+                padding: 8px;
+                border-radius: 16px;
+                box-shadow: var(--shadow-sm);
+                border: 1px solid var(--border-color);
+            }
+
+            .main-toggle-tab {
+                flex: 1;
+                padding: 16px 24px;
+                border: none;
+                background: transparent;
+                color: var(--text-secondary);
+                font-size: 15px;
+                font-weight: 700;
+                cursor: pointer;
+                border-radius: 12px;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 12px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .main-toggle-tab:hover {
+                background: var(--bg-light);
+                color: var(--primary-color);
+            }
+
+            .main-toggle-tab.active {
+                background: var(--primary-color);
+                color: white;
+                box-shadow: 0 4px 15px rgba(163, 106, 102, 0.2);
+            }
+
+            .main-toggle-tab svg {
+                width: 20px;
+                height: 20px;
+                stroke: currentColor;
+                fill: none;
+                stroke-width: 2;
+            }
+
             /* Modern Table */
             .applicant-table {
                 width: 100%;
@@ -1792,11 +1842,50 @@
                     modal.style.display = 'none';
                 }
             }
+
+            function switchMode(mode) {
+                // Store active mode in hidden field
+                var hdnMode = document.getElementById('<%= hdnActiveMode.ClientID %>');
+                if (hdnMode) hdnMode.value = mode;
+
+                // Update tab buttons
+                document.querySelectorAll('.main-toggle-tab').forEach(function (tab) {
+                    tab.classList.remove('active');
+                });
+
+                // Toggle sections
+                if (mode === 'hiring') {
+                    document.getElementById('tabHiring').classList.add('active');
+                    document.getElementById('hiringSection').style.display = 'grid';
+                    document.getElementById('onboardingSection').style.display = 'none';
+                    document.getElementById('regularizationSection').style.display = 'none';
+                } else if (mode === 'onboarding') {
+                    document.getElementById('tabOnboarding').classList.add('active');
+                    document.getElementById('hiringSection').style.display = 'none';
+                    document.getElementById('onboardingSection').style.display = 'grid';
+                    document.getElementById('regularizationSection').style.display = 'none';
+                } else {
+                    document.getElementById('tabRegularization').classList.add('active');
+                    document.getElementById('hiringSection').style.display = 'none';
+                    document.getElementById('onboardingSection').style.display = 'none';
+                    document.getElementById('regularizationSection').style.display = 'grid';
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                var hdnMode = document.getElementById('<%= hdnActiveMode.ClientID %>');
+                if (hdnMode && hdnMode.value) {
+                    switchMode(hdnMode.value);
+                } else {
+                    switchMode('hiring');
+                }
+            });
         </script>
     </asp:Content>
 
     <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
         <div class="recruitment-container">
+
             <!-- Modern Add Button with Icon -->
             <button type="button" class="add-applicant-button" onclick="openModal()">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 20px; height: 20px;">
@@ -1849,8 +1938,37 @@
                 </div>
             </div>
 
+            <!-- Main Mode Navigation -->
+            <div class="main-toggle-tabs">
+                <button type="button" id="tabHiring" class="main-toggle-tab" onclick="switchMode('hiring')">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                        <circle cx="9" cy="7" r="4" />
+                    </svg>
+                    Hiring
+                </button>
+                <button type="button" id="tabOnboarding" class="main-toggle-tab" onclick="switchMode('onboarding')">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                        <line x1="12" y1="11" x2="12" y2="17" />
+                        <line x1="9" y1="14" x2="15" y2="14" />
+                    </svg>
+                    Onboarding Process
+                </button>
+                <button type="button" id="tabRegularization" class="main-toggle-tab"
+                    onclick="switchMode('regularization')">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                    Regularization Process
+                </button>
+            </div>
+
+            <asp:HiddenField ID="hdnActiveMode" runat="server" Value="hiring" />
+
             <!-- Main Content Panels -->
-            <div class="main-panels">
+            <div id="hiringSection" class="main-panels">
                 <!-- Left Panel: New Applicants -->
                 <div class="panel">
                     <div class="panel-header">
@@ -1960,7 +2078,7 @@
                                     Text="Request Physical Requirements"
                                     OnClientClick="return prepareNewApplicantIds();"
                                     OnClick="btnSendRequirementEmail_Click" CssClass="schedule-button"
-                                    style="background: #3b82f6; border: none;" />
+                                    style="background: var(--primary-color); border: none;" />
                             </div>
                         </div>
 
@@ -2066,16 +2184,16 @@
                     </div>
                 </div>
 
-                <!-- Right Panel: In-Progress Applicants -->
+                <!-- Right Panel: In-Progress Applicants (Hiring) -->
                 <div class="panel">
-                    <div class="panel-header">
+                    <div class="panel-header" style="background: var(--primary-color);">
                         <svg viewBox="0 0 24 24" fill="none">
                             <circle cx="12" cy="12" r="10" />
                             <polyline points="12 6 12 12 16 14" />
                         </svg>
-                        In-Progress Applicants
-                        <span class="panel-header-badge">
-                            <asp:Literal ID="litInProgressCount" runat="server" Text="0" />
+                        Waitlist / Pending Orientation
+                        <span class="panel-header-badge" style="background: rgba(255,255,255,0.15);">
+                            <asp:Literal ID="litInProgressHiringCount" runat="server" Text="0" />
                         </span>
                     </div>
                     <div class="panel-body">
@@ -2088,14 +2206,146 @@
                                     <th style="text-align: center;">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody id="inProgressApplicantsTableBody" runat="server">
+                            <tbody id="inProgressHiringTableBody" runat="server">
                                 <tr>
                                     <td colspan="4" class="empty-state">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                                             <circle cx="12" cy="12" r="10" />
                                             <polyline points="12 6 12 12 16 14" />
                                         </svg>
-                                        <p>No in-progress applicants found</p>
+                                        <p>No applicants awaiting orientation found</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div id="onboardingSection" class="main-panels" style="display: none;">
+                <div class="panel" style="grid-column: span 2;">
+                    <div class="panel-header" style="background: var(--primary-color);">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                        </svg>
+                        Employee Onboarding & Account Setup
+                        <span class="panel-header-badge">
+                            <asp:Literal ID="litOnboardingCount" runat="server" Text="0" />
+                        </span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="panel-title">Orientation Complete - Finalize Hiring</div>
+                        <table class="applicant-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Position / Role</th>
+                                    <th style="text-align: center;">Details</th>
+                                    <th style="text-align: center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="onboardingTableBody" runat="server">
+                                <tr>
+                                    <td colspan="4" class="empty-state">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <path d="M12 2v20M2 12h20" />
+                                        </svg>
+                                        <p>No employees ready for final onboarding</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Regularization Section -->
+            <div id="regularizationSection" class="main-panels" style="display: none;">
+                <!-- Left Panel: Probationary Employees -->
+                <div class="panel">
+                    <div class="panel-header" style="background: var(--primary-color);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+                            <circle cx="19" cy="11" r="2" />
+                        </svg>
+                        Probationary Employees (For Regularization)
+                        <span class="panel-header-badge" style="background: rgba(255,255,255,0.15);">
+                            <asp:Literal ID="litRehiringCount" runat="server" Text="0" />
+                        </span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="panel-title">Tenure Tracking & Regularization</div>
+                        <div class="select-all"
+                            style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="selectAllRehiring" onclick="toggleAllRehiring(this)" />
+                            <label for="selectAllRehiring"
+                                style="font-size: 14px; color: var(--text-secondary); cursor: pointer;">Select All
+                                Employees for Regularization</label>
+                        </div>
+                        <table class="applicant-table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"></th>
+                                    <th>Employee</th>
+                                    <th>Position / Role</th>
+                                    <th>Hire Date</th>
+                                    <th style="text-align: center;">Tenure Progress</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rehiringTableBody" runat="server">
+                                <tr>
+                                    <td colspan="5" class="empty-state">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <polyline points="12 6 12 12 16 14" />
+                                        </svg>
+                                        <p>No probationary employees found</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div id="bulkRehireAction" style="margin-top: 20px; text-align: right;">
+                            <button id="btnProcessRehireBulk" type="button" class="btn btn-view-details"
+                                style="background: var(--primary-color); padding: 10px 24px; opacity: 0.6; cursor: not-allowed;"
+                                onclick="bulkProcessRehire(); return false;" disabled>
+                                Process Rehire Selected
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Panel: In-Progress (Regularization) -->
+                <div class="panel">
+                    <div class="panel-header" style="background: var(--primary-color);">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" />
+                            <polyline points="12 6 12 12 16 14" />
+                        </svg>
+                        In-Progress Regularization
+                        <span class="panel-header-badge" style="background: rgba(255,255,255,0.15);">
+                            <asp:Literal ID="litInProgressRegularizationCount" runat="server" Text="0" />
+                        </span>
+                    </div>
+                    <div class="panel-body">
+                        <table class="applicant-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Position / Role</th>
+                                    <th style="text-align: center;">Details</th>
+                                    <th style="text-align: center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inProgressRegularizationTableBody" runat="server">
+                                <tr>
+                                    <td colspan="4" class="empty-state">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <polyline points="12 6 12 12 16 14" />
+                                        </svg>
+                                        <p>No in-progress regularization found</p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -2104,6 +2354,77 @@
                 </div>
             </div>
         </div>
+
+        <script type="text/javascript">
+            function toggleAllRehiring(source) {
+                var checkboxes = document.querySelectorAll('.rehire-checkbox');
+                for (var i = 0; i < checkboxes.length; i++) {
+                    checkboxes[i].checked = source.checked;
+                }
+                toggleBulkRehireButton();
+            }
+
+            function toggleBulkRehireButton() {
+                var checkboxes = document.querySelectorAll('.rehire-checkbox:checked');
+                var btn = document.getElementById('btnProcessRehireBulk');
+                if (checkboxes.length > 0) {
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    btn.style.cursor = 'pointer';
+                } else {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.6';
+                    btn.style.cursor = 'not-allowed';
+                }
+            }
+
+            function bulkProcessRehire() {
+                var checkboxes = document.querySelectorAll('.rehire-checkbox:checked');
+                var ids = [];
+                checkboxes.forEach(function (cb) {
+                    ids.push(cb.value);
+                });
+
+                if (ids.length === 0) {
+                    return;
+                }
+
+                var msg = 'Are you sure you want to process rehire for ' + ids.length + ' selected employees?';
+                document.getElementById('rehireStatusMessage').innerText = msg;
+                document.getElementById('rehireConfirmationModal').style.display = 'block';
+
+                document.getElementById('<%= hdnSelectedRehireIds.ClientID %>').value = ids.join(',');
+            }
+
+            function closeRehireModal() {
+                document.getElementById('rehireConfirmationModal').style.display = 'none';
+            }
+
+            function executeBulkRehire() {
+                closeRehireModal();
+                document.getElementById('<%= btnBulkRehire.ClientID %>').click();
+            }
+
+            function rehireEmployee(id) {
+                document.getElementById('rehireStatusMessage').innerText = 'Are you sure you want to process rehire for this employee?';
+                document.getElementById('rehireConfirmationModal').style.display = 'block';
+
+                document.getElementById('<%= hdnRehireEmployeeId.ClientID %>').value = id;
+                // We can reuse executeBulkRehire but we'd need to know if it's single or bulk.
+                // Actually, let's just make it simpler.
+            }
+
+            function executeBulkRehire() {
+                closeRehireModal();
+                var singleId = document.getElementById('<%= hdnRehireEmployeeId.ClientID %>').value;
+                if (singleId) {
+                    document.getElementById('<%= btnRehireEmployee.ClientID %>').click();
+                    document.getElementById('<%= hdnRehireEmployeeId.ClientID %>').value = ''; // clear it
+                } else {
+                    document.getElementById('<%= btnBulkRehire.ClientID %>').click();
+                }
+            }
+        </script>
 
         <!-- Add Applicant Modal -->
         <div id="addApplicantModal" class="page-modal">
@@ -2204,8 +2525,10 @@
                         <asp:DropDownList ID="ddlEducationLevel" runat="server" CssClass="form-control">
                             <asp:ListItem Value="">-- Select Education Level --</asp:ListItem>
                             <asp:ListItem Value="Elementary Graduate">Elementary Graduate</asp:ListItem>
-                            <asp:ListItem Value="Junior High School Graduate">Junior High School Graduate</asp:ListItem>
-                            <asp:ListItem Value="Senior High School Graduate">Senior High School Graduate</asp:ListItem>
+                            <asp:ListItem Value="Junior High School Graduate">Junior High School Graduate
+                            </asp:ListItem>
+                            <asp:ListItem Value="Senior High School Graduate">Senior High School Graduate
+                            </asp:ListItem>
                             <asp:ListItem Value="Vocational Course">Vocational Course</asp:ListItem>
                             <asp:ListItem Value="College Undergraduate">College Undergraduate</asp:ListItem>
                             <asp:ListItem Value="College Graduate">College Graduate</asp:ListItem>
@@ -2330,9 +2653,11 @@
                             onmouseout="this.style.borderColor='#e5e7eb'; this.style.backgroundColor='#fafafa';">
                             <i class="fas fa-cloud-upload-alt"
                                 style="font-size: 24px; color: #3b82f6; margin-bottom: 8px;"></i>
-                            <div style="font-size: 13px; font-weight: 500; color: #374151;" id="resumeDisplay">Drag &
+                            <div style="font-size: 13px; font-weight: 500; color: #374151;" id="resumeDisplay">Drag
+                                &
                                 drop your resume here or click to browse</div>
-                            <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Accepted formats: PDF, DOC,
+                            <div style="font-size: 11px; color: #6b7280; margin-top: 4px;">Accepted formats: PDF,
+                                DOC,
                                 DOCX (Max 5MB)</div>
                             <asp:FileUpload ID="fileResume" runat="server" style="display: none;"
                                 onchange="updateResumeDisplay(this);" />
@@ -2373,7 +2698,8 @@
 
                     <div class="form-group"
                         style="background: rgba(163, 106, 102, 0.05); padding: 15px; border-radius: 12px; border: 1px dashed var(--primary-light); margin-bottom: 10px;">
-                        <label style="margin-bottom: 10px; display: block;">Government Contributions Tracking</label>
+                        <label style="margin-bottom: 10px; display: block;">Government Contributions
+                            Tracking</label>
                         <div style="display: flex; gap: 20px; flex-wrap: wrap;">
                             <div style="display: flex; align-items: center;">
                                 <asp:CheckBox ID="chkSSS" runat="server" Text=" SSS" Checked="true" />
@@ -2428,7 +2754,8 @@
                             <div class="form-group">
                                 <label style="font-size: 13px; font-weight: 600; color: #374151;">SSS Number</label>
                                 <asp:TextBox ID="txtSSSNumber" runat="server" CssClass="form-control"
-                                    placeholder="00-0000000-0" style="height: 40px; border-radius: 8px;"></asp:TextBox>
+                                    placeholder="00-0000000-0" style="height: 40px; border-radius: 8px;">
+                                </asp:TextBox>
                             </div>
                             <div class="form-group">
                                 <label style="font-size: 13px; font-weight: 600; color: #374151;">PhilHealth
@@ -2480,7 +2807,8 @@
                             <strong style="font-size: 15px;">Automated Date Assignment</strong>
                         </div>
                         <p style="font-size: 13px; color: #666; margin: 0; line-height: 1.5;">
-                            All interviews are automatically scheduled for the <strong>upcoming Monday</strong>. Please
+                            All interviews are automatically scheduled for the <strong>upcoming Monday</strong>.
+                            Please
                             select a preferred time slot during business hours.
                         </p>
                         <div style="display:none;">
@@ -2557,8 +2885,38 @@
         <asp:HiddenField ID="hdnApplicantId" runat="server" />
         <asp:HiddenField ID="hdnSelectedApplicantIds" runat="server" />
         <asp:HiddenField ID="hdnSelectedNewApplicantIds" runat="server" />
+        <asp:HiddenField ID="hdnSelectedRehireIds" runat="server" />
+        <asp:HiddenField ID="hdnRehireEmployeeId" runat="server" />
         <asp:HiddenField ID="hdnDeclineReason" runat="server" />
         <asp:HiddenField ID="hdnActiveSubTab" runat="server" Value="new" />
+        <asp:Button ID="btnBulkRehire" runat="server" Style="display: none;" OnClick="btnBulkRehire_Click" />
+        <asp:Button ID="btnRehireEmployee" runat="server" Style="display: none;" OnClick="btnRehireEmployee_Click" />
+        <!-- Rehire Confirmation Modal -->
+        <div id="rehireConfirmationModal" class="page-modal">
+            <div class="modal-content"
+                style="max-width: 480px; padding: 40px; text-align: center; border-radius: 32px; margin: 10% auto;">
+                <div class="status-icon-wrapper"
+                    style="background: linear-gradient(135deg, rgba(163, 106, 102, 0.1) 0%, rgba(163, 106, 102, 0.2) 100%); color: var(--primary-color); width: 100px; height: 100px; box-shadow: 0 10px 20px rgba(163, 106, 102, 0.15);">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width: 48px; height: 48px;">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" stroke-width="3" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <circle cx="9" cy="7" r="4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M22 21v-2a4 4 0 0 0-3-3.87" stroke-width="3" stroke-linecap="round"
+                            stroke-linejoin="round" />
+                        <circle cx="19" cy="11" r="2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div class="status-title">Confirm Regularization</div>
+                <div id="rehireStatusMessage" class="status-message"></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <button type="button" class="status-btn"
+                        style="background: #f3f4f6; color: #374151; box-shadow: none;"
+                        onclick="closeRehireModal()">Cancel</button>
+                    <button type="button" class="status-btn" onclick="executeBulkRehire()">Process Rehire</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Email Confirmation Modal -->
         <div id="emailConfirmationModal" class="page-modal">
             <div class="modal-content">

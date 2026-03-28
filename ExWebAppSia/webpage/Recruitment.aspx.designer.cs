@@ -33,6 +33,21 @@ namespace ExWebAppSia.webpage
         protected global::System.Web.UI.WebControls.Literal litInProgressCount;
 
         /// <summary>
+        /// litInProgressHiringCount control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litInProgressHiringCount;
+
+        /// <summary>
+        /// litInProgressRegularizationCount control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litInProgressRegularizationCount;
+
+        /// <summary>
+        /// litOnboardingCount control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litOnboardingCount;
+
+        /// <summary>
         /// litNewSubCount control.
         /// </summary>
         /// <remarks>
@@ -49,6 +64,14 @@ namespace ExWebAppSia.webpage
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.Literal litApprovedCount;
+
+        /// <summary>
+        /// hdnActiveMode control.
+        /// </summary>
+        /// <remarks>
+        /// Auto-generated field.
+        /// </remarks>
+        protected global::System.Web.UI.WebControls.HiddenField hdnActiveMode;
 
         /// <summary>
         /// litDeclinedCount control.
@@ -112,6 +135,21 @@ namespace ExWebAppSia.webpage
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.HtmlControls.HtmlGenericControl inProgressApplicantsTableBody;
+
+        /// <summary>
+        /// inProgressHiringTableBody control.
+        /// </summary>
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl inProgressHiringTableBody;
+
+        /// <summary>
+        /// inProgressRegularizationTableBody control.
+        /// </summary>
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl inProgressRegularizationTableBody;
+
+        /// <summary>
+        /// onboardingTableBody control.
+        /// </summary>
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl onboardingTableBody;
 
         /// <summary>
         /// messageDiv control.
@@ -704,5 +742,36 @@ namespace ExWebAppSia.webpage
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.WebControls.FileUpload fileResume;
+
+        /// <summary>
+        /// litRehiringCount control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litRehiringCount;
+
+        /// <summary>
+        /// rehiringTableBody control.
+        /// </summary>
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl rehiringTableBody;
+
+
+        /// <summary>
+        /// hdnSelectedRehireIds control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.HiddenField hdnSelectedRehireIds;
+
+        /// <summary>
+        /// hdnRehireEmployeeId control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.HiddenField hdnRehireEmployeeId;
+
+        /// <summary>
+        /// btnBulkRehire control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Button btnBulkRehire;
+
+        /// <summary>
+        /// btnRehireEmployee control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Button btnRehireEmployee;
     }
 }

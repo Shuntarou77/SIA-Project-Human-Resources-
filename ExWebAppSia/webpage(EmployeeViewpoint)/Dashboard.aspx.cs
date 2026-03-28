@@ -224,10 +224,13 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 .Count();
             var currentMonthAbsent = Math.Max(0, pastWeekdays - currentMonthPresent);
 
-            // Calculate late count - use first time-in per day
+            // Calculate late count - use first time-in per day (8:00 AM cutoff)
             var currentMonthLate = currentMonthRecords
                 .GroupBy(x => x.LocalTime.Date)
-                .Count(g => g.OrderBy(x => x.LocalTime).First().LocalTime.Hour >= 9);
+                .Count(g => {
+                    var firstIn = g.OrderBy(x => x.LocalTime).First().LocalTime;
+                    return firstIn.Hour > 8 || (firstIn.Hour == 8 && (firstIn.Minute > 0 || firstIn.Second > 0));
+                });
 
             var currentMonthOnTime = currentMonthPresent - currentMonthLate;
             var currentMonthAttendancePercent = pastWeekdays > 0 
@@ -248,10 +251,13 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 .Count(d => d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
             var lastMonthAbsent = Math.Max(0, lastMonthWeekdays - lastMonthPresent);
 
-            // Calculate late count for last month - use first time-in per day
+            // Calculate late count for last month - use first time-in per day (8:00 AM cutoff)
             var lastMonthLate = lastMonthRecords
                 .GroupBy(x => x.LocalTime.Date)
-                .Count(g => g.OrderBy(x => x.LocalTime).First().LocalTime.Hour >= 9);
+                .Count(g => {
+                    var firstIn = g.OrderBy(x => x.LocalTime).First().LocalTime;
+                    return firstIn.Hour > 8 || (firstIn.Hour == 8 && (firstIn.Minute > 0 || firstIn.Second > 0));
+                });
 
             var lastMonthAttendancePercent = lastMonthWeekdays > 0 
                 ? (int)Math.Round((double)lastMonthPresent / lastMonthWeekdays * 100) 
@@ -279,10 +285,13 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 .Distinct()
                 .Count();
             
-            // Count on-time days (first time-in before 9 AM)
+            // Count on-time days (first time-in at or before 8:00 AM)
             var weekOnTimeDays = weekRecords
                 .GroupBy(x => x.LocalTime.Date)
-                .Count(g => g.OrderBy(x => x.LocalTime).First().LocalTime.Hour < 9);
+                .Count(g => {
+                    var firstIn = g.OrderBy(x => x.LocalTime).First().LocalTime;
+                    return !(firstIn.Hour > 8 || (firstIn.Hour == 8 && (firstIn.Minute > 0 || firstIn.Second > 0)));
+                });
             
             var weekOnTimePercent = weekPresentDays > 0 ? (int)Math.Round((double)weekOnTimeDays / weekPresentDays * 100) : 0;
 

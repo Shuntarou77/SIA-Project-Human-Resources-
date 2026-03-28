@@ -212,6 +212,12 @@ namespace ExWebAppSia.Models
         [BsonElement("startingSalary")]
         public decimal StartingSalary { get; set; } = 18000;
 
+        [BsonElement("recruitmentType")]
+        public string RecruitmentType { get; set; } = "New Applicant"; // "New Applicant" or "Regularization"
+
+        [BsonElement("linkedEmployeeId")]
+        public string LinkedEmployeeId { get; set; } // Reference to Employee ID for regularization
+
         [BsonElement("isActive")]
         public bool IsActive { get; set; } = true;
 

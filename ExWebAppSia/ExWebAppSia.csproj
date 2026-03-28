@@ -222,6 +222,7 @@
     <Content Include="webpage\Employee.aspx" />
     <Content Include="webpage\EmployeeReport.aspx" />
     <Content Include="webpage\Attendance.aspx" />
+    <Content Include="webpage\ActivityLog.aspx" />
     <Content Include="webpage\Announcement.aspx" />
     <Content Include="webpage\js\svg-icons.js" />
     <Content Include="webpage\Payroll.aspx" />
@@ -266,6 +267,8 @@
     <Compile Include="Models\AdminModels.cs" />
     <Compile Include="Models\Announcement.cs" />
     <Compile Include="Models\AnnouncementService.cs" />
+    <Compile Include="Models\ActivityLog.cs" />
+    <Compile Include="Models\ActivityLogService.cs" />
     <Compile Include="Models\Applicant.cs" />
     <Compile Include="Models\ApplicantService.cs" />
     <Compile Include="Models\Attendance.cs" />
@@ -418,6 +421,13 @@
     </Compile>
     <Compile Include="webpage\Attendance.aspx.designer.cs">
       <DependentUpon>Attendance.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage\ActivityLog.aspx.cs">
+      <DependentUpon>ActivityLog.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage\ActivityLog.aspx.designer.cs">
+      <DependentUpon>ActivityLog.aspx</DependentUpon>
     </Compile>
     <Compile Include="webpage\Announcement.aspx.cs">
       <DependentUpon>Announcement.aspx</DependentUpon>

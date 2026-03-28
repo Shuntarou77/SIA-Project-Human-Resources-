@@ -128,10 +128,26 @@ namespace ExWebAppSia.Models
             return await GetApplicantsByStatusAsync("Declined");
         }
 
-        // Get in-progress applicants (status = "In-Progress")
         public async Task<List<Applicant>> GetInProgressApplicantsAsync()
         {
-            return await GetApplicantsByStatusAsync("In-Progress");
+            try
+            {
+                var filter = Builders<Applicant>.Filter.And(
+                    Builders<Applicant>.Filter.Eq(a => a.IsActive, true),
+                    Builders<Applicant>.Filter.Or(
+                        Builders<Applicant>.Filter.Eq(a => a.Status, "In-Progress"),
+                        Builders<Applicant>.Filter.Eq(a => a.Status, "Onboarding")
+                    )
+                );
+                return await _applicants.Find(filter)
+                    .SortByDescending(a => a.AppliedDate)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting in-progress applicants: {ex.Message}");
+                return new List<Applicant>();
+            }
         }
 
         // Get for-viewing applicants (status = "For Viewing")

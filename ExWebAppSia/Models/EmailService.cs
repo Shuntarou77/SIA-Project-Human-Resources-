@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Mail;
+using System.Text;
 using System.Threading.Tasks;
 using System.Configuration;
 
@@ -112,78 +113,57 @@ namespace ExWebAppSia.Models
         /// <summary>
         /// Send hired notification email with account credentials
         /// </summary>
-        public async Task<bool> SendHiredEmailAsync(string toEmail, string applicantName, string department, string role, string username, string password, bool isManager = false)
+        public async Task<bool> SendHiredEmailAsync(string toEmail, string applicantName, string department, string role, string username, string password, bool isManager = false, bool isOrientation = false)
         {
             try
             {
-                string subject = "Congratulations! You're Hired - SheEssentials Beauty Product Company";
+                string subject = isOrientation ? "Hiring Update: Mandatory Orientation Required - SheEssentials" : "Congratulations! You're Hired - SheEssentials Beauty Product Company";
                 string portalType = isManager ? "Manager Portal" : "Employee Self-Service Portal";
-                string loginUrl = isManager ? "http://localhost:54257/ManagerFolder/ManagerLogin.aspx" : "http://localhost:54257/LoginFolder/Login.aspx";
+                string headerColor = isOrientation ? "#3b82f6, #2563eb" : "#4CAF50, #45a049";
+                string headerTitle = isOrientation ? "Hiring Update" : "Congratulations!";
+                
+                string mainMessage = isOrientation 
+                    ? $"You have been selected for the position of <strong>{role}</strong>! However, before being officially hired, you are <strong>required to attend a mandatory orientation</strong>. Please wait for the announcement regarding the orientation schedule."
+                    : $"We are thrilled to inform you that you have been selected for the position of <strong>{role}</strong> in the <strong>{department}</strong> department.";
 
-                string body = $@"
-<!DOCTYPE html>
-<html>
-<head>
-    <style>
-        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
-        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background: linear-gradient(135deg, #4CAF50, #45a049); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
-        .content {{ background: white; padding: 30px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 8px 8px; }}
-        .credentials {{ background: #F8ECEB; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #A36A66; }}
-        .button {{ display: inline-block; background: #4CAF50; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }}
-        .warning {{ background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }}
-        .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #999; }}
-    </style>
-</head>
-<body>
-    <div class='container'>
-        <div class='header'>
-            <h1 style='margin: 0; font-size: 32px;'>🎊 Congratulations!</h1>
-            <p style='margin: 10px 0 0; opacity: 0.95; font-size: 18px;'>Welcome to SheEssentials Beauty Product Company</p>
-        </div>
-        <div class='content'>
-            <p>Dear <strong>{applicantName}</strong>,</p>
-            
-            <p>We are thrilled to inform you that you have been selected for the position of <strong>{role}</strong> in the <strong>{department}</strong> department.</p>
-            
-            <p>Welcome to the SheEssentials Beauty Product Company family!</p>
-            
-            <div class='credentials'>
-                <h3 style='margin-top: 0; color: #A36A66;'>🔑 Your Account Credentials</h3>
-                <p><strong>Portal:</strong> {portalType}</p>
-                <p><strong>Username:</strong> {username}</p>
-                <p><strong>Temporary Password:</strong> {password}</p>
-                <p><strong>Login URL:</strong><br/><a href='{loginUrl}' style='color: #A36A66; word-break: break-all;'>{loginUrl}</a></p>
-            </div>
-            
-            <div class='warning'>
-                <p style='margin: 0;'><strong>⚠️ Important:</strong> Please change your password after your first login for security purposes.</p>
-            </div>
-            
-            <p><strong>Next Steps:</strong></p>
-            <ol>
-                <li>Log in to your account using the credentials above</li>
-                <li>Complete your employee profile</li>
-                <li>Review company policies and guidelines</li>
-                <li>Wait for your official start date notification</li>
-            </ol>
-            
-            <p>If you have any questions or face any issues accessing your account, please contact our HR department.</p>
-            
-            <p>Once again, congratulations and welcome aboard!</p>
-            
-            <p>Best regards,<br/>
-            <strong>HR Department</strong><br/>
-            SheEssentials Beauty Product Company</p>
-        </div>
-        <div class='footer'>
-            <p>This email contains confidential information. Please keep your credentials secure.</p>
-        </div>
-    </div>
-</body>
-</html>";
+                var sbBody = new StringBuilder();
+                sbBody.Append("<!DOCTYPE html><html><head><style>");
+                sbBody.Append("body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }");
+                sbBody.Append(".container { max-width: 600px; margin: 0 auto; padding: 20px; }");
+                sbBody.AppendFormat(".header {{ background: linear-gradient(135deg, {0}); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}", headerColor);
+                sbBody.Append(".content { background: white; padding: 30px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 8px 8px; }");
+                sbBody.Append(".credentials { background: #F8ECEB; padding: 20px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #A36A66; }");
+                sbBody.Append(".warning { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 20px 0; border-radius: 4px; }");
+                sbBody.Append(".footer { text-align: center; margin-top: 20px; font-size: 12px; color: #999; }");
+                sbBody.Append("</style></head><body>");
+                sbBody.Append("<div class='container'>");
+                sbBody.AppendFormat("<div class='header'><h1 style='margin: 0; font-size: 32px;'>{0}</h1>", headerTitle);
+                sbBody.Append("<p style='margin: 10px 0 0; opacity: 0.95; font-size: 18px;'>Welcome to SheEssentials Beauty Product Company</p></div>");
+                sbBody.AppendFormat("<div class='content'><p>Dear <strong>{0}</strong>,</p>", applicantName);
+                sbBody.AppendFormat("<p>{0}</p>", mainMessage);
+                sbBody.Append("<p>Welcome to the SheEssentials Beauty Product Company family!</p><br/>");
+                
+                if (isOrientation)
+                {
+                    sbBody.Append("<p><strong>Your account has been pre-created.</strong> You will gain full access once your orientation and final onboarding are complete.</p>");
+                }
 
-                return await SendEmailAsync(toEmail, subject, body, isHtml: true);
+                sbBody.Append("<div class='credentials'>");
+                sbBody.Append("<h3 style='margin-top: 0; color: #A36A66;'>Your Account Credentials</h3>");
+                sbBody.AppendFormat("<p><strong>Portal:</strong> {0}</p>", portalType);
+                sbBody.AppendFormat("<p><strong>Username:</strong> {0}</p>", username);
+                sbBody.AppendFormat("<p><strong>Temporary Password:</strong> {0}</p>", password);
+                sbBody.Append("</div>");
+                
+                sbBody.Append("<div class='warning'>");
+                sbBody.Append("<p style='margin: 0;'><strong>Security Note:</strong> Your account is protected. For security reasons, please do not share these credentials with anyone.</p>");
+                sbBody.Append("</div>");
+                
+                sbBody.AppendFormat("<p>If you have any questions, please contact the HR department.</p>");
+                sbBody.Append("<p>Best regards,<br/>The SheEssentials HR Team</p>");
+                sbBody.Append("</div><div class='footer'><p>&copy; 2026 SheEssentials Beauty Product Company. All rights reserved.</p></div></div></body></html>");
+
+                return await SendEmailAsync(toEmail, subject, sbBody.ToString());
             }
             catch (Exception ex)
             {
@@ -191,6 +171,7 @@ namespace ExWebAppSia.Models
                 return false;
             }
         }
+        
 
         /// <summary>
         /// Send physical requirement request email to applicant
@@ -615,6 +596,66 @@ namespace ExWebAppSia.Models
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error sending password reset email: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Send termination/account deactivation email to employee
+        /// </summary>
+        public async Task<bool> SendTerminationEmailAsync(string toEmail, string employeeName)
+        {
+            try
+            {
+                string subject = "Account Status Update - SheEssentials Beauty Product Company";
+
+                string body = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .content {{ background: white; padding: 30px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 8px 8px; }}
+        .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #999; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1 style='margin: 0; font-size: 28px;'>Account Deactivated</h1>
+            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials Beauty Product Company</p>
+        </div>
+        <div class='content'>
+            <p>Dear <strong>{employeeName}</strong>,</p>
+            
+            <p>We are writing to inform you that your employee account at <strong>SheEssentials Beauty Product Company</strong> has been deactivated, and you are no longer part of the active system.</p>
+            
+            <div style='background: #fee2e2; border-left: 4px solid #ef4444; padding: 20px; margin: 20px 0; border-radius: 4px;'>
+                <p style='margin: 0; color: #991b1b;'><strong>Note:</strong> You will no longer be able to log in to the Employee Portal or access any company resources associated with this account.</p>
+            </div>
+            
+            <p>For any inquiries regarding your final pay, benefits, or employment records, please contact the HR department during regular business hours.</p>
+            
+            <p>We wish you the best in your future endeavors.</p>
+            
+            <p>Best regards,<br/>
+            <strong>HR Department</strong><br/>
+            SheEssentials Beauty Product Company</p>
+        </div>
+        <div class='footer'>
+            <p>This is an automated message for record purposes. &copy; 2026 SheEssentials.</p>
+        </div>
+    </div>
+</body>
+</html>";
+
+                return await SendEmailAsync(toEmail, subject, body, isHtml: true);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error sending termination email: {ex.Message}");
                 return false;
             }
         }
