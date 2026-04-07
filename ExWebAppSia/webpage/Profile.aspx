@@ -461,6 +461,11 @@
                 color: white;
             }
 
+            .btn-overtime {
+                background: linear-gradient(135deg, #8b5cf6, #c4b5fd);
+                color: white;
+            }
+
             .action-btn:disabled {
                 opacity: 0.5;
                 cursor: not-allowed;
@@ -719,6 +724,12 @@
                                     </svg>
                                     Time Out
                                 </button>
+                                <button id="overtimeBtn" type="button" class="action-btn btn-overtime" onclick="openOvertimeModal()" style="display: none;">
+                                    <svg style="width:20px;height:20px;fill:currentColor" viewBox="0 0 24 24">
+                                        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
+                                    </svg>
+                                    Overtime
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -763,6 +774,11 @@
                     <h2 class="modal-title">💰 Payslip Details</h2>
                 </div>
                 <div class="modal-body">
+                    <div id="ps_period_container" style="background: rgba(163, 106, 102, 0.05); border-radius: 12px; padding: 15px; margin-bottom: 25px; text-align: center; border: 1px dashed var(--primary-color);">
+                        <span style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px;">Pay Period</span>
+                        <span style="font-weight: 700; color: var(--primary-color); font-size: 15px;"><%= GetPayPeriod() %></span>
+                    </div>
+
                     <h3 style="margin-bottom: 16px; color: var(--text-primary);">Gross Salary</h3>
                     <div class="payslip-item">
                         <span class="payslip-label">Basic Salary</span>
@@ -786,23 +802,27 @@
                     <h3 style="margin: 24px 0 16px; color: var(--text-primary);">Deductions</h3>
                     <div class="payslip-item">
                         <span class="payslip-label">SSS</span>
-                        <span class="payslip-value" style="color: var(--warning-color);">- &#8369;<%= GetSSSDeduction()
-                                %></span>
+                        <span class="payslip-value" style="color: #ef4444;">- &#8369;<%= GetSSSDeduction() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">PhilHealth</span>
-                        <span class="payslip-value" style="color: var(--warning-color);">- &#8369;<%=
-                                GetPhilHealthDeduction() %></span>
+                        <span class="payslip-value" style="color: #ef4444;">- &#8369;<%= GetPhilHealthDeduction() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Pag-IBIG</span>
-                        <span class="payslip-value" style="color: var(--warning-color);">- &#8369;<%=
-                                GetPagIbigDeduction() %></span>
+                        <span class="payslip-value" style="color: #ef4444;">- &#8369;<%= GetPagIbigDeduction() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Withholding Tax</span>
-                        <span class="payslip-value" style="color: var(--warning-color);">- &#8369;<%=
-                                GetWithholdingTax() %></span>
+                        <span class="payslip-value" style="color: #ef4444;">- &#8369;<%= GetWithholdingTax() %></span>
+                    </div>
+                    <div class="payslip-item">
+                        <span class="payslip-label">Absences & Lates</span>
+                        <span class="payslip-value" style="color: #ef4444;">- &#8369;<%= GetAbsenceDeduction() %></span>
+                    </div>
+                    <div class="payslip-item">
+                        <span class="payslip-label">Penalties</span>
+                        <span class="payslip-value" style="color: #ef4444;">- &#8369;<%= GetPenalties() %></span>
                     </div>
                     <div class="payslip-item" style="background: #FFF5F5; border: 1px solid #FEB2B2;">
                         <span class="payslip-label" style="color: #C53030;">Total Deductions</span>
@@ -911,6 +931,65 @@
             </div>
         </div>
 
+        <!-- Overtime Modal -->
+        <div id="overtimeModal" class="page-modal">
+            <div class="modal-content" style="max-width: 450px;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                    <span class="close" onclick="closeModal('overtimeModal')">&times;</span>
+                    <h2 class="modal-title">⏰ Request Overtime</h2>
+                </div>
+                <div class="modal-body" style="padding: 30px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <h3 style="color: var(--text-primary);">Extended Shift Request</h3>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">
+                            Maximum overtime is 8 hours (total 16-hour shift).
+                        </p>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label for="otReason" style="display: block; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Reason for Overtime:</label>
+                        <textarea id="otReason" rows="3" class="form-control" 
+                            style="width: 100%; padding: 12px; border-radius: 10px; border: 2px solid var(--border-color); font-family: inherit; resize: none;"
+                            placeholder="Please provide a brief reason for requesting overtime..."></textarea>
+                    </div>
+                    <div style="background: #F5F3FF; border-left: 4px solid #8b5cf6; padding: 15px; border-radius: 0 8px 8px 0;">
+                        <p style="color: #5b21b6; font-size: 13px; font-weight: 600;">
+                            Note: Your request will be sent to Admin for approval. You will be automatically timed out after 16 hours of total work.
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 16px 24px; display: flex; gap: 12px; justify-content: flex-end; border-top: 1px solid var(--border-color); background: #f9fafb;">
+                    <button type="button" class="btn-cancel" onclick="closeModal('overtimeModal')">Cancel</button>
+                    <button type="button" class="btn-submit" style="background: #8b5cf6;" onclick="submitOvertimeRequest()">Submit Request</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Undertime Warning Modal -->
+        <div id="undertimeModal" class="page-modal">
+            <div class="modal-content" style="max-width: 450px;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    <span class="close" onclick="closeModal('undertimeModal')">&times;</span>
+                    <h2 class="modal-title">⚠️ Early Time Out</h2>
+                </div>
+                <div class="modal-body" style="text-align: center; padding: 30px;">
+                    <div style="font-size: 50px; margin-bottom: 20px;">🕒</div>
+                    <h3 style="color: var(--text-primary); margin-bottom: 15px;">You are timing out early!</h3>
+                    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 20px;">
+                        It is not yet 5:00 PM. Timing out now will be recorded as <strong>Undertime</strong>.
+                    </p>
+                    <div style="background: #FFFBEB; border-left: 4px solid #f59e0b; padding: 15px; text-align: left; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
+                        <p style="color: #92400e; font-size: 14px; font-weight: 600;">
+                            Note: Please make sure to inform HR or your supervisor about your undertime.
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('undertimeModal')">Cancel</button>
+                    <button type="button" class="btn-submit" style="background: #f59e0b;" onclick="proceedWithTimeOut()">Proceed anyway</button>
+                </div>
+            </div>
+        </div>
+
         <script>
             // Data from server
             const employeeId = '<%= GetEmployeeId() %>';
@@ -938,6 +1017,7 @@
                 const statusLabel = document.getElementById('attendanceStatusLabel');
                 const timeInBtn = document.getElementById('timeInBtn');
                 const timeOutBtn = document.getElementById('timeOutBtn');
+                const overtimeBtn = document.getElementById('overtimeBtn');
 
                 if (attendanceStatus.hasTimedIn) {
                     if (attendanceStatus.hasTimedOut) {
@@ -945,18 +1025,39 @@
                         statusLabel.style.color = 'var(--warning-color)';
                         timeInBtn.disabled = false;
                         timeOutBtn.disabled = true;
+                        if (overtimeBtn) overtimeBtn.style.display = 'none';
                         hasTimedIn = false;
                     } else {
                         statusLabel.textContent = `Timed In at ${attendanceStatus.timeIn}`;
                         statusLabel.style.color = 'var(--success-color)';
                         timeInBtn.disabled = true;
                         timeOutBtn.disabled = false;
+                        
+                        const overtimeBtn = document.getElementById('overtimeBtn');
+                        
+                        // Rule: OT button only appears starting 3:00 PM (2 hours before shift ends)
+                        const showOT = now.getHours() >= 15;
+                        if (overtimeBtn) {
+                            overtimeBtn.style.display = showOT ? 'flex' : 'none';
+                            if (attendanceStatus.overtimeStatus === 'Pending' || attendanceStatus.overtimeStatus === 'Approved' || attendanceStatus.overtimeStatus === 'Rejected') {
+                                overtimeBtn.disabled = true;
+                                overtimeBtn.style.display = 'flex'; // Keep it visible if already requested
+                                overtimeBtn.innerHTML = `
+                                    <svg style="width:20px;height:20px;fill:currentColor" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" /></svg>
+                                    OT ${attendanceStatus.overtimeStatus}
+                                `;
+                            } else {
+                                overtimeBtn.disabled = false;
+                            }
+                        }
+                        
                         hasTimedIn = true;
                     }
                 } else {
                     statusLabel.textContent = 'Not timed in yet';
                     timeInBtn.disabled = false;
                     timeOutBtn.disabled = true;
+                    if (overtimeBtn) overtimeBtn.style.display = 'none';
                 }
             }
 
@@ -997,10 +1098,34 @@
                 }
             }
 
-            async function timeOut() {
+            function timeOut() {
+                const now = new Date();
+                const hours = now.getHours();
+                
+                // Strictly check if it's before 5:00 PM (17:00)
+                if (hours < 17) {
+                    const modal = document.getElementById('undertimeModal');
+                    if (modal) {
+                        modal.style.display = 'block';
+                    } else {
+                        // Fallback safety
+                        if (confirm("It is not yet 5:00 PM. Timing out now will be recorded as Undertime. Do you want to proceed?")) {
+                            proceedWithTimeOut();
+                        }
+                    }
+                } else {
+                    proceedWithTimeOut();
+                }
+            }
+
+            async function proceedWithTimeOut() {
                 const btn = document.getElementById('timeOutBtn');
                 btn.disabled = true;
                 btn.innerHTML = 'Processing...';
+                
+                // Close modal if it was open
+                const utModal = document.getElementById('undertimeModal');
+                if (utModal) utModal.style.display = 'none';
 
                 try {
                     const params = new URLSearchParams({
@@ -1022,6 +1147,7 @@
                     console.error(error);
                     alert('Error occurring.');
                     btn.disabled = false;
+                    btn.innerHTML = 'Time Out';
                 }
             }
 
@@ -1039,6 +1165,34 @@
 
             function openConcernModal() {
                 document.getElementById('concernModal').style.display = 'block';
+            }
+            
+            function openOvertimeModal() {
+                document.getElementById('overtimeModal').style.display = 'block';
+            }
+
+            async function submitOvertimeRequest() {
+                const reason = document.getElementById('otReason').value.trim();
+                
+                if (!reason) {
+                    alert('Please provide a reason for the overtime.');
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${handlerUrl}?action=requestovertime&employeeId=${employeeId}&reason=${encodeURIComponent(reason)}`);
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        alert('Overtime request submitted successfully!');
+                        window.location.reload();
+                    } else {
+                        alert(result.message || 'Failed to submit request.');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                }
             }
 
             // Close modal when clicking outside

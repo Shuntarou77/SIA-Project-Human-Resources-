@@ -116,6 +116,11 @@ namespace ExWebAppSia.Models
             return GetCollection<Attendance>("Attendance");
         }
 
+        public static IMongoCollection<OvertimeRequest> GetOvertimeRequestsCollection()
+        {
+            return GetCollection<OvertimeRequest>("OvertimeRequests");
+        }
+
         public static IMongoCollection<RoleSalary> GetRoleSalariesCollection()
         {
             return GetCollection<RoleSalary>("RoleSalaries");
@@ -124,6 +129,27 @@ namespace ExWebAppSia.Models
         public static IMongoCollection<EmployeeConcern> GetEmployeeConcernsCollection()
         {
             return GetCollection<EmployeeConcern>("EmployeeConcerns");
+        }
+
+        public static IMongoCollection<UndertimeRecord> GetUndertimeCollection()
+        {
+            return GetCollection<UndertimeRecord>("UndertimeRecords");
+        }
+
+        public static IMongoCollection<PayrollSnapshot> GetPayrollSnapshotsCollection()
+        {
+            try
+            {
+                // We use sia_payroll_db for snapshots specifically
+                var client = new MongoClient(System.Configuration.ConfigurationManager.ConnectionStrings["MongoDBConnection"]?.ConnectionString ?? "mongodb://localhost:27017");
+                var db = client.GetDatabase("sia_payroll_db");
+                return db.GetCollection<PayrollSnapshot>("PayrollSnapshots");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("[MongoDBHelper] Snapshots collection error: " + ex.Message);
+                throw;
+            }
         }
 
         public static bool TestConnection()

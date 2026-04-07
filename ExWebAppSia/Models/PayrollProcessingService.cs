@@ -91,17 +91,45 @@ return (0, 0, 0, 0);
    }
       }
 
-/// <summary>
-        /// Get overtime hours for an employee (placeholder - implement based on your OT tracking)
-   /// </summary>
+        /// <summary>
+        /// Get overtime hours and pay for an employee from the OvertimeRequests collection
+        /// </summary>
         public async Task<(decimal regularOT, decimal holidayOT, decimal nightDiff)>
             GetOvertimeDataAsync(string employeeId, DateTime startDate, DateTime endDate)
-  {
-    // TODO: Implement based on your overtime tracking system
-            // For now, return zeros. You can add OT tracking later.
-    await Task.CompletedTask;
-        return (0m, 0m, 0m);
-  }
+        {
+            try
+            {
+                var otService = new OvertimeService();
+                var requests = await MongoDBHelper.GetOvertimeRequestsCollection()
+                    .Find(o => o.EmployeeId == employeeId && 
+                               o.Status == "Approved" && 
+                               o.Date >= startDate && 
+                               o.Date <= endDate && 
+                               o.IsActive)
+                    .ToListAsync();
+
+                decimal regularOTPay = 0;
+                decimal holidayOTPay = 0;
+                decimal nightDiffPay = 0;
+
+                foreach (var req in requests)
+                {
+                    if (req.IsNightShift) 
+                        nightDiffPay += req.CalculatedOvertimePay;
+                    else if (req.OvertimeType == "RegularHoliday")
+                        holidayOTPay += req.CalculatedOvertimePay;
+                    else
+                        regularOTPay += req.CalculatedOvertimePay;
+                }
+
+                return (regularOTPay, holidayOTPay, nightDiffPay);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error fetching overtime data for payroll: {ex.Message}");
+                return (0m, 0m, 0m);
+            }
+        }
 
         /// <summary>
    /// Get unpaid leave days for an employee
@@ -142,40 +170,31 @@ return (0, 0, 0, 0);
         /// Updated formula: Basic Salary (full for the period) + Allowances + Overtime + Bonuses.
         /// Attendance-related penalties are handled separately via deductions, not by prorating basic salary.
     /// </summary>
-  public decimal CalculateGrossSalary(
+        public decimal CalculateGrossSalary(
             PayrollConfiguration config,
             int daysPresent,
-      int totalWorkingDays,
-            decimal regularOTHours,
-            decimal holidayOTHours,
-            decimal nightDiffHours,
+            int totalWorkingDays,
+            decimal regularOTPay,
+            decimal holidayOTPay,
+            decimal nightDiffPay,
             decimal bonuses = 0)
         {
- if (config == null) return 0;
+            if (config == null) return 0;
 
             // 1. Prorated Basic Salary
-          decimal proratedBasic = 0;
-            // IMPORTANT:
-            // We use the FULL configured basic salary for the period (semi-monthly/monthly),
-            // and do NOT prorate it by daysPresent/totalWorkingDays. Absences are handled
-            // via AbsencePenalty and UnpaidLeaveDeduction in the deductions calculation.
-            proratedBasic = config.BasicSalary;
+            decimal proratedBasic = config.BasicSalary;
 
-          // 2. Allowances (usually full amount regardless of attendance)
-  decimal allowances = config.TotalAllowances;
+            // 2. Allowances (usually full amount regardless of attendance)
+            decimal allowances = config.TotalAllowances;
 
-         // 3. Overtime Pay
-        decimal overtimePay = (regularOTHours * config.RegularOvertimeRate) +
-  (holidayOTHours * config.HolidayOvertimeRate) +
-          (nightDiffHours * config.NightDifferentialRate);
+            // 3. Overtime Pay (Now pre-calculated)
+            decimal overtimePay = regularOTPay + holidayOTPay + nightDiffPay;
 
-        // 4. Bonuses
-            // bonuses parameter allows for performance/special bonuses
-
+            // 4. Bonuses
             // Total Gross
             decimal grossSalary = proratedBasic + allowances + overtimePay + bonuses;
 
-   return Math.Round(grossSalary, 2);
+            return Math.Round(grossSalary, 2);
         }
 
     // ========== FUNCTION 6.2.3: DEDUCTIONS CALCULATION ==========
@@ -391,9 +410,7 @@ Description = $"{schedule.ScheduleType} Payroll: {startDate:MMM dd} - {endDate:M
             // We no longer prorate basic here; absences are handled via penalties.
             decimal proratedBasic = config.BasicSalary;
             decimal allowances = config.TotalAllowances;
-             decimal overtimePay = (regularOT * config.RegularOvertimeRate) +
-      (holidayOT * config.HolidayOvertimeRate) +
-             (nightDiff * config.NightDifferentialRate);
+            decimal overtimePay = regularOT + holidayOT + nightDiff;
 
            decimal grossSalary = CalculateGrossSalary(
             config, daysPresent, totalWorkingDays, regularOT, holidayOT, nightDiff);

@@ -1,4 +1,4 @@
-﻿<%@ Page Title="Employee Profile" Language="C#" MasterPageFile="~/webpage(EmployeeViewpoint)/EmployeeHR.Master"
+<%@ Page Title="Employee Profile" Language="C#" MasterPageFile="~/webpage(EmployeeViewpoint)/EmployeeHR.Master"
     AutoEventWireup="true" Async="true" CodeBehind="Profile.aspx.cs"
     Inherits="ExWebAppSia.webpage_EmployeeViewpoint_.WebForm2" %>
     <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
@@ -606,9 +606,117 @@
                 }
             }
         </style>
+        
+        <!-- html2pdf Library -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+        
+        <script type="text/javascript">
+            function downloadPDF() {
+                try {
+                    console.log("Starting PDF generation for Employee Profile...");
+                    if (typeof html2pdf === 'undefined') {
+                        console.error("html2pdf library not loaded!");
+                        alert('PDF library is still loading. Please wait a moment.');
+                        return;
+                    }
+
+                    const name = "<%= GetEmployeeName() %>";
+                    const period = document.getElementById('ps_period').innerText;
+                    
+                    console.log("Generating for:", name, "Period:", period);
+
+                    // Get display values safely
+                    const getVal = (id) => {
+                        const el = document.getElementById(id);
+                        return el ? el.innerText : "0.00";
+                    };
+
+                    const basic = getVal('ps_basic');
+                    const allowances = getVal('ps_allowances');
+                    const ot = getVal('ps_ot');
+                    const gross = getVal('ps_gross');
+                    const sss = getVal('ps_sss');
+                    const ph = getVal('ps_ph');
+                    const pi = getVal('ps_pi');
+                    const tax = getVal('ps_tax');
+                    const abs = getVal('ps_absences');
+                    const pen = getVal('ps_pen');
+                    const ded = getVal('ps_total_deduct');
+                    const net = getVal('ps_net');
+
+                    const element = document.createElement('div');
+                    element.innerHTML = `
+                        <div style="padding: 45px; font-family: 'Arial', sans-serif; color: #333; width: 750px; margin: auto;">
+                            <div style="text-align: center; border-bottom: 3px solid #8B4755; padding-bottom: 20px; margin-bottom: 30px;">
+                                <h1 style="color: #8B4755; margin: 0; font-size: 28px; text-transform: uppercase;">SHEESSENTIALS ESSENTIALS</h1>
+                                <p style="font-size: 14px; color: #666; letter-spacing: 2px;">OFFICIAL EMPLOYEE PAYSLIP</p>
+                            </div>
+                            
+                            <table style="width: 100%; margin-bottom: 35px; background: #fafafa; padding: 15px; border-radius: 8px;">
+                                <tr>
+                                    <td style="width: 60%;">
+                                        <span style="color: #8B4755; font-size: 12px; font-weight: bold; text-transform: uppercase;">Employee:</span><br/>
+                                        <span style="font-size: 18px; font-weight: bold;">${name}</span>
+                                    </td>
+                                    <td style="text-align: right;">
+                                        <span style="color: #8B4755; font-size: 12px; font-weight: bold; text-transform: uppercase;">Pay Period:</span><br/>
+                                        <span style="font-size: 16px;">${period}</span>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <h3 style="background: #fdf2f4; padding: 12px; border-left: 6px solid #8B4755; color: #8B4755; margin-bottom: 15px; font-size: 16px; text-transform: uppercase;">Earnings Breakdown</h3>
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 14px;">
+                                <tr><td style="padding: 10px 0; border-bottom: 1px solid #eee;">Basic Salary</td><td style="text-align: right;">${basic}</td></tr>
+                                <tr><td style="padding: 10px 0; border-bottom: 1px solid #eee;">Allowances</td><td style="text-align: right;">${allowances}</td></tr>
+                                <tr><td style="padding: 10px 0; border-bottom: 1px solid #eee;">Overtime Pay</td><td style="text-align: right;">${ot}</td></tr>
+                                <tr style="font-weight: bold; font-size: 16px;"><td style="padding: 15px 0;">TOTAL GROSS PAY</td><td style="text-align: right; color: #8B4755;">${gross}</td></tr>
+                            </table>
+
+                            <h3 style="background: #fdf2f4; padding: 12px; border-left: 6px solid #dc2626; color: #dc2626; margin-bottom: 15px; font-size: 16px; text-transform: uppercase;">Deductions & Penalties</h3>
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 35px; font-size: 14px;">
+                                <tr><td style="padding: 10px 0; border-bottom: 1px solid #eee;">SSS / PhilHealth / Pag-IBIG / Tax</td><td style="text-align: right; color: #dc2626;">${sss} / ${ph} / ${pi} / ${tax}</td></tr>
+                                <tr><td style="padding: 10px 0; border-bottom: 1px solid #eee;">Absences & Lates</td><td style="text-align: right; color: #dc2626;">${abs}</td></tr>
+                                <tr><td style="padding: 10px 0; border-bottom: 1px solid #eee;">Attendance Penalties</td><td style="text-align: right; color: #dc2626;">${pen}</td></tr>
+                                <tr style="font-weight: bold; font-size: 16px;"><td style="padding: 15px 0;">TOTAL DEDUCTIONS</td><td style="text-align: right; color: #dc2626;">${ded}</td></tr>
+                            </table>
+
+                            <div style="background: #8B4755; color: white; padding: 30px; text-align: center; border-radius: 12px; box-shadow: 0 4px 10px rgba(139, 71, 85, 0.3);">
+                                <p style="margin: 0; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Net Take-Home Pay</p>
+                                <h2 style="margin: 5px 0 0; font-size: 36px; font-weight: 800;">${net}</h2>
+                            </div>
+
+                            <p style="margin-top: 60px; font-size: 11px; text-align: center; color: #999; line-height: 1.5;">
+                                This is a computer-generated payslip from the SHEESSENTIALS HR System. No physical signature is required.<br/>
+                                Generated on: ${new Date().toLocaleString()}
+                            </p>
+                        </div>
+                    `;
+
+                    const opt = {
+                        margin: 0,
+                        filename: 'Payslip_' + name.replace(/[^a-z0-9]/gi, '_') + '.pdf',
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 3, useCORS: true },
+                        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                    };
+
+                    console.log("Capturing PDF via html2pdf...");
+                    html2pdf().from(element).set(opt).toPdf().get('pdf').then(function(pdf) {
+                        window.open(pdf.output('bloburl'), '_blank');
+                    }).save();
+                    
+                } catch (err) {
+                    console.error("PDF generation failed:", err);
+                    alert('Error generating PDF: ' + err.message);
+                }
+            }
+        </script>
     </asp:Content>
 
     <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
+        <asp:HiddenField ID="hdnEmployeeName" runat="server" Value='<%# GetEmployeeName() %>' />
+        
         <div class="profile-container">
             <div class="profile-grid">
                 <!-- Left: Compact Profile Card -->
@@ -799,60 +907,69 @@
                     <h2 class="custom-modal-v2-title">💰 Payslip Details</h2>
                 </div>
                 <div class="custom-modal-v2-body">
-                    <h3 style="margin-bottom: 16px; color: var(--text-primary);">Gross Salary</h3>
+                    <div class="payslip-item" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 10px;">
+                        <span class="payslip-label">Pay Period</span>
+                        <span id="ps_period" class="payslip-value" style="font-size: 14px; color: #666;"><%= GetPayPeriod() %></span>
+                    </div>
+
+                    <h3 style="margin: 20px 0 10px; color: #333; font-size: 18px;">Gross Salary</h3>
                     <div class="payslip-item">
                         <span class="payslip-label">Basic Salary</span>
-                        <span class="payslip-value">₱<%= GetBasicSalary() %></span>
+                        <span id="ps_basic" class="payslip-value">₱<%= GetBasicSalary() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Allowances</span>
-                        <span class="payslip-value">₱<%= GetAllowances() %></span>
+                        <span id="ps_allowances" class="payslip-value">₱<%= GetAllowances() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Overtime Pay</span>
-                        <span class="payslip-value">₱<%= GetOvertimePay() %></span>
+                        <span id="ps_ot" class="payslip-value">₱<%= GetOvertimePay() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label"><strong>Total Gross</strong></span>
-                        <span class="payslip-value"><strong>₱<%= GetGrossSalary() %></strong></span>
+                        <span id="ps_gross" class="payslip-value"><strong>₱<%= GetGrossSalary() %></strong></span>
                     </div>
 
-                    <h3 style="margin: 24px 0 16px; color: var(--text-primary);">Deductions</h3>
+                    <h3 style="margin: 20px 0 10px; color: #333; font-size: 18px;">Deductions</h3>
                     <div class="payslip-item">
                         <span class="payslip-label">SSS</span>
-                        <span class="payslip-value" style="color: var(--warning-color);">- ₱<%= GetSSSDeduction() %>
-                        </span>
+                        <span id="ps_sss" class="payslip-value" style="color: #ef4444;">- ₱<%= GetSSSDeduction() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">PhilHealth</span>
-                        <span class="payslip-value" style="color: var(--warning-color);">- ₱<%= GetPhilHealthDeduction()
-                                %></span>
+                        <span id="ps_ph" class="payslip-value" style="color: #ef4444;">- ₱<%= GetPhilHealthDeduction() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Pag-IBIG</span>
-                        <span class="payslip-value" style="color: var(--warning-color);">- ₱<%= GetPagIbigDeduction() %>
-                        </span>
+                        <span id="ps_pi" class="payslip-value" style="color: #ef4444;">- ₱<%= GetPagIbigDeduction() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Withholding Tax</span>
-                        <span class="payslip-value" style="color: var(--warning-color);">- ₱<%= GetWithholdingTax() %>
-                        </span>
+                        <span id="ps_tax" class="payslip-value" style="color: #ef4444;">- ₱<%= GetWithholdingTax() %></span>
+                    </div>
+                    <div class="payslip-item">
+                        <span class="payslip-label">Absences & Lates</span>
+                        <span id="ps_absences" class="payslip-value" style="color: #ef4444;">- ₱<%= GetAbsenceDeduction() %></span>
+                    </div>
+                    <div class="payslip-item">
+                        <span class="payslip-label">Penalties</span>
+                        <span id="ps_pen" class="payslip-value" style="color: #ef4444;">- ₱<%= GetPenalties() %></span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label"><strong>Total Deductions</strong></span>
-                        <span class="payslip-value" style="color: var(--warning-color);"><strong>- ₱<%=
-                                    GetTotalDeductions() %></strong></span>
+                        <span id="ps_total_deduct" class="payslip-value" style="color: #ef4444;"><strong>- ₱<%= GetTotalDeductions() %></strong></span>
                     </div>
 
-                    <div class="payslip-total">
+                    <div class="payslip-total" style="background: #8B4755; color: white; padding: 15px; border-radius: 10px; margin-top: 20px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <span class="payslip-label" style="color: white; font-size: 18px;">Net Salary</span>
-                            <span class="payslip-value">₱<%= GetNetSalary() %></span>
+                            <span id="ps_net" class="payslip-value" style="font-size: 24px; font-weight: bold; color: white;">₱<%= GetNetSalary() %></span>
                         </div>
                     </div>
                 </div>
                 <div class="custom-modal-v2-footer">
-                    <button class="btn-cancel" onclick="closeModal('payslipModal')">Close</button>
+                    <button type="button" class="btn-cancel" onclick="closeModal('payslipModal')">Close</button>
+                    <button type="button" class="btn-submit" style="background: #8B4755; border: none; color: white; padding: 10px 20px; border-radius: 5px; cursor: pointer;" onclick="downloadPDF()">Download PDF</button>
                 </div>
             </div>
         </div>

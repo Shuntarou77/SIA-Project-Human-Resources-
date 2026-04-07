@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -11,6 +11,9 @@ using System.Net.Mail;
 using System.Text;
 using System.Configuration;
 using System.Web.Script.Serialization;
+using MongoDB.Bson;
+using MongoDB.Driver;
+using Newtonsoft.Json;
 
 namespace ExWebAppSia.webpage_EmployeeViewpoint_
 {
@@ -19,7 +22,7 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
         private readonly AttendanceService _attendanceService = new AttendanceService();
         private List<Attendance> _employeeAttendanceRecords = null;
         private Dictionary<string, object> _attendanceStats = null;
-        private PayrollItem _latestPayrollItem = null;
+        private PayrollSnapshot _latestPayroll = null;
         private string _attendanceStatusJson = null;
 
         private const int TOTAL_WORKING_DAYS_PER_YEAR = 260;
@@ -395,21 +398,27 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
             try 
             {
                 var employee = CurrentEmployee;
-                if (employee == null) return;
+                if (employee == null || string.IsNullOrEmpty(employee.EmployeeId)) return;
 
-                // PayrollItem.EmployeeId contains the MongoDB Id, not the employee number
-                // So we need to use employee.Id for the lookup
-                string employeeMongoId = employee.Id;
-                if (string.IsNullOrEmpty(employeeMongoId)) return;
+                string employeeId = employee.EmployeeId;
+                string fullName = employee.FullName;
 
-                var payRunService = new PayRunService();
-                // Get the latest approved payrun that includes this employee (by MongoDB Id)
-                var payRun = await payRunService.GetLatestPayRunForEmployeeAsync(employeeMongoId);
-                
-                if (payRun != null && payRun.Items != null)
+                var client = new MongoClient(ConfigurationManager.ConnectionStrings["MongoDBConnection"].ConnectionString);
+                var database = client.GetDatabase("sia_payroll_db");
+                var collection = database.GetCollection<PayrollSnapshot>("PayrollSnapshots");
+
+                // Use the same fuzzy logic as the Admin side
+                var idFilter = Builders<PayrollSnapshot>.Filter.Regex("employee_number", new BsonRegularExpression(employeeId, "i"));
+                var nameFilter = Builders<PayrollSnapshot>.Filter.Regex("full_name", new BsonRegularExpression(fullName, "i"));
+                var combinedFilter = Builders<PayrollSnapshot>.Filter.Or(idFilter, nameFilter);
+
+                _latestPayroll = await collection.Find(combinedFilter)
+                    .SortByDescending(p => p.PayPeriodEnd)
+                    .FirstOrDefaultAsync();
+
+                if (_latestPayroll != null)
                 {
-                    // Find the specific item for this employee using MongoDB Id
-                    _latestPayrollItem = payRun.Items.FirstOrDefault(i => i.EmployeeId == employeeMongoId);
+                    System.Diagnostics.Debug.WriteLine($"Found payroll for {fullName} in sia_payroll_db");
                 }
             }
             catch (Exception ex)
@@ -419,16 +428,19 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
         }
 
         // Payroll Helper Methods
-        protected string GetBasicSalary() => _latestPayrollItem?.BasicSalary.ToString("N2") ?? "0.00";
-        protected string GetAllowances() => _latestPayrollItem?.Allowances.ToString("N2") ?? "0.00";
-        protected string GetOvertimePay() => _latestPayrollItem?.OvertimePay.ToString("N2") ?? "0.00";
-        protected string GetGrossSalary() => _latestPayrollItem?.GrossSalary.ToString("N2") ?? "0.00";
-        protected string GetSSSDeduction() => _latestPayrollItem?.SSSDeduction.ToString("N2") ?? "0.00";
-        protected string GetPhilHealthDeduction() => _latestPayrollItem?.PhilHealthDeduction.ToString("N2") ?? "0.00";
-        protected string GetPagIbigDeduction() => _latestPayrollItem?.PagIbigDeduction.ToString("N2") ?? "0.00";
-        protected string GetWithholdingTax() => _latestPayrollItem?.WithholdingTax.ToString("N2") ?? "0.00";
-        protected string GetTotalDeductions() => _latestPayrollItem?.TotalDeductions.ToString("N2") ?? "0.00";
-        protected string GetNetSalary() => _latestPayrollItem?.NetSalary.ToString("N2") ?? "0.00";
+        protected string GetBasicSalary() => _latestPayroll?.BasicSalary.ToString("N2") ?? "0.00";
+        protected string GetAllowances() => (_latestPayroll != null ? (_latestPayroll.HousingAllowance + _latestPayroll.TransportAllowance + _latestPayroll.MealAllowance + _latestPayroll.OtherAllowances) : 0).ToString("N2");
+        protected string GetOvertimePay() => _latestPayroll?.TotalOvertime.ToString("N2") ?? "0.00";
+        protected string GetGrossSalary() => _latestPayroll?.GrossPay.ToString("N2") ?? "0.00";
+        protected string GetSSSDeduction() => _latestPayroll?.SSSDeduction.ToString("N2") ?? "0.00";
+        protected string GetPhilHealthDeduction() => _latestPayroll?.PhilHealthDeduction.ToString("N2") ?? "0.00";
+        protected string GetPagIbigDeduction() => _latestPayroll?.PagIbigDeduction.ToString("N2") ?? "0.00";
+        protected string GetWithholdingTax() => _latestPayroll?.WithholdingTax.ToString("N2") ?? "0.00";
+        protected string GetAbsenceDeduction() => _latestPayroll?.AbsenceDeduction.ToString("N2") ?? "0.00";
+        protected string GetPenalties() => _latestPayroll?.TotalPenalties.ToString("N2") ?? "0.00";
+        protected string GetTotalDeductions() => _latestPayroll?.TotalDeductions.ToString("N2") ?? "0.00";
+        protected string GetNetSalary() => _latestPayroll?.NetPay.ToString("N2") ?? "0.00";
+        protected string GetPayPeriod() => _latestPayroll != null ? (_latestPayroll.PayPeriodStart.ToString("MMMM dd, yyyy") + " - " + _latestPayroll.PayPeriodEnd.ToString("MMMM dd, yyyy")) : "N/A";
 
         protected void btnSubmitConcern_Click(object sender, EventArgs e)
         {
@@ -737,7 +749,7 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
             }
         }
 
-        protected void btnSubmitLeave_Click(object sender, EventArgs e)
+        protected async void btnSubmitLeave_Click(object sender, EventArgs e)
         {
             System.Diagnostics.Debug.WriteLine("btnSubmitLeave_Click called");
             
@@ -776,18 +788,14 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                     return;
                 }
 
-                // Parse dates
-                DateTime startDate = DateTime.Parse(txtStartDate.Text);
-                DateTime endDate = DateTime.Parse(txtEndDate.Text);
-
                 // Create leave object
                 var leave = new Leave
                 {
                     EmployeeId = employee.EmployeeId,
-                    EmployeeName = employee.FullName, // Format: Last Name, First Name Middle Name
+                    EmployeeName = employee.FullName,
                     LeaveType = ddlLeaveType.SelectedItem.Text,
-                    StartDate = startDate,
-                    EndDate = endDate,
+                    StartDate = DateTime.Parse(txtStartDate.Text),
+                    EndDate = DateTime.Parse(txtEndDate.Text),
                     Reason = txtLeaveReason.Text.Trim(),
                     Status = "Pending",
                     SubmittedDate = DateTime.UtcNow,
@@ -817,35 +825,19 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 lblLeaveMessage.Style["borderRadius"] = "8px";
                 lblLeaveMessage.Style["fontWeight"] = "600";
 
-                // Keep modal open
-                ClientScript.RegisterStartupScript(this.GetType(), "showLeaveModal", 
-                    "var modal = document.getElementById('leaveModal'); if (modal) { modal.style.display = 'block'; }", true);
-
-                // Save to database and send email synchronously so we can update the message
-                bool emailSent = false;
-                string emailError = null;
-                
-                try
-                {
-                    System.Diagnostics.Debug.WriteLine("Starting database save for leave request...");
-                    var leaveService = new LeaveService();
-                    var saveTask = leaveService.CreateLeaveAsync(leave);
-                    if (saveTask.Wait(TimeSpan.FromSeconds(5))) // 5 second timeout
-                    {
-                        bool saved = saveTask.Result;
-                        System.Diagnostics.Debug.WriteLine($"Leave database save completed: {saved}");
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine("Leave database save timed out");
-                    }
-                }
-                catch (Exception dbEx)
-                {
+                // Save to database
+                System.Diagnostics.Debug.WriteLine("Starting database save for leave request...");
+                var leaveService = new LeaveService();
+                try {
+                    await leaveService.CreateLeaveAsync(leave);
+                    System.Diagnostics.Debug.WriteLine("Leave database save completed.");
+                } catch (Exception dbEx) {
                     System.Diagnostics.Debug.WriteLine($"Leave database error: {dbEx.Message}");
                 }
 
                 // Send email
+                bool emailSent = false;
+                string emailError = null;
                 try
                 {
                     System.Diagnostics.Debug.WriteLine("Starting leave request email send...");

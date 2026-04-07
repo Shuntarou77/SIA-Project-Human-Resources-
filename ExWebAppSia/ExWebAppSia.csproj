@@ -273,6 +273,8 @@
     <Compile Include="Models\ApplicantService.cs" />
     <Compile Include="Models\Attendance.cs" />
     <Compile Include="Models\AttendanceService.cs" />
+    <Compile Include="Models\OvertimeRequest.cs" />
+    <Compile Include="Models\OvertimeService.cs" />
     <Compile Include="Models\BankTransferFile.cs" />
     <Compile Include="Models\EmailService.cs" />
     <Compile Include="Models\EmployeeConcern.cs" />
@@ -280,6 +282,8 @@
     <Compile Include="Models\EmployeeConcernService.cs" />
     <Compile Include="Models\EmployeeService.cs" />
     <Compile Include="Models\EmployeeSeeder.cs" />
+    <Compile Include="Models\UndertimeRecord.cs" />
+    <Compile Include="Models\UndertimeService.cs" />
     <Compile Include="Models\FinanceIntegrationService.cs" />
     <Compile Include="Models\Interview.cs" />
     <Compile Include="Models\InterviewService.cs" />
@@ -298,6 +302,7 @@
     <Compile Include="Models\PayrollDiagnosticService.cs" />
     <Compile Include="Models\PayrollDisbursementService.cs" />
     <Compile Include="Models\PayrollItem.cs" />
+    <Compile Include="Models\PayrollSnapshot.cs" />
     <Compile Include="Models\PayrollProcessingService.cs" />
     <Compile Include="Models\PayrollReportModels.cs" />
     <Compile Include="Models\PayrollReportService.cs" />

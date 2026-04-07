@@ -148,19 +148,82 @@ namespace ExWebAppSia.Models
                 var today = DateTime.UtcNow.Date;
                 var now = DateTime.UtcNow;
 
-                // Find today's attendance record
                 var attendance = await _attendance
                     .Find(a => a.EmployeeId == employeeId && 
-                               a.Date == today && 
+                               a.TimeOut == null && 
                                a.IsActive)
+                    .SortByDescending(a => a.TimeIn)
                     .FirstOrDefaultAsync();
 
                 if (attendance != null && attendance.TimeIn != null && attendance.TimeOut == null)
                 {
                     attendance.TimeOut = now;
-                    await _attendance.ReplaceOneAsync(
-                        a => a.Id == attendance.Id,
-                        attendance);
+                    await _attendance.ReplaceOneAsync(a => a.Id == attendance.Id, attendance);
+
+                    // Calculate and record overtime worked in the OvertimeRequests collection
+                    var otService = new OvertimeService();
+                    var otRequest = await otService.GetByAttendanceIdAsync(attendance.Id);
+                    if (otRequest != null && otRequest.Status == "Approved")
+                    {
+                        var localTimeOut = now.AddHours(8); // Convert to PH time
+                        var shiftEnd = new DateTime(localTimeOut.Year, localTimeOut.Month, localTimeOut.Day, 17, 0, 0); // 5 PM
+                        
+                        if (localTimeOut > shiftEnd)
+                        {
+                            var ot = localTimeOut - shiftEnd;
+                            string otWorked = $"{(int)ot.TotalHours:D2}:{ot.Minutes:D2}:{ot.Seconds:D2}";
+                            
+                            // Fetch daily rate from employee base salary (simplified: monthly / 22)
+                            var employeeService = new EmployeeService();
+                            var employee = await employeeService.GetEmployeeByEmployeeIdAsync(employeeId);
+                            decimal dailyRate = 0;
+                            if (employee != null)
+                            {
+                                dailyRate = employee.BaseSalary / 22m; 
+                            }
+                            
+                            // Determine type (simplified: weeked = RestDay)
+                            string otType = (localTimeOut.DayOfWeek == DayOfWeek.Saturday || localTimeOut.DayOfWeek == DayOfWeek.Sunday) 
+                                ? "RestDay" : "Regular";
+
+                            await otService.SetOvertimeWorkedAsync(attendance.Id, otWorked, dailyRate, otType);
+                        }
+                    }
+
+                    // NEW: Undertime Detection (If worked hours < 8)
+                    var timeDiff = (now - attendance.TimeIn.Value).TotalHours;
+                    // Deduct 1 hour for lunch if they worked more than 5 hours (standard assumption)
+                    double actualWorkedHours = timeDiff > 5 ? timeDiff - 1 : timeDiff;
+
+                    if (actualWorkedHours < 8)
+                    {
+                        double undertimeHours = 8 - actualWorkedHours;
+                        var empService = new EmployeeService();
+                        var employee = await empService.GetByEmployeeIdAsync(employeeId);
+                        
+                        if (employee != null && employee.BaseSalary > 0)
+                        {
+                            decimal dailyRate = (employee.BaseSalary * 12) / 313m;
+                            decimal hourlyRate = dailyRate / 8m;
+                            decimal deduction = (decimal)undertimeHours * hourlyRate;
+
+                            var utService = new UndertimeService();
+                            var utRecord = new UndertimeRecord
+                            {
+                                AttendanceId = attendance.Id,
+                                EmployeeId = employeeId,
+                                EmployeeName = employee.FullName,
+                                Date = DateTime.UtcNow.Date,
+                                HoursUndertime = undertimeHours,
+                                HourlyRate = hourlyRate,
+                                DeductionAmount = deduction,
+                                Reason = "Timed out early",
+                                RecordedAt = DateTime.UtcNow
+                            };
+                            await utService.RecordUndertimeAsync(utRecord);
+                        }
+                    }
+
                     return true;
                 }
 
@@ -384,13 +447,56 @@ namespace ExWebAppSia.Models
             try
             {
                 var today = DateTime.UtcNow.Date;
-                // Get the most recent attendance record for today (in case of multiple shifts)
+                var now = DateTime.UtcNow;
+
                 var attendance = await _attendance
                     .Find(a => a.EmployeeId == employeeId && 
                                a.Date == today && 
                                a.IsActive)
                     .SortByDescending(a => a.TimeIn)
                     .FirstOrDefaultAsync();
+
+                // Auto-timeout: Max 16 hours (8 base + 8 overtime)
+                if (attendance != null && attendance.TimeIn.HasValue && !attendance.TimeOut.HasValue)
+                {
+                    var hoursWorked = (now - attendance.TimeIn.Value).TotalHours;
+                    if (hoursWorked >= 16)
+                    {
+                        attendance.TimeOut = attendance.TimeIn.Value.AddHours(16);
+                        await _attendance.ReplaceOneAsync(a => a.Id == attendance.Id, attendance);
+                        System.Diagnostics.Debug.WriteLine($"Auto-timed out employee {employeeId} after 16 hours.");
+
+                            // Record overtime worked via OvertimeService (at auto-timeout)
+                            var otService = new OvertimeService();
+                            var otRequest = await otService.GetByAttendanceIdAsync(attendance.Id);
+                            if (otRequest != null && otRequest.Status == "Approved")
+                            {
+                                var localTimeOut = attendance.TimeOut.Value.AddHours(8); // Convert to PH time
+                                var shiftEnd = new DateTime(localTimeOut.Year, localTimeOut.Month, localTimeOut.Day, 17, 0, 0); // 5 PM
+                                
+                                if (localTimeOut > shiftEnd)
+                                {
+                                    var ot = localTimeOut - shiftEnd;
+                                    string otWorked = $"{(int)ot.TotalHours:D2}:{ot.Minutes:D2}:{ot.Seconds:D2}";
+                                    
+                                    // Fetch daily rate from employee base salary (simplified: monthly / 22)
+                                    var employeeService = new EmployeeService();
+                                    var employee = await employeeService.GetEmployeeByEmployeeIdAsync(employeeId);
+                                    decimal dailyRate = 0;
+                                    if (employee != null)
+                                    {
+                                        dailyRate = employee.BaseSalary / 22m; 
+                                    }
+                                    
+                                    // Determine type (simplified: weekend = RestDay)
+                                    string otType = (localTimeOut.DayOfWeek == DayOfWeek.Saturday || localTimeOut.DayOfWeek == DayOfWeek.Sunday) 
+                                        ? "RestDay" : "Regular";
+
+                                    await otService.SetOvertimeWorkedAsync(attendance.Id, otWorked, dailyRate, otType);
+                                }
+                            }
+                    }
+                }
 
                 return attendance;
             }
@@ -427,4 +533,3 @@ namespace ExWebAppSia.Models
         }
     }
 }
-

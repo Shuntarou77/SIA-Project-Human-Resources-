@@ -725,7 +725,7 @@ namespace ExWebAppSia.Models
                 // Check Employees collection only
                 if (_employees != null)
                 {
-                    var employee = await _employees.Find(e => e.IsActive && e.Email == email).FirstOrDefaultAsync();
+                    var employee = await _employees.Find(e => e.IsActive && e.Email == email).FirstOrDefaultAsync().ConfigureAwait(false);
                     if (employee != null)
                     {
                         System.Diagnostics.Debug.WriteLine($"? Employee found in Employees collection: {email}");
@@ -751,7 +751,7 @@ namespace ExWebAppSia.Models
                 // Check Employees collection only
                 if (_employees != null)
                 {
-                    var employee = await _employees.Find(e => e.IsActive && e.ApplicantId == applicantId).FirstOrDefaultAsync();
+                    var employee = await _employees.Find(e => e.IsActive && e.ApplicantId == applicantId).FirstOrDefaultAsync().ConfigureAwait(false);
                     if (employee != null)
                     {
                         System.Diagnostics.Debug.WriteLine($"? Employee found in Employees collection by applicantId: {applicantId}");
@@ -779,7 +779,8 @@ namespace ExWebAppSia.Models
                 {
                     var employees = await _employees.Find(e => e.IsActive && e.Department == department)
                         .SortBy(e => e.EmployeeId)
-                        .ToListAsync();
+                        .ToListAsync()
+                        .ConfigureAwait(false);
                     
                     System.Diagnostics.Debug.WriteLine($"? Found {employees.Count} employees in department: {department}");
                     return employees;
@@ -799,7 +800,7 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                var employees = await GetAllEmployeesAsync();
+                var employees = await GetAllEmployeesAsync().ConfigureAwait(false);
                 return employees
                     .Where(e => !string.IsNullOrEmpty(e.Department))
                     .GroupBy(e => e.Department)
@@ -820,7 +821,8 @@ namespace ExWebAppSia.Models
                 var lastUser = await _users
                     .Find(u => u.Role == "Employee" && u.EmployeeId != null && u.EmployeeId.StartsWith(year + "-"))
                     .SortByDescending(u => u.EmployeeId)
-                    .FirstOrDefaultAsync();
+                    .FirstOrDefaultAsync()
+                    .ConfigureAwait(false);
                 int nextNumber = 2211;
                 if (lastUser != null && !string.IsNullOrEmpty(lastUser.EmployeeId))
                 {
@@ -845,7 +847,7 @@ namespace ExWebAppSia.Models
                 // Check Employees collection only
                 if (_employees != null)
                 {
-                    var employee = await _employees.Find(e => e.Id == id && e.IsActive).FirstOrDefaultAsync();
+                    var employee = await _employees.Find(e => e.Id == id && e.IsActive).FirstOrDefaultAsync().ConfigureAwait(false);
                     if (employee != null)
                     {
                         System.Diagnostics.Debug.WriteLine($"? Employee found in Employees collection by Id: {id}");
@@ -871,7 +873,7 @@ namespace ExWebAppSia.Models
                 // Check Employees collection only
                 if (_employees != null)
                 {
-                    var employee = await _employees.Find(e => e.EmployeeId == employeeId && e.IsActive).FirstOrDefaultAsync();
+                    var employee = await _employees.Find(e => e.EmployeeId == employeeId && e.IsActive).FirstOrDefaultAsync().ConfigureAwait(false);
                     if (employee != null)
                     {
                         System.Diagnostics.Debug.WriteLine($"✓ Employee found in Employees collection by EmployeeId: {employeeId}");
@@ -905,7 +907,7 @@ namespace ExWebAppSia.Models
                 // PRIMARY: Update Employees collection
                 if (_employees != null)
                 {
-                    var existingEmployee = await _employees.Find(e => e.Id == id).FirstOrDefaultAsync();
+                    var existingEmployee = await _employees.Find(e => e.Id == id).FirstOrDefaultAsync().ConfigureAwait(false);
                     if (existingEmployee != null)
                     {
                         existingEmployee.FirstName = employee.FirstName;
@@ -923,7 +925,7 @@ namespace ExWebAppSia.Models
                         existingEmployee.BaseSalary = employee.BaseSalary;
 
                         var filter = Builders<Employee>.Filter.Eq(e => e.Id, id);
-                        var result = await _employees.ReplaceOneAsync(filter, existingEmployee);
+                        var result = await _employees.ReplaceOneAsync(filter, existingEmployee).ConfigureAwait(false);
                         
                         // Also update email in Users collection if it changed (for login)
                         if (result.ModifiedCount > 0)
@@ -932,7 +934,7 @@ namespace ExWebAppSia.Models
                             var userUpdate = Builders<User>.Update
                                 .Set(u => u.Email, employee.Email)
                                 .Set(u => u.Username, employee.Email);
-                            await _users.UpdateOneAsync(userFilter, userUpdate);
+                            await _users.UpdateOneAsync(userFilter, userUpdate).ConfigureAwait(false);
                             System.Diagnostics.Debug.WriteLine($"? Employee updated in Employees collection: {id}");
                         }
                         
@@ -941,7 +943,7 @@ namespace ExWebAppSia.Models
                 }
 
                 // FALLBACK: Update Users collection (legacy)
-                var existingUser = await _users.Find(u => u.Id == id).FirstOrDefaultAsync();
+                var existingUser = await _users.Find(u => u.Id == id).FirstOrDefaultAsync().ConfigureAwait(false);
                 if (existingUser == null) return false;
 
                 existingUser.FirstName = employee.FirstName;
@@ -958,7 +960,7 @@ namespace ExWebAppSia.Models
                 existingUser.ContractType = employee.ContractType;
 
                 var userFilter2 = Builders<User>.Filter.Eq(u => u.Id, id);
-                var result2 = await _users.ReplaceOneAsync(userFilter2, existingUser);
+                var result2 = await _users.ReplaceOneAsync(userFilter2, existingUser).ConfigureAwait(false);
                 System.Diagnostics.Debug.WriteLine($"? Employee updated in Users collection (legacy): {id}");
                 return result2.ModifiedCount > 0;
             }
@@ -978,14 +980,14 @@ namespace ExWebAppSia.Models
                 // Delete from Employees collection
                 if (_employees != null)
                 {
-                    var emp = await _employees.Find(e => e.Id == id).FirstOrDefaultAsync();
+                    var emp = await _employees.Find(e => e.Id == id).FirstOrDefaultAsync().ConfigureAwait(false);
                     if (emp != null)
                     {
                         emp.IsActive = false;
                         if (_resignedEmployees != null) {
-                            await _resignedEmployees.InsertOneAsync(emp);
+                            await _resignedEmployees.InsertOneAsync(emp).ConfigureAwait(false);
                         }
-                        var empResult = await _employees.DeleteOneAsync(e => e.Id == id);
+                        var empResult = await _employees.DeleteOneAsync(e => e.Id == id).ConfigureAwait(false);
                         if (empResult.DeletedCount > 0)
                         {
                             success = true;
@@ -997,7 +999,7 @@ namespace ExWebAppSia.Models
                 // Also deactivate in Users collection
                 var userFilter = Builders<User>.Filter.Eq(u => u.Id, id);
                 var userUpdate = Builders<User>.Update.Set(u => u.IsActive, false);
-                var userResult = await _users.UpdateOneAsync(userFilter, userUpdate);
+                var userResult = await _users.UpdateOneAsync(userFilter, userUpdate).ConfigureAwait(false);
                 if (userResult.ModifiedCount > 0)
                 {
                     success = true;
@@ -1022,9 +1024,9 @@ namespace ExWebAppSia.Models
             {
                 if (_employees == null) return false;
 
-                var employee = await _employees.Find(e => e.Id == id).FirstOrDefaultAsync();
+                var employee = await _employees.Find(e => e.Id == id).FirstOrDefaultAsync().ConfigureAwait(false);
                 if (employee == null && _resignedEmployees != null) {
-                    employee = await _resignedEmployees.Find(e => e.Id == id).FirstOrDefaultAsync();
+                    employee = await _resignedEmployees.Find(e => e.Id == id).FirstOrDefaultAsync().ConfigureAwait(false);
                 }
 
                 if (employee == null) return false;

@@ -1,4 +1,4 @@
-﻿using MongoDB.Driver;
+using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,13 +24,27 @@ namespace ExWebAppSia.Models
                 leave.Status = "Pending";
                 leave.IsActive = true;
 
-                await _leaves.InsertOneAsync(leave);
+                await _leaves.InsertOneAsync(leave).ConfigureAwait(false);
                 return true;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error creating leave: {ex.Message}");
                 return false;
+            }
+        }
+
+        // Get leave by ID
+        public async Task<Leave> GetLeaveByIdAsync(string id)
+        {
+            try
+            {
+                return await _leaves.Find(l => l.Id == id).FirstOrDefaultAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting leave by ID: {ex.Message}");
+                return null;
             }
         }
 
@@ -41,7 +55,7 @@ namespace ExWebAppSia.Models
             {
                 return await _leaves.Find(l => l.IsActive && l.EmployeeId == employeeId)
                     .SortByDescending(l => l.SubmittedDate)
-                    .ToListAsync();
+                    .ToListAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -57,7 +71,7 @@ namespace ExWebAppSia.Models
             {
                 return await _leaves.Find(l => l.IsActive)
                     .SortByDescending(l => l.SubmittedDate)
-                    .ToListAsync();
+                    .ToListAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -76,7 +90,7 @@ namespace ExWebAppSia.Models
 
                 return await _leaves.Find(l => l.IsActive &&
                        l.StartDate <= date && l.EndDate >= date)
-                    .ToListAsync();
+                    .ToListAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -92,7 +106,7 @@ namespace ExWebAppSia.Models
             {
                 var filter = Builders<Leave>.Filter.Eq(l => l.Id, leaveId);
                 var update = Builders<Leave>.Update.Set(l => l.Status, status);
-                var result = await _leaves.UpdateOneAsync(filter, update);
+                var result = await _leaves.UpdateOneAsync(filter, update).ConfigureAwait(false);
                 return result.ModifiedCount > 0;
             }
             catch (Exception ex)
@@ -109,7 +123,7 @@ namespace ExWebAppSia.Models
             {
                 var filter = Builders<Leave>.Filter.Eq(l => l.Id, leaveId);
                 var update = Builders<Leave>.Update.Set(l => l.IsActive, false);
-                var result = await _leaves.UpdateOneAsync(filter, update);
+                var result = await _leaves.UpdateOneAsync(filter, update).ConfigureAwait(false);
                 return result.ModifiedCount > 0;
             }
             catch (Exception ex)
@@ -154,7 +168,7 @@ namespace ExWebAppSia.Models
 
    return await _leaves.Find(filter)
   .SortBy(l => l.StartDate)
-    .ToListAsync();
+    .ToListAsync().ConfigureAwait(false);
          }
      catch (Exception ex)
      {

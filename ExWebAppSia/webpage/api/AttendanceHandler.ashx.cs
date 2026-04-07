@@ -12,6 +12,7 @@ namespace ExWebAppSia.webpage.api
         private readonly AttendanceService _attendanceService = new AttendanceService();
         private readonly EmployeeService _employeeService = new EmployeeService();
         private readonly ActivityLogService _logService = new ActivityLogService();
+        private readonly OvertimeService _overtimeService = new OvertimeService();
 
         public void ProcessRequest(HttpContext context)
         {
@@ -179,7 +180,7 @@ namespace ExWebAppSia.webpage.api
                                         if (nowLocal.Hour < 17) // Before 5:00 PM
                                         {
                                             System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
-                                                Task.Run(() => _logService.LogActionAsync(employeeId, employeeName, "Undertime Notification", "Attendance", $"Clocked out early at {nowLocal:hh:mm tt}"))
+                                                Task.Run(() => _logService.LogActionAsync(employeeId, employeeName, "Undertime Notification", "Attendance", $"Clocked out early at {nowLocal:hh:mm tt}. Potential undertime detected."))
                                             );
                                         }
                                         else if (nowLocal.Hour >= 18) // 6:00 PM or later is considered OT
@@ -198,6 +199,103 @@ namespace ExWebAppSia.webpage.api
                                 message = "Error: " + ex.Message;
                                 result = false;
                             }
+                        }
+                        break;
+
+                    case "getstatus":
+                        if (string.IsNullOrEmpty(employeeId))
+                        {
+                            message = "Missing employee ID";
+                        }
+                        else
+                        {
+                            try
+                            {
+                                var todayAttendance = Task.Run(async () => await _attendanceService.GetTodayAttendanceAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                
+                                string otStatus = "None";
+                                if (todayAttendance != null)
+                                {
+                                    var otRequest = Task.Run(async () => await _overtimeService.GetByAttendanceIdAsync(todayAttendance.Id).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                    if (otRequest != null)
+                                    {
+                                        otStatus = otRequest.Status;
+                                    }
+                                }
+
+                                var statusResponse = new
+                                {
+                                    success = true,
+                                    hasTimedIn = todayAttendance != null && todayAttendance.TimeIn.HasValue,
+                                    hasTimedOut = todayAttendance != null && todayAttendance.TimeOut.HasValue,
+                                    timeIn = todayAttendance?.TimeIn?.ToLocalTime().ToString("h:mm tt"),
+                                    timeOut = todayAttendance?.TimeOut?.ToLocalTime().ToString("h:mm tt"),
+                                    overtimeStatus = otStatus
+                                };
+
+                                string jsonStatus = serializer.Serialize(statusResponse);
+                                context.Response.Write(jsonStatus);
+                                return; // End request here since we sent custom response
+                            }
+                            catch (Exception ex)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"Error in GetStatus: {ex.Message}");
+                                message = "Error: " + ex.Message;
+                                result = false;
+                            }
+                        }
+                        break;
+
+                    case "requestovertime":
+                        string reason = context.Request["reason"] ?? context.Request.QueryString["reason"] ?? "No reason provided";
+                        if (string.IsNullOrEmpty(employeeId))
+                        {
+                            message = "Missing employee ID";
+                        }
+                        else
+                        {
+                            // Get today's attendance record to get its ID
+                            var todayAttendance = Task.Run(async () => await _attendanceService.GetTodayAttendanceAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            if (todayAttendance == null || todayAttendance.TimeOut.HasValue)
+                            {
+                                result = false;
+                                message = "No active shift found. Make sure you are timed in.";
+                            }
+                            else
+                            {
+                                // Get employee details for the request
+                                var emp = Task.Run(async () => await _employeeService.GetEmployeeByIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                string empName = emp?.FullName ?? todayAttendance.EmployeeName;
+                                string dept = emp?.Department ?? todayAttendance.Department;
+                                result = Task.Run(async () => await _overtimeService.RequestOvertimeAsync(todayAttendance.Id, employeeId, empName, dept, reason).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                message = result ? "Overtime request submitted successfully" : "Failed to submit overtime request. A request may already be pending.";
+                            }
+                        }
+                        break;
+
+                    case "approveovertime":
+                        string overtimeRequestId = context.Request["attendanceId"] ?? context.Request.QueryString["attendanceId"] ?? "";
+                        if (string.IsNullOrEmpty(overtimeRequestId))
+                        {
+                            message = "Missing overtime request ID";
+                        }
+                        else
+                        {
+                            result = Task.Run(async () => await _overtimeService.ApproveAsync(overtimeRequestId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            message = result ? "Overtime approved successfully" : "Failed to approve overtime";
+                        }
+                        break;
+
+                    case "rejectovertime":
+                        string rejOvertimeId = context.Request["attendanceId"] ?? context.Request.QueryString["attendanceId"] ?? "";
+                        if (string.IsNullOrEmpty(rejOvertimeId))
+                        {
+                            message = "Missing overtime request ID";
+                        }
+                        else
+                        {
+                            result = Task.Run(async () => await _overtimeService.RejectAsync(rejOvertimeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            message = result ? "Overtime rejected successfully" : "Failed to reject overtime";
                         }
                         break;
 

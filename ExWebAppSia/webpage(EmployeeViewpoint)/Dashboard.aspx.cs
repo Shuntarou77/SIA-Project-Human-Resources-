@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -13,6 +13,7 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
     public partial class WebForm1 : System.Web.UI.Page
     {
         private readonly AttendanceService _attendanceService = new AttendanceService();
+        private readonly OvertimeService _overtimeService = new OvertimeService();
         private string _attendanceStatusJson = null;
 
         private List<Attendance> _employeeAttendanceRecords = null;
@@ -46,16 +47,26 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
 
                 var attendance = await _attendanceService.GetTodayAttendanceAsync(employee.EmployeeId);
 
+                // Load OT request from separate OvertimeRequests collection
+                OvertimeRequest otRequest = null;
+                if (attendance != null)
+                {
+                    otRequest = await _overtimeService.GetByAttendanceIdAsync(attendance.Id);
+                }
+
                 var status = new
                 {
                     hasTimedIn = attendance != null && attendance.TimeIn.HasValue,
                     hasTimedOut = attendance != null && attendance.TimeOut.HasValue,
-                    timeIn = attendance?.TimeIn.HasValue == true 
-                        ? attendance.TimeIn.Value.ToLocalTime().ToString("h:mm tt") 
+                    timeIn = attendance?.TimeIn.HasValue == true
+                        ? attendance.TimeIn.Value.ToLocalTime().ToString("h:mm tt")
                         : (string)null,
-                    timeOut = attendance?.TimeOut.HasValue == true 
-                        ? attendance.TimeOut.Value.ToLocalTime().ToString("h:mm tt") 
-                        : (string)null
+                    timeOut = attendance?.TimeOut.HasValue == true
+                        ? attendance.TimeOut.Value.ToLocalTime().ToString("h:mm tt")
+                        : (string)null,
+                    overtimeStatus = otRequest?.Status ?? "None",
+                    overtimeReason = otRequest?.Reason ?? "",
+                    overtime = otRequest?.OvertimeWorked ?? ""
                 };
 
                 var serializer = new JavaScriptSerializer();

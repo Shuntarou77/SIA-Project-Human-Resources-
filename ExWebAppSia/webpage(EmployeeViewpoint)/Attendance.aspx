@@ -1,4 +1,4 @@
-﻿<%@ Page Title="Attendance" Language="C#" MasterPageFile="~/webpage(EmployeeViewpoint)/EmployeeHR.Master"
+<%@ Page Title="Attendance" Language="C#" MasterPageFile="~/webpage(EmployeeViewpoint)/EmployeeHR.Master"
     AutoEventWireup="true" Async="true" CodeBehind="Attendance.aspx.cs"
     Inherits="ExWebAppSia.webpage_EmployeeViewpoint_.WebForm3" %>
     <asp:Content ID="HeadContent" ContentPlaceHolderID="head" runat="server">
@@ -389,6 +389,93 @@
             .time-out-icon::before {
                 content: "🔼";
             }
+
+            /* Page-specific Modal Styles */
+            .page-modal {
+                display: none;
+                position: fixed;
+                z-index: 1000;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                backdrop-filter: blur(5px);
+            }
+
+            .modal-content {
+                background: white;
+                margin: 50px auto;
+                padding: 0;
+                border-radius: var(--border-radius);
+                width: 90%;
+                max-width: 500px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+                animation: slideDown 0.3s ease;
+            }
+
+            @keyframes slideDown {
+                from { opacity: 0; transform: translateY(-50px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
+            .modal-header {
+                background: var(--primary-gradient);
+                color: white;
+                padding: 24px;
+                border-radius: var(--border-radius) var(--border-radius) 0 0;
+                text-align: left;
+            }
+
+            .modal-title {
+                font-size: 24px;
+                font-weight: 700;
+                margin: 0;
+            }
+
+            .modal-body {
+                padding: 24px;
+                text-align: center;
+            }
+
+            .modal-footer {
+                padding: 16px 24px;
+                display: flex;
+                gap: 12px;
+                justify-content: flex-end;
+                border-top: 1px solid #f3f4f6;
+                background: #F9FAFB;
+                border-radius: 0 0 var(--border-radius) var(--border-radius);
+            }
+
+            .btn-cancel {
+                padding: 10px 20px;
+                background: #e5e7eb;
+                color: #374151;
+                border: none;
+                border-radius: 12px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+
+            .btn-submit {
+                padding: 10px 20px;
+                background: var(--warning-color);
+                color: white;
+                border: none;
+                border-radius: 12px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+
+            .close {
+                color: white;
+                float: right;
+                font-size: 32px;
+                font-weight: bold;
+                cursor: pointer;
+                line-height: 1;
+            }
         </style>
     </asp:Content>
 
@@ -485,6 +572,32 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Undertime Warning Modal -->
+        <div id="undertimeModal" class="page-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <span class="close" onclick="closeModal('undertimeModal')">&times;</span>
+                    <h2 class="modal-title">⚠️ Early Time Out</h2>
+                </div>
+                <div class="modal-body">
+                    <div style="font-size: 50px; margin-bottom: 20px;">🕒</div>
+                    <h3 style="color: var(--text-primary); margin-bottom: 15px;">Timing out early?</h3>
+                    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 20px;">
+                        It is not yet 5:00 PM. Regular shift ends at 5:00 PM. Timing out now will be recorded as <strong>Undertime</strong>.
+                    </p>
+                    <div style="background: #FFFBEB; border-left: 4px solid var(--warning-color); padding: 15px; text-align: left; border-radius: 0 8px 8px 0;">
+                        <p style="color: #92400e; font-size: 14px; font-weight: 600;">
+                            Please ensure you have authorization for early departure.
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('undertimeModal')">Cancel</button>
+                    <button type="button" class="btn-submit" onclick="proceedWithTimeOut()">Proceed anyway</button>
                 </div>
             </div>
         </div>
@@ -663,23 +776,40 @@
 
             async function timeOut() {
                 if (hasTimedOut) {
-                    alert('You have already timed out today.');
+                    showNotification('You have already timed out today.', false);
                     return;
                 }
 
                 if (!hasTimedIn) {
-                    alert('Please time in first before timing out.');
+                    showNotification('Please time in first before timing out.', false);
                     return;
                 }
 
-                if (!employeeId || employeeId === 'N/A') {
-                    alert('Employee ID not found. Please contact HR.');
-                    return;
+                const now = new Date();
+                const hours = now.getHours();
+
+                // Strictly check for 5 PM (17:00)
+                if (hours < 17) {
+                    const modal = document.getElementById('undertimeModal');
+                    if (modal) {
+                        modal.style.display = 'block';
+                    } else {
+                        if (confirm('It is not yet 5:00 PM. Timing out now will be recorded as UNDERTIME. Do you want to proceed?')) {
+                            await proceedWithTimeOut();
+                        }
+                    }
+                } else {
+                    await proceedWithTimeOut();
                 }
+            }
+
+            async function proceedWithTimeOut() {
+                const utModal = document.getElementById('undertimeModal');
+                if (utModal) utModal.style.display = 'none';
 
                 const timeOutBtn = document.getElementById('timeOutBtn');
                 const statusEl = document.getElementById('attendanceStatus');
-
+                
                 // Disable button during request
                 timeOutBtn.disabled = true;
                 timeOutBtn.textContent = 'Processing...';
@@ -733,6 +863,10 @@
             } else {
                 // DOM already loaded, call immediately
                 loadTodayStatus();
+            }
+            function closeModal(modalId) {
+                const modal = document.getElementById(modalId);
+                if (modal) modal.style.display = 'none';
             }
         </script>
     </asp:Content>

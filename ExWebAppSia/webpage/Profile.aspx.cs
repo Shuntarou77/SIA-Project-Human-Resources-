@@ -11,16 +11,20 @@ using System.Net.Mail;
 using System.Net;
 using System.Configuration;
 using ExWebAppSia.Models;
+using MongoDB.Driver;
+using System.Text.RegularExpressions;
+using MongoDB.Bson;
 
 namespace ExWebAppSia.webpage
 {
     public partial class HRProfile : System.Web.UI.Page
     {
         private readonly AttendanceService _attendanceService = new AttendanceService();
+        private readonly OvertimeService _overtimeService = new OvertimeService();
         private string _attendanceStatusJson = null;
         private List<Attendance> _employeeAttendanceRecords = null;
         private Dictionary<string, object> _attendanceStats = null;
-        private PayrollItem _latestPayrollItem = null;
+        private PayrollSnapshot _latestSnapshot = null;
 
         private const int TOTAL_WORKING_DAYS_PER_YEAR = 260;
         private const int TOTAL_ALLOWED_ABSENCES_PER_YEAR = 15;
@@ -154,12 +158,20 @@ namespace ExWebAppSia.webpage
                 }
 
                 var attendance = await _attendanceService.GetTodayAttendanceAsync(employee.EmployeeId);
+                
+                OvertimeRequest otRequest = null;
+                if (attendance != null)
+                {
+                    otRequest = await _overtimeService.GetByAttendanceIdAsync(attendance.Id);
+                }
+
                 var status = new
                 {
                     hasTimedIn = attendance != null && attendance.TimeIn.HasValue,
                     hasTimedOut = attendance != null && attendance.TimeOut.HasValue,
                     timeIn = attendance?.TimeIn?.ToLocalTime().ToString("h:mm tt"),
-                    timeOut = attendance?.TimeOut?.ToLocalTime().ToString("h:mm tt")
+                    timeOut = attendance?.TimeOut?.ToLocalTime().ToString("h:mm tt"),
+                    overtimeStatus = otRequest?.Status ?? "None"
                 };
                 _attendanceStatusJson = new JavaScriptSerializer().Serialize(status);
             }
@@ -267,24 +279,47 @@ namespace ExWebAppSia.webpage
         {
             try
             {
-                if (CurrentEmployee == null || string.IsNullOrEmpty(CurrentEmployee.Id)) return;
-                var payRunService = new PayRunService();
-                var payRun = await payRunService.GetLatestPayRunForEmployeeAsync(CurrentEmployee.Id);
-                _latestPayrollItem = payRun?.Items?.FirstOrDefault(i => i.EmployeeId == CurrentEmployee.Id);
+                if (CurrentEmployee == null) return;
+                
+                var collection = MongoDBHelper.GetPayrollSnapshotsCollection();
+                
+                // Match by EmployeeNumber (most reliable) - Relaxed pattern to handle trailing characters
+                var idPattern = "^" + Regex.Escape(CurrentEmployee.EmployeeId?.Trim() ?? "");
+                var numFilter = Builders<PayrollSnapshot>.Filter.Regex(p => p.EmployeeNumber, 
+                    new MongoDB.Bson.BsonRegularExpression(idPattern, "i"));
+                
+                _latestSnapshot = await collection.Find(numFilter)
+                    .SortByDescending(p => p.PayPeriodEnd)
+                    .FirstOrDefaultAsync();
+
+                if (_latestSnapshot == null)
+                {
+                    // Fallback to name - Match by start of name
+                    var namePattern = "^" + Regex.Escape(CurrentEmployee.FullName?.Trim() ?? "");
+                    var nameFilter = Builders<PayrollSnapshot>.Filter.Regex(p => p.FullName, 
+                        new MongoDB.Bson.BsonRegularExpression(namePattern, "i"));
+                    
+                    _latestSnapshot = await collection.Find(nameFilter)
+                        .SortByDescending(p => p.PayPeriodEnd)
+                        .FirstOrDefaultAsync();
+                }
             }
             catch { }
         }
 
-        protected string GetBasicSalary() => _latestPayrollItem?.BasicSalary.ToString("N2") ?? "0.00";
-        protected string GetAllowances() => _latestPayrollItem?.Allowances.ToString("N2") ?? "0.00";
-        protected string GetOvertimePay() => _latestPayrollItem?.OvertimePay.ToString("N2") ?? "0.00";
-        protected string GetGrossSalary() => _latestPayrollItem?.GrossSalary.ToString("N2") ?? "0.00";
-        protected string GetSSSDeduction() => _latestPayrollItem?.SSSDeduction.ToString("N2") ?? "0.00";
-        protected string GetPhilHealthDeduction() => _latestPayrollItem?.PhilHealthDeduction.ToString("N2") ?? "0.00";
-        protected string GetPagIbigDeduction() => _latestPayrollItem?.PagIbigDeduction.ToString("N2") ?? "0.00";
-        protected string GetWithholdingTax() => _latestPayrollItem?.WithholdingTax.ToString("N2") ?? "0.00";
-        protected string GetTotalDeductions() => _latestPayrollItem?.TotalDeductions.ToString("N2") ?? "0.00";
-        protected string GetNetSalary() => _latestPayrollItem?.NetSalary.ToString("N2") ?? "0.00";
+        protected string GetBasicSalary() => _latestSnapshot?.BasicSalary.ToString("N2") ?? "0.00";
+        protected string GetAllowances() => (_latestSnapshot?.HousingAllowance + _latestSnapshot?.TransportAllowance + _latestSnapshot?.MealAllowance + _latestSnapshot?.OtherAllowances)?.ToString("N2") ?? "0.00";
+        protected string GetOvertimePay() => _latestSnapshot?.TotalOvertime.ToString("N2") ?? "0.00";
+        protected string GetGrossSalary() => _latestSnapshot?.GrossPay.ToString("N2") ?? "0.00";
+        protected string GetSSSDeduction() => _latestSnapshot?.SSSDeduction.ToString("N2") ?? "0.00";
+        protected string GetPhilHealthDeduction() => _latestSnapshot?.PhilHealthDeduction.ToString("N2") ?? "0.00";
+        protected string GetPagIbigDeduction() => _latestSnapshot?.PagIbigDeduction.ToString("N2") ?? "0.00";
+        protected string GetWithholdingTax() => _latestSnapshot?.WithholdingTax.ToString("N2") ?? "0.00";
+        protected string GetTotalDeductions() => _latestSnapshot?.TotalDeductions.ToString("N2") ?? "0.00";
+        protected string GetNetSalary() => _latestSnapshot?.NetPay.ToString("N2") ?? "0.00";
+        protected string GetAbsenceDeduction() => _latestSnapshot?.AbsenceDeduction.ToString("N2") ?? "0.00";
+        protected string GetPenalties() => _latestSnapshot?.TotalPenalties.ToString("N2") ?? "0.00";
+        protected string GetPayPeriod() => _latestSnapshot != null ? $"{_latestSnapshot.PayPeriodStart:MMMM dd, yyyy} - {_latestSnapshot.PayPeriodEnd:MMMM dd, yyyy}" : "-";
 
         protected void btnSubmitConcern_Click(object sender, EventArgs e)
         {
@@ -343,7 +378,7 @@ namespace ExWebAppSia.webpage
             }
         }
 
-        protected void btnSubmitLeave_Click(object sender, EventArgs e)
+        protected async void btnSubmitLeave_Click(object sender, EventArgs e)
         {
             try
             {
@@ -357,7 +392,7 @@ namespace ExWebAppSia.webpage
                     return;
                 }
 
-                var employee = CurrentEmployee;
+                var employee = Session["Employee"] as Employee;
                 if (employee == null) return;
 
                 var leave = new Leave
@@ -367,17 +402,19 @@ namespace ExWebAppSia.webpage
                     LeaveType = ddlLeaveType.SelectedItem.Text,
                     StartDate = DateTime.Parse(txtStartDate.Text),
                     EndDate = DateTime.Parse(txtEndDate.Text),
-                    Reason = txtLeaveReason.Text.Trim(),
+                    Reason = txtLeaveReason.Text,
                     Status = "Pending",
                     SubmittedDate = DateTime.UtcNow,
                     IsActive = true
                 };
 
                 var leaveService = new LeaveService();
-                RegisterAsyncTask(new PageAsyncTask(async () => {
-                    await leaveService.CreateLeaveAsync(leave);
+                await leaveService.CreateLeaveAsync(leave);
+
+                // Send email
+                try {
                     SendLeaveEmail(employee, leave.LeaveType, txtStartDate.Text, txtEndDate.Text, leave.Reason);
-                }));
+                } catch { /* Email error shouldn't block submission */ }
 
                 // Clear form
                 ddlLeaveType.SelectedIndex = 0;

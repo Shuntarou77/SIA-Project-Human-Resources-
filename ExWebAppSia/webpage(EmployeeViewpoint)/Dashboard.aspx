@@ -1,4 +1,4 @@
-﻿<%@ Page Title="Employee Dashboard" Language="C#" MasterPageFile="~/webpage(EmployeeViewpoint)/EmployeeHR.Master"
+<%@ Page Title="Employee Dashboard" Language="C#" MasterPageFile="~/webpage(EmployeeViewpoint)/EmployeeHR.Master"
     AutoEventWireup="true" Async="true" CodeBehind="Dashboard.aspx.cs"
     Inherits="ExWebAppSia.webpage_EmployeeViewpoint_.WebForm1" %>
     <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
@@ -657,6 +657,18 @@
                 box-shadow: 0 12px 25px rgba(245, 158, 11, 0.4);
             }
 
+            .btn-overtime {
+                background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+                color: white;
+                box-shadow: 0 8px 20px rgba(139, 92, 246, 0.3);
+                margin-top: 8px;
+            }
+
+            .btn-overtime:hover:not(:disabled) {
+                transform: translateY(-2px);
+                box-shadow: 0 12px 25px rgba(139, 92, 246, 0.4);
+            }
+
             .btn-status {
                 background: white;
                 color: var(--text-primary);
@@ -989,6 +1001,10 @@
                                 <span class="time-out-icon icon"></span>
                                 TIME OUT
                             </button>
+                            <button id="overtimeBtn" type="button" class="action-btn btn-overtime" onclick="openOvertimeModal()" style="display: none;">
+                                <span class="clock-icon icon" style="font-style: normal;">⏰</span>
+                                REQUEST OVERTIME
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1019,6 +1035,56 @@
                     <button type="button" class="btn-cancel" onclick="closeModal('undertimeModal')">Cancel</button>
                     <button type="button" class="btn-submit" style="background: #f59e0b;"
                         onclick="proceedWithTimeOut()">Proceed anyway</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overtime Request Modal -->
+        <div id="overtimeModal" class="custom-modal-v2">
+            <div class="custom-modal-v2-content" style="max-width: 450px;">
+                <div class="custom-modal-v2-header" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                    <span class="close" onclick="closeModal('overtimeModal')">&times;</span>
+                    <h2 class="custom-modal-v2-title">⏰ Request Overtime</h2>
+                </div>
+                <div class="custom-modal-v2-body" style="padding: 30px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <div style="font-size: 50px; margin-bottom: 10px;">⏳</div>
+                        <h3 style="color: var(--text-primary);">Extended Shift Request</h3>
+                        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">
+                            Maximum overtime is 8 hours (total 16-hour shift).
+                        </p>
+                    </div>
+                    <div style="margin-bottom: 20px;">
+                        <label for="otReason" style="display: block; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Reason for Overtime:</label>
+                        <textarea id="otReason" rows="3" class="form-control" 
+                            style="width: 100%; padding: 12px; border-radius: 10px; border: 2px solid var(--border-color); font-family: inherit; resize: none;"
+                            placeholder="Please provide a brief reason for requesting overtime..."></textarea>
+                    </div>
+                    <div style="background: #F5F3FF; border-left: 4px solid #8b5cf6; padding: 15px; border-radius: 0 8px 8px 0;">
+                        <p style="color: #5b21b6; font-size: 13px; font-weight: 600;">
+                            Note: Your request will be sent to Admin for approval. You will be automatically timed out after 16 hours of total work.
+                        </p>
+                    </div>
+                </div>
+                <div class="custom-modal-v2-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('overtimeModal')">Cancel</button>
+                    <button type="button" class="btn-submit" style="background: #8b5cf6;" onclick="submitOvertimeRequest()">Submit Request</button>
+                </div>
+            </div>
+        </div>
+        <!-- Notification Modal (Success/Error) -->
+        <div id="notificationModal" class="custom-modal-v2">
+            <div class="custom-modal-v2-content" style="max-width: 400px; transform: scale(0.9); transition: transform 0.3s ease;">
+                <div id="notificationHeader" class="custom-modal-v2-header" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    <span class="close" onclick="closeModal('notificationModal')">&times;</span>
+                    <h2 id="notificationTitle" class="custom-modal-v2-title">Notification</h2>
+                </div>
+                <div class="custom-modal-v2-body" style="text-align: center; padding: 40px 30px;">
+                    <div id="notificationIcon" style="font-size: 60px; margin-bottom: 20px;">✅</div>
+                    <p id="notificationMessage" style="color: var(--text-primary); font-size: 16px; font-weight: 500; line-height: 1.6;"></p>
+                </div>
+                <div class="custom-modal-v2-footer" style="justify-content: center; padding-bottom: 30px;">
+                    <button type="button" class="btn-submit" style="min-width: 120px; background: #10b981;" onclick="closeModal('notificationModal')">OK</button>
                 </div>
             </div>
         </div>
@@ -1056,6 +1122,43 @@
             updateDateTime();
             setInterval(updateDateTime, 1000);
 
+            function showNotification(message, isSuccess = true, callback = null) {
+                const modal = document.getElementById('notificationModal');
+                const header = document.getElementById('notificationHeader');
+                const title = document.getElementById('notificationTitle');
+                const icon = document.getElementById('notificationIcon');
+                const messageEl = document.getElementById('notificationMessage');
+                const btn = modal.querySelector('.btn-submit');
+
+                messageEl.textContent = message;
+                
+                // Clear previous onclick and set new one
+                btn.onclick = function() {
+                    closeModal('notificationModal');
+                    if (callback && typeof callback === 'function') {
+                        callback();
+                    }
+                };
+
+                if (isSuccess) {
+                    header.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    title.textContent = 'Success';
+                    icon.textContent = '✅';
+                    btn.style.background = '#10b981';
+                } else {
+                    header.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+                    title.textContent = 'Error';
+                    icon.textContent = '❌';
+                    btn.style.background = '#ef4444';
+                }
+
+                modal.classList.add('active');
+                modal.style.display = 'flex';
+                setTimeout(() => {
+                    modal.querySelector('.custom-modal-v2-content').style.transform = 'scale(1)';
+                }, 10);
+            }
+
             // Load today's attendance status on page load
             function loadTodayStatus() {
                 try {
@@ -1073,16 +1176,47 @@
                             hasTimedOut = true;
                             const timeOutStr = attendanceStatus.timeOut || 'earlier today';
                             statusEl.textContent = `Timed Out at ${timeOutStr}`;
+                            if (attendanceStatus.overtime) {
+                                statusEl.textContent += ` (OT Worked: ${attendanceStatus.overtime})`;
+                            }
                             statusEl.style.color = '#f59e0b';
                             timeInBtn.disabled = false;
                             timeOutBtn.disabled = true; // Still disabled if already timed out for that shift
                             hasTimedIn = false;
+                            
+                            // Hide OT button if timed out
+                            document.getElementById('overtimeBtn').style.display = 'none';
                         } else {
                             // Employee has timed in but not timed out yet
                             statusEl.textContent = `Timed In at ${timeInStr}`;
                             statusEl.style.color = '#10b981';
                             timeInBtn.disabled = true;
                             timeOutBtn.disabled = false; // Enabled for valid timeout
+                            
+                            // Handle Overtime Button/Status
+                            const otBtn = document.getElementById('overtimeBtn');
+                            if (attendanceStatus.overtimeStatus === 'Approved') {
+                                statusEl.textContent += ' (Overtime Approved)';
+                                statusEl.style.color = '#8b5cf6';
+                                otBtn.style.display = 'flex';
+                                otBtn.disabled = true;
+                                otBtn.innerHTML = '<span class="check-icon icon"></span> OVERTIME APPROVED';
+                            } else if (attendanceStatus.overtimeStatus === 'Pending') {
+                                statusEl.textContent += ' (Overtime Pending)';
+                                statusEl.style.color = '#f59e0b';
+                                otBtn.style.display = 'flex';
+                                otBtn.disabled = true;
+                                otBtn.innerHTML = '<span class="clock-icon icon"></span> OT REQUEST PENDING';
+                            } else if (attendanceStatus.overtimeStatus === 'Rejected') {
+                                statusEl.textContent += ' (Overtime Rejected)';
+                                statusEl.style.color = '#ef4444';
+                                otBtn.style.display = 'none';
+                            } else {
+                                // Rule: OT button only appears starting 3:00 PM (2 hours before shift ends)
+                                const now = new Date();
+                                const isOTTime = now.getHours() >= 15;
+                                otBtn.style.display = isOTTime ? 'flex' : 'none';
+                            }
                         }
                     } else {
                         statusEl.textContent = 'Not timed in yet';
@@ -1090,11 +1224,61 @@
                         timeInBtn.disabled = false;
                         // We keep the button enabled visually but handle it in JS for better feedback
                         timeOutBtn.disabled = false;
+                        document.getElementById('overtimeBtn').style.display = 'none';
                     }
 
                     console.log('Status loaded - hasTimedIn:', hasTimedIn, 'hasTimedOut:', hasTimedOut);
                 } catch (error) {
                     console.error('Error loading attendance status:', error);
+                }
+            }
+
+            function openOvertimeModal() {
+                if (!hasTimedIn) {
+                    showNotification('Please time in first before requesting overtime.', false);
+                    return;
+                }
+                const modal = document.getElementById('overtimeModal');
+                if (modal) modal.classList.add('active');
+            }
+
+            async function submitOvertimeRequest() {
+                const reason = document.getElementById('otReason').value.trim();
+                if (!reason) {
+                    showNotification('Please provide a reason for overtime.', false);
+                    return;
+                }
+
+                const otBtn = document.getElementById('overtimeBtn');
+                const submitBtn = document.querySelector('#overtimeModal .btn-submit');
+                
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Submitting...';
+
+                try {
+                    const params = new URLSearchParams({
+                        action: 'requestovertime',
+                        employeeId: employeeId,
+                        reason: reason
+                    });
+
+                    const response = await fetch(handlerUrl + '?' + params.toString());
+                    const result = await response.json();
+
+                    if (result.success) {
+                        showNotification('Overtime request submitted successfully!', true, () => {
+                            window.location.reload();
+                        });
+                    } else {
+                        showNotification(result.message || 'Failed to submit overtime request.', false);
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = 'Submit Request';
+                    }
+                } catch (error) {
+                    console.error('Error submitting overtime request:', error);
+                    showNotification('An error occurred. Please try again.', false);
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Submit Request';
                 }
             }
 
@@ -1108,12 +1292,12 @@
             async function timeIn() {
                 // Allow time in if employee has timed out (for new shift)
                 if (hasTimedIn && !hasTimedOut) {
-                    alert('You have already timed in today. Please time out first.');
+                    showNotification('You have already timed in today. Please time out first.', false);
                     return;
                 }
 
                 if (!employeeId || employeeId === 'N/A') {
-                    alert('Employee ID not found. Please contact HR.');
+                    showNotification('Employee ID not found. Please contact HR.', false);
                     return;
                 }
 
@@ -1181,14 +1365,16 @@
 
                     if (result.success) {
                         // Refresh the page to load the updated status from the server
-                        window.location.reload();
+                        showNotification('Time in recorded successfully!', true, () => {
+                            window.location.reload();
+                        });
                     } else {
-                        alert(result.message || 'Failed to record time in. You may have already timed in today.');
+                        showNotification(result.message || 'Failed to record time in. You may have already timed in today.', false);
                         timeInBtn.disabled = false;
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    alert('An error occurred while recording time in: ' + error.message + '\n\nPlease check the browser console for details.');
+                    showNotification('An error occurred while recording time in: ' + error.message, false);
                     timeInBtn.disabled = false;
                 } finally {
                     if (!hasTimedIn) {
@@ -1205,12 +1391,12 @@
                 console.log(`Time Out Validation - Status: In=${hasTimedIn}, Out=${hasTimedOut}, Time=${currentHour}:${currentMinutes}`);
 
                 if (hasTimedOut) {
-                    alert('You have already timed out today.');
+                    showNotification('You have already timed out today.', false);
                     return;
                 }
 
                 if (!hasTimedIn) {
-                    alert('Please time in first before timing out.');
+                    showNotification('Please time in first before timing out.', false);
                     return;
                 }
 
@@ -1235,17 +1421,17 @@
 
             async function proceedWithTimeOut() {
                 if (hasTimedOut) {
-                    alert('You have already timed out today.');
+                    showNotification('You have already timed out today.', false);
                     return;
                 }
 
                 if (!hasTimedIn) {
-                    alert('Please time in first before timing out.');
+                    showNotification('Please time in first before timing out.', false);
                     return;
                 }
 
                 if (!employeeId || employeeId === 'N/A') {
-                    alert('Employee ID not found. Please contact HR.');
+                    showNotification('Employee ID not found. Please contact HR.', false);
                     return;
                 }
 
@@ -1272,14 +1458,16 @@
 
                     if (result.success) {
                         // Refresh the page to load the updated status from the server
-                        window.location.reload();
+                        showNotification('Time out recorded successfully!', true, () => {
+                            window.location.reload();
+                        });
                     } else {
-                        alert(result.message || 'Failed to record time out. Please make sure you have timed in first.');
+                        showNotification(result.message || 'Failed to record time out. Please make sure you have timed in first.', false);
                         timeOutBtn.disabled = false;
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    alert('An error occurred while recording time out. Please try again.');
+                    showNotification('An error occurred while recording time out. Please try again.', false);
                     timeOutBtn.disabled = false;
                 } finally {
                     timeOutBtn.textContent = 'TIME OUT';
@@ -1302,7 +1490,7 @@
 
             function showStatus() {
                 const status = document.getElementById('attendanceStatus').textContent;
-                alert('Current attendance status:\n' + status);
+                showNotification('Current attendance status:\n' + status, true);
             }
         </script>
     </asp:Content>

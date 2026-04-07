@@ -1,4 +1,4 @@
-﻿<%@ Page Title="" Language="C#" MasterPageFile="~/webpage/HR.Master" AutoEventWireup="true" Async="true"
+<%@ Page Title="" Language="C#" MasterPageFile="~/webpage/HR.Master" AutoEventWireup="true" Async="true"
     CodeBehind="Employee.aspx.cs" Inherits="ExWebAppSia.webpage.WebForm2" %>
 
     <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
@@ -729,6 +729,9 @@
     </asp:Content>
 
     <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
+        <asp:HiddenField ID="hdnSelectedEmployeeId" runat="server" ClientIDMode="Static" />
+        <asp:HiddenField ID="hdnSelectedEmployeeName" runat="server" ClientIDMode="Static" />
+        <asp:HiddenField ID="hdnSelectedEmployeeNum" runat="server" ClientIDMode="Static" />
         <div class="page-wrapper">
             <div class="employee-container">
                 <!-- Department Header -->
@@ -1187,6 +1190,10 @@
 
                 content.innerHTML = html;
                 modal.style.display = 'block';
+
+                // Store current name for payslip lookup (Format: Last, First Middle to match snapshots)
+                document.getElementById('hdnSelectedEmployeeName').value = `${lname}, ${fname}${mname ? ' ' + mname : ''}`;
+                document.getElementById('hdnSelectedEmployeeNum').value = empId;
             }
 
             function closeEmployeeDetailsModal() {
@@ -1194,7 +1201,146 @@
             }
 
             function openPayslipModal() {
-                document.getElementById('payslipModal').style.display = 'block';
+                const name = document.getElementById('hdnSelectedEmployeeName').value;
+                const empNum = document.getElementById('hdnSelectedEmployeeNum').value;
+                if (!name && !empNum) return;
+
+                const modal = document.getElementById('payslipModal');
+                console.log("Fetching payslip for:", name, "ID:", empNum);
+                modal.style.display = 'block';
+
+                // Set loading states
+                const items = modal.querySelectorAll('.payslip-value');
+                items.forEach(i => i.innerHTML = '<span style="color:#999">...</span>');
+
+                PageMethods.GetLatestPayslip(name, empNum, function (res) {
+                    const data = JSON.parse(res);
+                    if (data.success) {
+                        const fmt = num => '&#8369;' + (num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                        
+                        document.getElementById('ps_period').innerHTML = data.payPeriod || 'N/A';
+                        document.getElementById('ps_basic').innerHTML = fmt(data.basicSalary);
+                        document.getElementById('ps_allowances').innerHTML = fmt(data.allowances);
+                        document.getElementById('ps_ot').innerHTML = fmt(data.overtimePay);
+                        document.getElementById('ps_gross').innerHTML = '<strong>' + fmt(data.totalGross) + '</strong>';
+                        
+                        document.getElementById('ps_sss').innerHTML = '- ' + fmt(data.sss);
+                        document.getElementById('ps_ph').innerHTML = '- ' + fmt(data.philHealth);
+                        document.getElementById('ps_pi').innerHTML = '- ' + fmt(data.pagIbig);
+                        document.getElementById('ps_tax').innerHTML = '- ' + fmt(data.withholdingTax);
+                        document.getElementById('ps_absences').innerHTML = '- ' + fmt(data.absenceDeduction);
+                        document.getElementById('ps_penalties').innerHTML = '- ' + fmt(data.penalties);
+                        document.getElementById('ps_total_deduct').innerHTML = '<strong>- ' + fmt(data.totalDeductions) + '</strong>';
+                        
+                        document.getElementById('ps_net').innerHTML = fmt(data.netSalary);
+                    } else {
+                        showAlert('No Record', data.message || 'Could not find latest payroll record for ' + name, 'info');
+                    }
+                }, function (err) {
+                    console.error('Fetch error:', err);
+                    showAlert('Error', 'Failed to communicate with server.', 'error');
+                });
+            }
+
+            function downloadPDF() {
+                try {
+                    console.log("Starting PDF generation...");
+                    if (typeof html2pdf === 'undefined') {
+                        console.error("html2pdf library not loaded!");
+                        showAlert('Error', 'PDF library is still loading. Please wait a moment.', 'error');
+                        return;
+                    }
+
+                    const nameObj = document.getElementById('hdnSelectedEmployeeName');
+                    const periodObj = document.getElementById('ps_period');
+                    
+                    if (!nameObj || !periodObj) {
+                        console.error("Missing Header Elements:", nameObj, periodObj);
+                        return;
+                    }
+
+                    const name = nameObj.value || "Employee";
+                    const period = periodObj.innerHTML || "N/A";
+                    
+                    console.log("Generating for:", name, "Period:", period);
+
+                    // Get display values safely
+                    const getVal = (id) => {
+                        const el = document.getElementById(id);
+                        return el ? el.innerText || el.innerHTML : "0.00";
+                    };
+
+                    const basic = getVal('ps_basic');
+                    const allowances = getVal('ps_allowances');
+                    const ot = getVal('ps_ot');
+                    const gross = getVal('ps_gross');
+                    const sss = getVal('ps_sss');
+                    const ph = getVal('ps_ph');
+                    const pi = getVal('ps_pi');
+                    const tax = getVal('ps_tax');
+                    const abs = getVal('ps_absences');
+                    const pen = getVal('ps_pen');
+                    const ded = getVal('ps_total_deduct');
+                    const net = getVal('ps_net');
+
+                    const element = document.createElement('div');
+                    element.innerHTML = `
+                        <div style="padding: 45px; font-family: 'Arial', sans-serif; color: #333; width: 750px; margin: auto;">
+                            <div style="text-align: center; border-bottom: 3px solid #8B4755; padding-bottom: 20px; margin-bottom: 30px;">
+                                <h1 style="color: #8B4755; margin: 0; font-size: 28px;">SHEESSENTIALS ESSENTIALS</h1>
+                                <p style="font-size: 14px; color: #666;">OFFICIAL PAYROLL SLIP</p>
+                            </div>
+                            
+                            <table style="width: 100%; margin-bottom: 30px;">
+                                <tr>
+                                    <td><strong>Employee Name:</strong><br/>${name}</td>
+                                    <td style="text-align: right;"><strong>Pay Period:</strong><br/>${period}</td>
+                                </tr>
+                            </table>
+
+                            <h3 style="background: #f4f4f4; padding: 10px; border-left: 5px solid #8B4755;">EARNINGS Breakdown</h3>
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;">Basic Salary</td><td style="text-align: right;">${basic}</td></tr>
+                                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;">Allowances</td><td style="text-align: right;">${allowances}</td></tr>
+                                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;">Overtime Pay</td><td style="text-align: right;">${ot}</td></tr>
+                                <tr style="font-weight: bold;"><td style="padding: 15px 0;">TOTAL GROSS</td><td style="text-align: right; color: #8B4755;">${gross}</td></tr>
+                            </table>
+
+                            <h3 style="background: #f4f4f4; padding: 10px; border-left: 5px solid #dc2626;">DEDUCTIONS & PENALTIES</h3>
+                            <table style="width: 100%; border-collapse: collapse; margin-bottom: 30px;">
+                                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;">SSS / PhilHealth / Pag-IBIG</td><td style="text-align: right; color: #dc2626;">${sss} / ${ph} / ${pi}</td></tr>
+                                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;">Absences & Lates</td><td style="text-align: right; color: #dc2626;">${abs}</td></tr>
+                                <tr><td style="padding: 8px 0; border-bottom: 1px solid #eee;">Penalties</td><td style="text-align: right; color: #dc2626;">${pen}</td></tr>
+                                <tr style="font-weight: bold;"><td style="padding: 15px 0;">TOTAL DEDUCTIONS</td><td style="text-align: right; color: #dc2626;">${ded}</td></tr>
+                            </table>
+
+                            <div style="background: #8B4755; color: white; padding: 20px; text-align: center; border-radius: 5px;">
+                                <h2 style="margin: 0;">NET PAY: ${net}</h2>
+                            </div>
+
+                            <p style="margin-top: 50px; font-size: 11px; text-align: center; color: #888;">
+                                Generated on ${new Date().toLocaleString()} by HR System. This is an official document.
+                            </p>
+                        </div>
+                    `;
+
+                    const opt = {
+                        margin: 0.2,
+                        filename: 'Payslip_' + name.replace(/\s/g, '_') + '.pdf',
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2 },
+                        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
+                    };
+
+                    console.log("Calling html2pdf engine...");
+                    html2pdf().from(element).set(opt).toPdf().get('pdf').then(function(pdf) {
+                        window.open(pdf.output('bloburl'), '_blank');
+                    }).save();
+                    
+                } catch (err) {
+                    console.error("PDF Crash:", err);
+                    showAlert('Error', 'Failed to generate PDF: ' + err.message, 'error');
+                }
             }
 
             function closePayslipModal() {
@@ -1490,12 +1636,19 @@
                         tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">No pending leave requests.</td></tr>';
                         return;
                     }
+                    var currentAdminId = result.currentAdminId;
 
                     tbody.innerHTML = result.data.map(function (leave) {
                         var initials = getInitials(leave.employeeName);
                         var dateRange = leave.startDate === leave.endDate
                             ? leave.startDate
                             : leave.startDate + ' - ' + leave.endDate;
+
+                        var isOwnRequest = leave.employeeId === currentAdminId;
+                        var actionsHtml = isOwnRequest
+                            ? '<span style="font-size: 11px; font-weight: 600; color: #9B7D7B; font-style: italic;">Your Request</span>'
+                            : '<button type="button" class="btn-outline" style="margin-right: 6px;" onclick="approveLeave(\'' + leave.id + '\', \'' + leave.employeeName.replace(/'/g, "\\'") + '\', this)"><svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approve</button>' +
+                              '<button type="button" class="btn-outline" style="background: #dc3545; border-color: #dc3545; color: white;" onclick="declineLeave(\'' + leave.id + '\', \'' + leave.employeeName.replace(/'/g, "\\'") + '\', this)"><svg style="width:14px;height:14px;vertical-align:middle;fill:white;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Decline</button>';
 
                         return '<tr data-leave-id="' + leave.id + '">' +
                             '<td><span class="avatar-initial">' + initials + '</span>' + leave.employeeName + '</td>' +
@@ -1505,10 +1658,7 @@
                             '<td>' + leave.duration + '</td>' +
                             '<td>' + leave.reason + '</td>' +
                             '<td><span class="leave-status status-pending">Pending</span></td>' +
-                            '<td>' +
-                            '<button class="btn-outline" style="margin-right: 6px;" onclick="approveLeave(\'' + leave.id + '\', \'' + leave.employeeName.replace(/'/g, "\\'") + '\', this)"><svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approve</button>' +
-                            '<button class="btn-outline" style="background: #dc3545; border-color: #dc3545; color: white;" onclick="declineLeave(\'' + leave.id + '\', \'' + leave.employeeName.replace(/'/g, "\\'") + '\', this)"><svg style="width:14px;height:14px;vertical-align:middle;fill:white;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Decline</button>' +
-                            '</td>' +
+                            '<td>' + actionsHtml + '</td>' +
                             '</tr>';
                     }).join('');
                 }, function (error) {
@@ -1616,6 +1766,7 @@
         <asp:HiddenField ID="hdnEmployeeId" runat="server" />
         <asp:HiddenField ID="hdnConcernsJson" runat="server" />
         <input type="hidden" id="hdnDeployId" />
+        <input type="hidden" id="hdnSelectedEmployeeName" />
         <asp:Button ID="btnViewEmployeeDetails" runat="server" OnClick="btnViewEmployeeDetails_Click"
             Style="display:none;" />
         <asp:Button ID="btnViewLeaveHistory" runat="server" OnClick="btnViewLeaveHistory_Click" Style="display:none;" />
@@ -1683,56 +1834,69 @@
                     <span class="close" onclick="closePayslipModal()">&times;</span>
                 </div>
                 <div class="modal-body">
+                    <div id="ps_period_container" style="background: #f1f5f9; border-radius: 8px; padding: 10px; margin-bottom: 20px; text-align: center;">
+                        <span style="font-size: 13px; color: #64748b; display: block; margin-bottom: 4px;">Pay Period</span>
+                        <span id="ps_period" style="font-weight: 600; color: #334155;">-</span>
+                    </div>
+
                     <h3 style="margin-bottom: 16px; color: #333;">Gross Salary</h3>
                     <div class="payslip-item">
                         <span class="payslip-label">Basic Salary</span>
-                        <span class="payslip-value">&#8369;35,000.00</span>
+                        <span id="ps_basic" class="payslip-value">&#8369;0.00</span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Allowances</span>
-                        <span class="payslip-value">&#8369;5,000.00</span>
+                        <span id="ps_allowances" class="payslip-value">&#8369;0.00</span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Overtime Pay</span>
-                        <span class="payslip-value">&#8369;2,500.00</span>
+                        <span id="ps_ot" class="payslip-value">&#8369;0.00</span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label"><strong>Total Gross</strong></span>
-                        <span class="payslip-value"><strong>&#8369;42,500.00</strong></span>
+                        <span id="ps_gross" class="payslip-value"><strong>&#8369;0.00</strong></span>
                     </div>
 
                     <h3 style="margin: 24px 0 16px; color: #333;">Deductions</h3>
                     <div class="payslip-item">
                         <span class="payslip-label">SSS</span>
-                        <span class="payslip-value" style="color: #f59e0b;">- &#8369;1,350.00</span>
+                        <span id="ps_sss" class="payslip-value" style="color: #ef4444;">- &#8369;0.00</span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">PhilHealth</span>
-                        <span class="payslip-value" style="color: #f59e0b;">- &#8369;850.00</span>
+                        <span id="ps_ph" class="payslip-value" style="color: #ef4444;">- &#8369;0.00</span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Pag-IBIG</span>
-                        <span class="payslip-value" style="color: #f59e0b;">- &#8369;200.00</span>
+                        <span id="ps_pi" class="payslip-value" style="color: #ef4444;">- &#8369;0.00</span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Withholding Tax</span>
-                        <span class="payslip-value" style="color: #f59e0b;">- &#8369;3,200.00</span>
+                        <span id="ps_tax" class="payslip-value" style="color: #ef4444;">- &#8369;0.00</span>
+                    </div>
+                    <div class="payslip-item">
+                        <span class="payslip-label">Absences & Lates</span>
+                        <span id="ps_absences" class="payslip-value" style="color: #ef4444;">- &#8369;0.00</span>
+                    </div>
+                    <div class="payslip-item">
+                        <span class="payslip-label">Penalties</span>
+                        <span id="ps_penalties" class="payslip-value" style="color: #ef4444;">- &#8369;0.00</span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label"><strong>Total Deductions</strong></span>
-                        <span class="payslip-value" style="color: #f59e0b;"><strong>- &#8369;5,600.00</strong></span>
+                        <span id="ps_total_deduct" class="payslip-value" style="color: #ef4444;"><strong>- &#8369;0.00</strong></span>
                     </div>
 
                     <div class="payslip-total">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <span class="payslip-label" style="color: white; font-size: 18px;">Net Salary</span>
-                            <span class="payslip-value">&#8369;36,900.00</span>
+                            <span id="ps_net" class="payslip-value">&#8369;0.00</span>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button class="btn-cancel" onclick="closePayslipModal()">Close</button>
-                    <button class="btn-submit">Download PDF</button>
+                    <button type="button" class="btn-submit" onclick="downloadPDF()">Download PDF</button>
                 </div>
             </div>
         </div>
@@ -1818,4 +1982,6 @@
                 </div>
             </div>
         </div>
+        <!-- Generate PDF Library -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     </asp:Content>

@@ -1,10 +1,11 @@
-﻿using ExWebAppSia.Models;
+using ExWebAppSia.Models;
 using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Web.UI;
 using System.Collections.Generic;
+using System.Web.Script.Serialization;
 
 namespace ExWebAppSia.webpage
 {
@@ -15,6 +16,11 @@ namespace ExWebAppSia.webpage
         private readonly ApplicantService _applicantService = new ApplicantService();
         private readonly AttendanceService _attendanceService = new AttendanceService();
         private readonly LeaveService _leaveService = new LeaveService();
+        private string _attendanceStatusJson = null;
+        private List<Attendance> _employeeAttendanceRecords = null;
+        private Dictionary<string, object> _attendanceStats = null;
+        private const int TOTAL_WORKING_DAYS_PER_YEAR = 260;
+        private const int TOTAL_ALLOWED_ABSENCES_PER_YEAR = 15;
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -48,8 +54,134 @@ namespace ExWebAppSia.webpage
                     litDashboardTitle.Visible = false;
 
                 RegisterAsyncTask(new PageAsyncTask(LoadDashboardDataAsync));
+                RegisterAsyncTask(new PageAsyncTask(LoadAttendanceStatusAsync));
+                RegisterAsyncTask(new PageAsyncTask(LoadPersonalAttendanceStatisticsAsync));
             }
         }
+
+        protected Employee CurrentEmployee => Session["Employee"] as Employee;
+
+        protected string GetEmployeeName() => CurrentEmployee?.FullName ?? "N/A";
+        protected string GetEmployeeId() => CurrentEmployee?.EmployeeId ?? "N/A";
+        protected string GetEmployeeDepartment() => CurrentEmployee?.Department ?? "N/A";
+
+        private async Task LoadAttendanceStatusAsync()
+        {
+            try
+            {
+                var employee = CurrentEmployee;
+                if (employee == null || string.IsNullOrEmpty(employee.EmployeeId))
+                {
+                    _attendanceStatusJson = "{\"hasTimedIn\":false,\"hasTimedOut\":false,\"timeIn\":null,\"timeOut\":null}";
+                    return;
+                }
+
+                var attendance = await _attendanceService.GetTodayAttendanceAsync(employee.EmployeeId);
+                var status = new
+                {
+                    hasTimedIn = attendance != null && attendance.TimeIn.HasValue,
+                    hasTimedOut = attendance != null && attendance.TimeOut.HasValue,
+                    timeIn = attendance?.TimeIn?.ToLocalTime().ToString("h:mm tt"),
+                    timeOut = attendance?.TimeOut?.ToLocalTime().ToString("h:mm tt")
+                };
+                _attendanceStatusJson = new JavaScriptSerializer().Serialize(status);
+            }
+            catch
+            {
+                _attendanceStatusJson = "{\"hasTimedIn\":false,\"hasTimedOut\":false,\"timeIn\":null,\"timeOut\":null}";
+            }
+        }
+
+        protected string GetAttendanceStatusJsonString() => _attendanceStatusJson ?? "{\"hasTimedIn\":false,\"hasTimedOut\":false,\"timeIn\":null,\"timeOut\":null}";
+
+        private async Task LoadPersonalAttendanceStatisticsAsync()
+        {
+            try
+            {
+                var employee = CurrentEmployee;
+                if (employee == null || string.IsNullOrEmpty(employee.EmployeeId))
+                {
+                    _attendanceStats = GetDefaultStats();
+                    return;
+                }
+
+                _employeeAttendanceRecords = await _attendanceService.GetEmployeeAttendanceAsync(employee.EmployeeId);
+                CalculatePersonalAttendanceStatistics();
+            }
+            catch
+            {
+                _attendanceStats = GetDefaultStats();
+            }
+        }
+
+        private void CalculatePersonalAttendanceStatistics()
+        {
+            if (_employeeAttendanceRecords == null || _employeeAttendanceRecords.Count == 0)
+            {
+                _attendanceStats = GetDefaultStats();
+                return;
+            }
+
+            var now = DateTime.Now;
+            var today = now.Date;
+            var currentMonth = new DateTime(now.Year, now.Month, 1);
+
+            var currentMonthRecords = _employeeAttendanceRecords
+                .Where(a => a.TimeIn.HasValue)
+                .Select(a => new { Record = a, LocalTime = a.TimeIn.Value.ToLocalTime() })
+                .Where(x => x.LocalTime >= currentMonth && x.LocalTime < currentMonth.AddMonths(1))
+                .ToList();
+
+            var currentMonthPresent = currentMonthRecords.Select(x => x.LocalTime.Date).Distinct().Count();
+            var pastWeekdays = Enumerable.Range(0, (today - currentMonth).Days + 1)
+                .Select(i => currentMonth.AddDays(i))
+                .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
+            
+            var currentMonthAbsent = Math.Max(0, pastWeekdays - currentMonthPresent);
+            var currentMonthLate = currentMonthRecords.GroupBy(x => x.LocalTime.Date).Count(g => g.OrderBy(x => x.LocalTime).First().LocalTime.Hour >= 9);
+
+            // Yearly stats
+            var currentYear = now.Year;
+            var yearlyRecords = _employeeAttendanceRecords
+                .Where(a => a.TimeIn.HasValue)
+                .Select(a => a.TimeIn.Value.ToLocalTime())
+                .Where(t => t.Year == currentYear)
+                .ToList();
+
+            var yearStart = new DateTime(currentYear, 1, 1);
+            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count();
+            
+            var pastYearWeekdays = Enumerable.Range(0, (today - yearStart).Days + 1)
+                .Select(i => yearStart.AddDays(i))
+                .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
+            
+            var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent);
+            var remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
+
+            _attendanceStats = new Dictionary<string, object>
+            {
+                { "daysPresent", currentMonthPresent },
+                { "daysAbsent", currentMonthAbsent },
+                { "daysLate", currentMonthLate },
+                { "remainingAbsences", remainingAbsences },
+                { "targetWorkingDays", TOTAL_WORKING_DAYS_PER_YEAR }
+            };
+        }
+
+        private Dictionary<string, object> GetDefaultStats() => new Dictionary<string, object> 
+        { 
+            { "daysPresent", 0 }, 
+            { "daysAbsent", 0 }, 
+            { "daysLate", 0 }, 
+            { "remainingAbsences", TOTAL_ALLOWED_ABSENCES_PER_YEAR },
+            { "targetWorkingDays", TOTAL_WORKING_DAYS_PER_YEAR }
+        };
+
+        public string GetDaysPresent() => _attendanceStats?["daysPresent"].ToString() ?? "0";
+        public string GetDaysAbsent() => _attendanceStats?["daysAbsent"].ToString() ?? "0";
+        public string GetDaysLate() => _attendanceStats?["daysLate"].ToString() ?? "0";
+        public string GetRemainingAbsences() => _attendanceStats?["remainingAbsences"].ToString() ?? "0";
+        public string GetTargetWorkingDays() => _attendanceStats?["targetWorkingDays"].ToString() ?? "0";
 
         private async Task LoadDashboardDataAsync()
         {

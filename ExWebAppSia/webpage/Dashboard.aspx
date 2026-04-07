@@ -582,6 +582,68 @@
                         showRandomTip();
                     };
                 </script>
+
+                <!-- Custom Modal Styles for Personal Use -->
+                <style>
+                    .custom-modal-v2 {
+                        display: none;
+                        position: fixed;
+                        z-index: 10000;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                        height: 100%;
+                        background: rgba(0, 0, 0, 0.6);
+                        backdrop-filter: blur(8px);
+                    }
+                    .custom-modal-v2-content {
+                        background: white;
+                        margin: 100px auto;
+                        padding: 0;
+                        border-radius: 20px;
+                        width: 90%;
+                        max-width: 500px;
+                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                        animation: customSlideDown 0.3s ease;
+                        font-family: 'Poppins', sans-serif;
+                    }
+                    @keyframes customSlideDown {
+                        from { opacity: 0; transform: translateY(-50px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                    .custom-modal-v2-header {
+                        padding: 24px;
+                        border-radius: 20px 20px 0 0;
+                        color: white;
+                    }
+                    .custom-modal-v2-body { padding: 30px; }
+                    .custom-modal-v2-footer {
+                        padding: 20px 24px;
+                        border-top: 1px solid #F0EEEE;
+                        display: flex;
+                        justify-content: flex-end;
+                        gap: 12px;
+                    }
+                    .btn-modal-cancel {
+                        padding: 10px 20px;
+                        border: none;
+                        border-radius: 10px;
+                        background: #F3F4F6;
+                        color: #4B5563;
+                        font-weight: 600;
+                        cursor: pointer;
+                    }
+                    .btn-modal-confirm {
+                        padding: 10px 20px;
+                        border: none;
+                        border-radius: 10px;
+                        color: white;
+                        font-weight: 600;
+                        cursor: pointer;
+                    }
+                </style>
+
+
             </asp:Content>
 
             <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">

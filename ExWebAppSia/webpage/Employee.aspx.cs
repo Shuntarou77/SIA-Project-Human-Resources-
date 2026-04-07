@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -8,6 +8,8 @@ using System.Web.UI;
 using System.Web.UI.WebControls;
 using ExWebAppSia.Models;
 using Newtonsoft.Json;
+using MongoDB.Driver;
+using MongoDB.Bson;
 
 namespace ExWebAppSia.webpage
 {
@@ -18,6 +20,15 @@ namespace ExWebAppSia.webpage
         private readonly EmployeeConcernService _concernService = new EmployeeConcernService();
         private readonly ManagerService _managerService = new ManagerService();
         private const int MaxConcernsToDisplay = 10;
+
+        protected string CurrentAdminId
+        {
+            get
+            {
+                var emp = Session["Employee"] as Employee;
+                return emp?.EmployeeId;
+            }
+        }
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -625,6 +636,65 @@ namespace ExWebAppSia.webpage
             }
         }
 
+        [System.Web.Services.WebMethod]
+        public static string GetLatestPayslip(string fullName, string employeeNumber = "")
+        {
+            try
+            {
+                var collection = MongoDBHelper.GetPayrollSnapshotsCollection();
+                
+                FilterDefinition<PayrollSnapshot> filter;
+                
+                // CRITICAL FIX: Use a very permissive contains-match to handle messy data like "26-2282,"
+                if (!string.IsNullOrEmpty(employeeNumber))
+                {
+                    string cleanNum = employeeNumber.Trim();
+                    // Match IF the DB field contains this ID OR if the ID contains the DB field
+                    filter = Builders<PayrollSnapshot>.Filter.Or(
+                        Builders<PayrollSnapshot>.Filter.Regex(p => p.EmployeeNumber, new BsonRegularExpression(cleanNum, "i")),
+                        Builders<PayrollSnapshot>.Filter.Regex(p => p.FullName, new BsonRegularExpression(fullName.Trim().Split(',')[0], "i"))
+                    );
+                }
+                else
+                {
+                    // Fallback to name search - be very lenient
+                    filter = Builders<PayrollSnapshot>.Filter.Regex(p => p.FullName, new BsonRegularExpression(fullName.Trim().Split(',')[0], "i"));
+                }
+                
+                var latest = collection.Find(filter)
+                    .SortByDescending(p => p.PayPeriodEnd)
+                    .FirstOrDefault();
+
+                if (latest == null)
+                {
+                    string debugInfo = $"Searched for ID: '{employeeNumber}' and Name: '{fullName}' in 'sia_payroll_db.PayrollSnapshots'.";
+                    return JsonConvert.SerializeObject(new { success = false, message = debugInfo });
+                }
+
+                return JsonConvert.SerializeObject(new
+                {
+                    success = true,
+                    basicSalary = latest.BasicSalary,
+                    allowances = latest.HousingAllowance + latest.TransportAllowance + latest.MealAllowance + latest.OtherAllowances,
+                    overtimePay = latest.TotalOvertime,
+                    totalGross = latest.GrossPay,
+                    sss = latest.SSSDeduction,
+                    philHealth = latest.PhilHealthDeduction,
+                    pagIbig = latest.PagIbigDeduction,
+                    withholdingTax = latest.WithholdingTax,
+                    absenceDeduction = latest.AbsenceDeduction,
+                    penalties = latest.TotalPenalties,
+                    totalDeductions = latest.TotalDeductions,
+                    netSalary = latest.NetPay,
+                    payPeriod = latest.PayPeriodStart.ToString("MMMM dd, yyyy") + " - " + latest.PayPeriodEnd.ToString("MMMM dd, yyyy")
+                });
+            }
+            catch (Exception ex)
+            {
+                return JsonConvert.SerializeObject(new { success = false, message = "Error: " + ex.Message });
+            }
+        }
+
         private string FormatGovNumber(string number, string type)
         {
             if (string.IsNullOrEmpty(number)) return "Not Set";
@@ -871,43 +941,103 @@ namespace ExWebAppSia.webpage
         /// <summary>
         /// Get all pending leave requests
         /// </summary>
-        [System.Web.Services.WebMethod]
+        [System.Web.Services.WebMethod(EnableSession = true)]
         public static string GetPendingLeaveRequests()
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            System.Diagnostics.Debug.WriteLine("--- GetPendingLeaveRequests CALLED ---");
+            
             try
             {
-                var leaveService = new LeaveService();
-                var employeeService = new EmployeeService();
-                var leaves = leaveService.GetAllLeavesAsync()
-                    .ConfigureAwait(false)
-                    .GetAwaiter()
-                    .GetResult();
+                // Run the entire logic in a background thread to prevent ASP.NET Deadlock
+                return Task.Run(async () => {
+                    var leaveService = new LeaveService();
+                    var employeeService = new EmployeeService();
+                    
+                    System.Diagnostics.Debug.WriteLine("Fetching all leaves...");
+                    var leaves = await leaveService.GetAllLeavesAsync().ConfigureAwait(false);
+                    if (leaves == null) {
+                        System.Diagnostics.Debug.WriteLine("Leaves collection is NULL");
+                        return serializer.Serialize(new { success = false, message = "Database error" });
+                    }
 
-                // Filter for pending leaves only
-                var pendingLeaves = leaves.Where(l => l.Status == "Pending").ToList();
-                var employeeNameCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                    // Filter for pending leaves only
+                    var pendingLeaves = leaves.Where(l => l.Status == "Pending").ToList();
+                    System.Diagnostics.Debug.WriteLine($"Found {pendingLeaves.Count} pending leaves");
+                    
+                    if (pendingLeaves.Count == 0) {
+                        return serializer.Serialize(new { success = true, data = new List<object>(), currentAdminId = "" });
+                    }
 
-                var result = pendingLeaves.Select(l => new
-                {
-                    id = l.Id,
-                    employeeId = l.EmployeeId,
-                    employeeName = ResolveLeaveEmployeeName(l, employeeService, employeeNameCache),
-                    leaveType = l.LeaveType,
-                    startDate = l.StartDate.ToString("MMM dd, yyyy"),
-                    endDate = l.EndDate.ToString("MMM dd, yyyy"),
-                    duration = CalculateDuration(l.StartDate, l.EndDate),
-                    reason = l.Reason,
-                    status = l.Status,
-                    submittedDate = l.SubmittedDate.ToString("MMM dd, yyyy h:mm tt")
-                }).ToList();
+                    // BATCH LOOKUP EMPLOYEES: Get all unique employee IDs from the pending leaves
+                    var uniqueEmpIds = pendingLeaves
+                        .Where(l => !string.IsNullOrEmpty(l.EmployeeId))
+                        .Select(l => l.EmployeeId)
+                        .Distinct()
+                        .ToList();
 
-                return serializer.Serialize(new { success = true, data = result });
+                    System.Diagnostics.Debug.WriteLine($"Fetching {uniqueEmpIds.Count} unique employees in batch...");
+                    
+                    // Optimization: Instead of 1 query per leave, we use a dictionary for O(1) lookup
+                    var employeeCache = new Dictionary<string, Employee>(StringComparer.OrdinalIgnoreCase);
+                    
+                    // Get all employees in the system for lookup - since we have relatively few employees (e.g. < 1000)
+                    // Fetching all active ones is faster than multiple individual queries
+                    var allEmployees = await employeeService.GetAllEmployeesAsync().ConfigureAwait(false);
+                    if (allEmployees != null) {
+                        foreach (var emp in allEmployees) {
+                            if (!string.IsNullOrEmpty(emp.EmployeeId))
+                                employeeCache[emp.EmployeeId] = emp;
+                        }
+                    }
+
+                    var result = pendingLeaves.Select(l => {
+                        Employee emp = null;
+                        string empName = l.EmployeeName; // Fallback to what's stored in leave record
+                        
+                        if (!string.IsNullOrEmpty(l.EmployeeId) && employeeCache.TryGetValue(l.EmployeeId, out emp)) {
+                            empName = FormatFullName(emp.FirstName, emp.MiddleName, emp.LastName);
+                        } else if (string.IsNullOrWhiteSpace(empName)) {
+                            empName = l.EmployeeId ?? "Unknown Employee";
+                        } else {
+                             empName = FormatNameFromSingleString(empName);
+                        }
+
+                        return new
+                        {
+                            id = l.Id,
+                            employeeId = l.EmployeeId,
+                            employeeName = empName,
+                            leaveType = l.LeaveType,
+                            startDate = l.StartDate.ToLocalTime().ToString("MMM dd, yyyy"),
+                            endDate = l.EndDate.ToLocalTime().ToString("MMM dd, yyyy"),
+                            duration = CalculateDuration(l.StartDate, l.EndDate),
+                            reason = l.Reason,
+                            status = l.Status,
+                            submittedDate = l.SubmittedDate.ToLocalTime().ToString("MMM dd, yyyy h:mm tt")
+                        };
+                    }).ToList();
+
+                    string currentAdminId = "";
+                    try {
+                        var context = System.Web.HttpContext.Current;
+                        var currentAdmin = context?.Session?["Employee"] as Employee;
+                        currentAdminId = currentAdmin?.EmployeeId ?? "";
+                        System.Diagnostics.Debug.WriteLine($"Current Admin ID: {currentAdminId}");
+                    } catch (Exception ex) {
+                        System.Diagnostics.Debug.WriteLine($"Session error: {ex.Message}");
+                    }
+
+                    System.Diagnostics.Debug.WriteLine("GetPendingLeaveRequests logic COMPLETED successfully");
+                    return serializer.Serialize(new { success = true, data = result, currentAdminId = currentAdminId });
+                    
+                }).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error getting pending leave requests: {ex.Message}");
-                return serializer.Serialize(new { success = false, message = ex.Message });
+                System.Diagnostics.Debug.WriteLine($"CRITICAL Error in GetPendingLeaveRequests: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine(ex.StackTrace);
+                return serializer.Serialize(new { success = false, message = "System Error: " + ex.Message });
             }
         }
 
@@ -956,35 +1086,44 @@ namespace ExWebAppSia.webpage
         /// <summary>
         /// Approve a leave request
         /// </summary>
-        [System.Web.Services.WebMethod]
+        [System.Web.Services.WebMethod(EnableSession = true)]
         public static string ApproveLeaveRequest(string leaveId)
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
             try
             {
-                if (string.IsNullOrEmpty(leaveId))
-                {
-                    return serializer.Serialize(new { success = false, message = "Leave ID is required" });
-                }
+                return Task.Run(async () => {
+                    if (string.IsNullOrEmpty(leaveId))
+                    {
+                        return serializer.Serialize(new { success = false, message = "Leave ID is required" });
+                    }
 
-                var leaveService = new LeaveService();
-                var result = leaveService.UpdateLeaveStatusAsync(leaveId, "Approved")
-                    .ConfigureAwait(false)
-                    .GetAwaiter()
-                    .GetResult();
+                    var context = System.Web.HttpContext.Current;
+                    var currentAdmin = context?.Session?["Employee"] as Employee;
+                    var currentAdminId = currentAdmin?.EmployeeId;
 
-                if (result)
-                {
-                    return serializer.Serialize(new { success = true, message = "Leave request approved successfully" });
-                }
-                else
-                {
-                    return serializer.Serialize(new { success = false, message = "Failed to approve leave request" });
-                }
+                    var leaveService = new LeaveService();
+                    var leave = await leaveService.GetLeaveByIdAsync(leaveId).ConfigureAwait(false);
+                    
+                    if (leave != null && leave.EmployeeId == currentAdminId)
+                    {
+                        return serializer.Serialize(new { success = false, message = "You cannot approve your own leave request." });
+                    }
+
+                    var result = await leaveService.UpdateLeaveStatusAsync(leaveId, "Approved").ConfigureAwait(false);
+
+                    if (result)
+                    {
+                        return serializer.Serialize(new { success = true, message = "Leave request approved successfully" });
+                    }
+                    else
+                    {
+                        return serializer.Serialize(new { success = false, message = "Failed to approve leave request" });
+                    }
+                }).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error approving leave request: {ex.Message}");
                 return serializer.Serialize(new { success = false, message = ex.Message });
             }
         }
@@ -992,35 +1131,44 @@ namespace ExWebAppSia.webpage
         /// <summary>
         /// Decline a leave request
         /// </summary>
-        [System.Web.Services.WebMethod]
+        [System.Web.Services.WebMethod(EnableSession = true)]
         public static string DeclineLeaveRequest(string leaveId)
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
             try
             {
-                if (string.IsNullOrEmpty(leaveId))
-                {
-                    return serializer.Serialize(new { success = false, message = "Leave ID is required" });
-                }
+                return Task.Run(async () => {
+                    if (string.IsNullOrEmpty(leaveId))
+                    {
+                        return serializer.Serialize(new { success = false, message = "Leave ID is required" });
+                    }
 
-                var leaveService = new LeaveService();
-                var result = leaveService.UpdateLeaveStatusAsync(leaveId, "Declined")
-                    .ConfigureAwait(false)
-                    .GetAwaiter()
-                    .GetResult();
+                    var context = System.Web.HttpContext.Current;
+                    var currentAdmin = context?.Session?["Employee"] as Employee;
+                    var currentAdminId = currentAdmin?.EmployeeId;
 
-                if (result)
-                {
-                    return serializer.Serialize(new { success = true, message = "Leave request declined" });
-                }
-                else
-                {
-                    return serializer.Serialize(new { success = false, message = "Failed to decline leave request" });
-                }
+                    var leaveService = new LeaveService();
+                    var leave = await leaveService.GetLeaveByIdAsync(leaveId).ConfigureAwait(false);
+
+                    if (leave != null && leave.EmployeeId == currentAdminId)
+                    {
+                        return serializer.Serialize(new { success = false, message = "You cannot decline your own leave request." });
+                    }
+
+                    var result = await leaveService.UpdateLeaveStatusAsync(leaveId, "Declined").ConfigureAwait(false);
+
+                    if (result)
+                    {
+                        return serializer.Serialize(new { success = true, message = "Leave request declined" });
+                    }
+                    else
+                    {
+                        return serializer.Serialize(new { success = false, message = "Failed to decline leave request" });
+                    }
+                }).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error declining leave request: {ex.Message}");
                 return serializer.Serialize(new { success = false, message = ex.Message });
             }
         }

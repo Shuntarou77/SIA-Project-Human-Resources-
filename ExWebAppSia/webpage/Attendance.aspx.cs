@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -12,8 +12,23 @@ namespace ExWebAppSia.webpage
     public partial class WebForm3 : System.Web.UI.Page
     {
         private readonly AttendanceService _attendanceService = new AttendanceService();
+        private readonly OvertimeService _overtimeService = new OvertimeService();
+        private readonly EmployeeService _employeeService = new EmployeeService();
+        private readonly UndertimeService _undertimeService = new UndertimeService();
         protected List<Attendance> AttendanceRecords { get; set; }
+        protected List<OvertimeRequest> PendingOvertimeRequests { get; set; } = new List<OvertimeRequest>();
+        protected List<UndertimeRecord> UndertimeRecords { get; set; } = new List<UndertimeRecord>();
+        protected List<Employee> AllEmployees { get; set; } = new List<Employee>();
         protected DateTime SelectedDate { get; set; }
+
+        protected string CurrentAdminId 
+        { 
+            get 
+            {
+                var emp = Session["Employee"] as Employee;
+                return emp?.EmployeeId;
+            }
+        }
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -68,6 +83,15 @@ namespace ExWebAppSia.webpage
         {
             try
             {
+                // Load all active employees once for lookups
+                AllEmployees = await _employeeService.GetAllEmployeesAsync();
+
+                // Load pending overtime requests from OvertimeRequests collection
+                PendingOvertimeRequests = await _overtimeService.GetPendingRequestsAsync();
+
+                // Load undertime records for selected date
+                UndertimeRecords = await _undertimeService.GetUndertimeRecordsByDateAsync(SelectedDate);
+
                 // Convert local date to UTC date for querying
                 // The attendance records are stored with UTC dates
                 var localDate = SelectedDate.Date;
@@ -132,9 +156,12 @@ namespace ExWebAppSia.webpage
                         return localTime.Hour > 8 || (localTime.Hour == 8 && localTime.Minute > 0) || (localTime.Hour == 8 && localTime.Second > 0);
                     });
 
+                var undertimeCount = UndertimeRecords.Count;
+
                 ViewState["PresentCount"] = presentCount;
                 ViewState["AbsentCount"] = absentCount;
                 ViewState["LateCount"] = lateCount;
+                ViewState["UndertimeCount"] = undertimeCount;
 
                 // Bind the Repeater
                 if (rptAttendance != null)
@@ -226,6 +253,56 @@ namespace ExWebAppSia.webpage
         protected int GetLateCount()
         {
             return ViewState["LateCount"] != null ? (int)ViewState["LateCount"] : 0;
+        }
+
+        protected int GetUndertimeCount()
+        {
+            return ViewState["UndertimeCount"] != null ? (int)ViewState["UndertimeCount"] : 0;
+        }
+
+        protected string GetUndertimeDisplay(string attendanceId)
+        {
+            var ut = UndertimeRecords.FirstOrDefault(u => u.AttendanceId == attendanceId);
+            if (ut == null) return "<span class=\"time-empty\">-</span>";
+            
+            return $"<span style=\"color: #ef4444; font-weight: 700;\">-{ut.HoursUndertime:N1}h (₱{ut.DeductionAmount:N2})</span>";
+        }
+
+        protected string GetOTStatusBadgeStyle(object statusObj)
+        {
+            string status = statusObj as string;
+            if (string.IsNullOrEmpty(status) || status == "None") 
+                return "display: none;";
+            
+            string color = "#9ca3af";
+            if (status == "Approved") color = "#10b981";
+            else if (status == "Pending") color = "#f59e0b";
+            else if (status == "Rejected") color = "#ef4444";
+            
+            return $"background: {color}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;";
+        }
+
+        protected string GetEstimatedOTRate(OvertimeRequest req)
+        {
+            var emp = AllEmployees?.FirstOrDefault(e => e.EmployeeId == req.EmployeeId);
+            if (emp == null || emp.BaseSalary <= 0) return "0.00";
+
+            // Monthly Salary (BaseSalary) -> Daily Rate
+            // Assuming 313 working days per year for 6 days/week or similar standard
+            decimal dailyRate = (emp.BaseSalary * 12) / 313m; 
+            
+            // Re-calculate based on user formula: Daily Rate / 8 = Hourly Rate
+            decimal multiplier = _overtimeService.GetMultiplier(req.OvertimeType ?? "Regular");
+            
+            decimal estimatedHourlyRate = (dailyRate / 8m) * multiplier;
+            
+            // Note: NSD (Night Shift Differential) is 10%
+            if (req.IsNightShift)
+            {
+                estimatedHourlyRate *= 1.10m;
+            }
+
+            return estimatedHourlyRate.ToString("N2");
         }
     }
 }
