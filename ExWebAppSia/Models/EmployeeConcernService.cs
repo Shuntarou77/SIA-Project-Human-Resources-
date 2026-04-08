@@ -1,4 +1,4 @@
-﻿using MongoDB.Driver;
+using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -21,7 +21,7 @@ namespace ExWebAppSia.Models
             try
             {
                 concern.SubmittedDate = DateTime.UtcNow;
-                concern.Status = "Pending";
+                concern.Status = "Submitted";
                 concern.IsActive = true;
 
                 await _concerns.InsertOneAsync(concern);

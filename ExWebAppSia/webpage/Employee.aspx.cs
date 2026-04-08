@@ -53,13 +53,19 @@ namespace ExWebAppSia.webpage
                 );
 
                 var employeesTask = _employeeService.GetAllEmployeesAsync();
+                var resignedTask = _employeeService.GetAllResignedEmployeesAsync();
                 var concernsTask = _concernService.GetAllConcernsAsync();
                 var managersTask = _managerService.GetAllManagersAsync();
 
                 // Wait for all data tasks to complete
-                await Task.WhenAll(employeesTask, concernsTask, managersTask).ConfigureAwait(false);
+                await Task.WhenAll(employeesTask, resignedTask, concernsTask, managersTask).ConfigureAwait(false);
 
-                var employees = employeesTask.Result ?? new List<Employee>();
+                var activeEmployees = employeesTask.Result ?? new List<Employee>();
+                var resignedEmployees = resignedTask.Result ?? new List<Employee>();
+                // Ensure resigned employees are marked inactive for the filter
+                resignedEmployees.ForEach(e => { e.IsActive = false; });
+                // Merge: active first, then resigned
+                var employees = activeEmployees.Concat(resignedEmployees).ToList();
                 var concerns = concernsTask.Result ?? new List<EmployeeConcern>();
                 var managers = managersTask.Result ?? new List<Manager>();
 
@@ -184,7 +190,7 @@ namespace ExWebAppSia.webpage
                                 "data-id='{0}' data-emp-id='{1}' data-fname='{2}' data-mname='{3}' data-lname='{4}' " +
                                 "data-email='{5}' data-contact='{6}' data-address='{7}' data-dept='{8}' data-role='{9}' " +
                                 "data-hired='{10}' data-active='{11}' data-sss='{12}' data-ph='{13}' data-pi='{14}' data-salary='{15}' data-contract='{16}' " +
-                                "data-sss-num='{17}' data-ph-num='{18}' data-pi-num='{19}'>",
+                                "data-sss-num='{17}' data-ph-num='{18}' data-pi-num='{19}' data-resignation-status='{20}'>",
                     id, empId, fname, mname, lname, email, contact, address, dept, role, 
                     hired, active, 
                     employee.HasSSS.ToString().ToLower(), 
@@ -194,12 +200,21 @@ namespace ExWebAppSia.webpage
                     contract,
                     HttpUtility.HtmlAttributeEncode(employee.SSSNumber ?? ""),
                     HttpUtility.HtmlAttributeEncode(employee.PhilHealthNumber ?? ""),
-                    HttpUtility.HtmlAttributeEncode(employee.PagIbigNumber ?? ""));
+                    HttpUtility.HtmlAttributeEncode(employee.PagIbigNumber ?? ""),
+                    HttpUtility.HtmlAttributeEncode(employee.ResignationStatus ?? "None"));
                 
                 sb.AppendFormat("<td>{0}</td>", Server.HtmlEncode(employee.EmployeeId));
                 sb.AppendFormat("<td>{0}</td>", Server.HtmlEncode(employee.FullName));
                 sb.AppendFormat("<td>{0}</td>", Server.HtmlEncode(employee.Department ?? ""));
                 sb.AppendFormat("<td>{0}</td>", Server.HtmlEncode(employee.Role ?? ""));
+                
+                string sText = employee.IsActive ? "Active" : "Resigned";
+                if (employee.ResignationStatus == "Pending") sText = "Pending Resignation";
+                
+                string sClass = sText == "Active" ? "status-active-emp" : 
+                               sText == "Pending Resignation" ? "status-pending-res" : "status-inactive";
+                
+                sb.AppendFormat("<td><span class='{0}'>{1}</span></td>", sClass, sText);
                 sb.Append("</tr>");
             }
 
@@ -479,12 +494,11 @@ namespace ExWebAppSia.webpage
                     foreach (var concern in concerns)
                     {
                         string priorityColor = concern.PriorityLevel == "Urgent" ? "#ef4444" : 
-                                              concern.PriorityLevel == "High" ? "#f59e0b" : 
-                                              concern.PriorityLevel == "Medium" ? "#3b82f6" : "#10b981";
+                                              concern.PriorityLevel == "High" ? "#f59e0b" : "#10b981";
                         
                         string statusColor = concern.Status == "Resolved" ? "#10b981" : 
                                             concern.Status == "Closed" ? "#6b7280" : 
-                                            concern.Status == "In Progress" ? "#3b82f6" : "#f59e0b";
+                                            concern.Status == "In Progress" ? "#3b82f6" : "#f59e0b"; // Submitted
                         
                         sb.Append("<div style='background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid " + priorityColor + ";'>");
                         sb.Append("<div style='display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;'>");
@@ -548,7 +562,7 @@ namespace ExWebAppSia.webpage
                     System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Step 3: Sending email to {toEmail}...");
                     try { 
                         System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
-                            Task.Run(() => emailService.SendTerminationEmailAsync(toEmail, fullName))
+                            Task.Run(() => emailService.SendAccountStatusEmailAsync(toEmail, fullName, "Resignation Approved"))
                         ); 
                     }
                     catch (Exception emailEx) { System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Email error: {emailEx.Message}"); }
@@ -1038,6 +1052,64 @@ namespace ExWebAppSia.webpage
                 System.Diagnostics.Debug.WriteLine($"CRITICAL Error in GetPendingLeaveRequests: {ex.Message}");
                 System.Diagnostics.Debug.WriteLine(ex.StackTrace);
                 return serializer.Serialize(new { success = false, message = "System Error: " + ex.Message });
+            }
+        }
+
+        [System.Web.Services.WebMethod(EnableSession = true)]
+        public static string GetPendingResignations()
+        {
+            var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            try
+            {
+                return Task.Run(async () =>
+                {
+                    var employeeService = new EmployeeService();
+                    var pending = await employeeService.GetPendingResignationsAsync().ConfigureAwait(false);
+
+                    var result = pending.Select(e => new
+                    {
+                        id         = e.Id,
+                        empId      = e.EmployeeId ?? "",
+                        name       = e.FullName ?? "",
+                        department = e.Department ?? "",
+                        role       = e.Role ?? "",
+                        dateReq    = e.ResignationDate.HasValue
+                                        ? e.ResignationDate.Value.ToLocalTime().ToString("MMM dd, yyyy")
+                                        : "—",
+                        status     = e.ResignationStatus ?? "Pending"
+                    }).ToList();
+
+                    return serializer.Serialize(new { success = true, data = result });
+                }).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                return serializer.Serialize(new { success = false, message = ex.Message });
+            }
+        }
+
+        [System.Web.Services.WebMethod(EnableSession = true)]
+        public static string CancelResignation(string id)
+        {
+            var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            try
+            {
+                bool success = Task.Run(async () =>
+                {
+                    var employeeService = new EmployeeService();
+                    var update = MongoDB.Driver.Builders<Models.Employee>.Update
+                        .Set(e => e.ResignationStatus, "None")
+                        .Set(e => e.ResignationDate, (DateTime?)null);
+                    var result = await employeeService.UpdateEmployeeFieldsAsync(id, update).ConfigureAwait(false);
+                    return result;
+                }).GetAwaiter().GetResult();
+
+                if (success) LogActivity("Declined Resignation", $"Declined resignation for employee ID: {id}");
+                return serializer.Serialize(new { success, message = success ? "Resignation declined." : "Failed to decline resignation." });
+            }
+            catch (Exception ex)
+            {
+                return serializer.Serialize(new { success = false, message = ex.Message });
             }
         }
 

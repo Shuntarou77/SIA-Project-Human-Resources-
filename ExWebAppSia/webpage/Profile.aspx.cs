@@ -21,6 +21,7 @@ namespace ExWebAppSia.webpage
     {
         private readonly AttendanceService _attendanceService = new AttendanceService();
         private readonly OvertimeService _overtimeService = new OvertimeService();
+        private readonly UndertimeService _undertimeService = new UndertimeService();
         private string _attendanceStatusJson = null;
         private List<Attendance> _employeeAttendanceRecords = null;
         private Dictionary<string, object> _attendanceStats = null;
@@ -196,6 +197,9 @@ namespace ExWebAppSia.webpage
 
                 _employeeAttendanceRecords = await _attendanceService.GetEmployeeAttendanceAsync(employee.EmployeeId);
                 CalculateAttendanceStatistics();
+                
+                // Add Overtime and Undertime Async
+                await LoadOvertimeAndUndertimeStatsAsync(employee.EmployeeId);
             }
             catch
             {
@@ -258,6 +262,44 @@ namespace ExWebAppSia.webpage
             };
         }
 
+        private async Task LoadOvertimeAndUndertimeStatsAsync(string employeeId)
+        {
+            try
+            {
+                var now = DateTime.Now;
+                var currentMonth = new DateTime(now.Year, now.Month, 1);
+                
+                // Load approved overtime
+                var overtimeRequests = await MongoDBHelper.GetOvertimeRequestsCollection()
+                    .Find(o => o.EmployeeId == employeeId && o.Status == "Approved" && o.IsActive)
+                    .ToListAsync();
+                
+                double totalOt = overtimeRequests
+                    .Where(o => o.Date >= currentMonth)
+                    .Sum(o => {
+                        if (string.IsNullOrEmpty(o.OvertimeWorked)) return 0.0;
+                        var parts = o.OvertimeWorked.Split(':');
+                        if (parts.Length >= 2 && double.TryParse(parts[0], out double h) && double.TryParse(parts[1], out double m))
+                            return h + (m / 60.0);
+                        return 0.0;
+                    });
+
+                // Load undertime
+                var undertimeRecords = await _undertimeService.GetUndertimeRecordsByEmployeeAsync(employeeId);
+                int monthlyUt = undertimeRecords.Count(u => u.Date >= currentMonth);
+
+                if (_attendanceStats != null)
+                {
+                    _attendanceStats["overtimeHours"] = Math.Round(totalOt, 1);
+                    _attendanceStats["undertimeCount"] = monthlyUt;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading OT/UT stats: {ex.Message}");
+            }
+        }
+
         private Dictionary<string, object> GetDefaultStats() => new Dictionary<string, object> 
         { 
             { "daysPresent", 0 }, 
@@ -274,6 +316,8 @@ namespace ExWebAppSia.webpage
         public string GetAttendanceRate() => _attendanceStats?["attendanceRate"].ToString() ?? "0";
         public string GetRemainingAbsences() => _attendanceStats?["remainingAbsences"].ToString() ?? "0";
         public string GetTargetWorkingDays() => _attendanceStats?["targetWorkingDays"].ToString() ?? "0";
+        public string GetOvertimeHours() => _attendanceStats != null && _attendanceStats.ContainsKey("overtimeHours") ? _attendanceStats["overtimeHours"].ToString() : "0.0";
+        public string GetUndertimeCount() => _attendanceStats != null && _attendanceStats.ContainsKey("undertimeCount") ? _attendanceStats["undertimeCount"].ToString() : "0";
 
         private async Task LoadLatestPayrollAsync()
         {

@@ -298,6 +298,28 @@ namespace ExWebAppSia.webpage.api
                             message = result ? "Overtime rejected successfully" : "Failed to reject overtime";
                         }
                         break;
+                    
+                    case "requestresignation":
+                        string resignReason = context.Request["reason"] ?? context.Request.QueryString["reason"] ?? "";
+                        if (string.IsNullOrEmpty(employeeId))
+                        {
+                            message = "Missing employee ID";
+                        }
+                        else
+                        {
+                            // Need to handle Mongodb _id if passed, or convert EmployeeId to Mongodb _id
+                            var emp = Task.Run(async () => await _employeeService.GetByEmployeeIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            if (emp != null)
+                            {
+                                result = Task.Run(async () => await _employeeService.RequestResignationAsync(emp.Id, resignReason).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                message = result ? "Resignation request submitted" : "Failed to submit resignation request";
+                            }
+                            else
+                            {
+                                message = "Employee not found";
+                            }
+                        }
+                        break;
 
                     default:
                         message = "Invalid action: " + action;

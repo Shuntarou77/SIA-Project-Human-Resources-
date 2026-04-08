@@ -20,6 +20,8 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
     public partial class WebForm2 : System.Web.UI.Page
     {
         private readonly AttendanceService _attendanceService = new AttendanceService();
+        private readonly OvertimeService _overtimeService = new OvertimeService();
+        private readonly UndertimeService _undertimeService = new UndertimeService();
         private List<Attendance> _employeeAttendanceRecords = null;
         private Dictionary<string, object> _attendanceStats = null;
         private PayrollSnapshot _latestPayroll = null;
@@ -217,6 +219,11 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
         protected string GetPhilHealthNumber() => FormatGovNumber(CurrentEmployee?.PhilHealthNumber, "PhilHealth");
         protected string GetPagIbigNumber() => FormatGovNumber(CurrentEmployee?.PagIbigNumber, "Pag-IBIG");
 
+        protected string GetResignationStatus()
+        {
+            return CurrentEmployee?.ResignationStatus ?? "None";
+        }
+
         private async Task LoadAttendanceStatusAsync()
         {
             try
@@ -263,6 +270,9 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 
                 // Calculate statistics
                 CalculateAttendanceStatistics();
+                
+                // Add Overtime and Undertime Async
+                await LoadOvertimeAndUndertimeStatsAsync(employee.EmployeeId);
             }
             catch (Exception ex)
             {
@@ -339,8 +349,48 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 { "daysLate", currentMonthLate },
                 { "attendanceRate", currentMonthAttendancePercent },
                 { "remainingAbsences", remainingAbsences },
-                { "targetWorkingDays", TOTAL_WORKING_DAYS_PER_YEAR }
+                { "targetWorkingDays", TOTAL_WORKING_DAYS_PER_YEAR },
+                { "overtimeHours", 0.0 }, // placeholder
+                { "undertimeCount", 0 }    // placeholder
             };
+        }
+
+        private async Task LoadOvertimeAndUndertimeStatsAsync(string employeeId)
+        {
+            try
+            {
+                var now = DateTime.Now;
+                var currentMonth = new DateTime(now.Year, now.Month, 1);
+                
+                // Load approved overtime
+                var overtimeRequests = await MongoDBHelper.GetOvertimeRequestsCollection()
+                    .Find(o => o.EmployeeId == employeeId && o.Status == "Approved" && o.IsActive)
+                    .ToListAsync();
+                
+                double totalOt = overtimeRequests
+                    .Where(o => o.Date >= currentMonth)
+                    .Sum(o => {
+                        if (string.IsNullOrEmpty(o.OvertimeWorked)) return 0.0;
+                        var parts = o.OvertimeWorked.Split(':');
+                        if (parts.Length >= 2 && double.TryParse(parts[0], out double h) && double.TryParse(parts[1], out double m))
+                            return h + (m / 60.0);
+                        return 0.0;
+                    });
+
+                // Load undertime
+                var undertimeRecords = await _undertimeService.GetUndertimeRecordsByEmployeeAsync(employeeId);
+                int monthlyUt = undertimeRecords.Count(u => u.Date >= currentMonth);
+
+                if (_attendanceStats != null)
+                {
+                    _attendanceStats["overtimeHours"] = Math.Round(totalOt, 1);
+                    _attendanceStats["undertimeCount"] = monthlyUt;
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading OT/UT stats: {ex.Message}");
+            }
         }
 
         private Dictionary<string, object> GetDefaultStats()
@@ -352,7 +402,9 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 { "daysLate", 0 },
                 { "attendanceRate", 0 },
                 { "remainingAbsences", TOTAL_ALLOWED_ABSENCES_PER_YEAR },
-                { "targetWorkingDays", TOTAL_WORKING_DAYS_PER_YEAR }
+                { "targetWorkingDays", TOTAL_WORKING_DAYS_PER_YEAR },
+                { "overtimeHours", 0.0 },
+                { "undertimeCount", 0 }
             };
         }
 
@@ -391,6 +443,18 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
         {
             if (_attendanceStats == null) return "0";
             return _attendanceStats["targetWorkingDays"].ToString();
+        }
+
+        protected string GetOvertimeHours()
+        {
+            if (_attendanceStats == null || !_attendanceStats.ContainsKey("overtimeHours")) return "0.0";
+            return _attendanceStats["overtimeHours"].ToString();
+        }
+
+        protected string GetUndertimeCount()
+        {
+            if (_attendanceStats == null || !_attendanceStats.ContainsKey("undertimeCount")) return "0";
+            return _attendanceStats["undertimeCount"].ToString();
         }
 
         private async Task LoadLatestPayrollAsync()
@@ -490,8 +554,8 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                     ConcernType = ddlConcernType.SelectedItem.Text,
                     Subject = txtConcernSubject.Text.Trim(),
                     Description = txtConcernDescription.Text.Trim(),
-                    PriorityLevel = "Normal",
-                    Status = "New",
+                    PriorityLevel = "Low",
+                    Status = "Submitted",
                     SubmittedDate = DateTime.UtcNow,
                     IsActive = true
                 };

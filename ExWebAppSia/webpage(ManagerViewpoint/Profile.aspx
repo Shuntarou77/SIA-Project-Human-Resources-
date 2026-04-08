@@ -1,4 +1,4 @@
-﻿<%@ Page Title="" Language="C#" MasterPageFile="~/webpage(ManagerViewpoint/ManagerHR.Master" AutoEventWireup="true" Async="true" CodeBehind="Profile.aspx.cs" Inherits="ExWebAppSia.webpage_ManagerViewpoint.WebForm4" %>
+<%@ Page Title="" Language="C#" MasterPageFile="~/webpage(ManagerViewpoint/ManagerHR.Master" AutoEventWireup="true" Async="true" CodeBehind="Profile.aspx.cs" Inherits="ExWebAppSia.webpage_ManagerViewpoint.WebForm4" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <style>
@@ -756,7 +756,6 @@
                     <label class="form-label">Priority Level</label>
                     <asp:DropDownList ID="ddlPriorityLevel" runat="server" CssClass="form-select">
                         <asp:ListItem Value="low" Text="Low"></asp:ListItem>
-                        <asp:ListItem Value="medium" Text="Medium" Selected="True"></asp:ListItem>
                         <asp:ListItem Value="high" Text="High"></asp:ListItem>
                         <asp:ListItem Value="urgent" Text="Urgent"></asp:ListItem>
                     </asp:DropDownList>

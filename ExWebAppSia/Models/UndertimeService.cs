@@ -57,5 +57,18 @@ namespace ExWebAppSia.Models
                 return new List<UndertimeRecord>();
             }
         }
+
+        public async Task<List<UndertimeRecord>> GetUndertimeRecordsByEmployeeAsync(string employeeId)
+        {
+            try
+            {
+                return await _undertime.Find(u => u.EmployeeId == employeeId && u.IsActive).ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting employee undertime records: {ex.Message}");
+                return new List<UndertimeRecord>();
+            }
+        }
     }
 }

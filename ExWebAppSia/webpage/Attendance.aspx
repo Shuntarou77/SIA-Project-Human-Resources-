@@ -511,6 +511,12 @@
                         </div>
                         <div class="stat-label">Undertime</div>
                     </div>
+                    <div class="stat-card" style="background-color: #f59e0b;">
+                        <div class="stat-number">
+                            <%= GetOvertimeCount() %>
+                        </div>
+                        <div class="stat-label">Overtime</div>
+                    </div>
                 </div>
 
                 <!-- Filter & Search Row -->

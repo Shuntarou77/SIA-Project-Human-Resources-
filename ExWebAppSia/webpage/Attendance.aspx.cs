@@ -162,6 +162,7 @@ namespace ExWebAppSia.webpage
                 ViewState["AbsentCount"] = absentCount;
                 ViewState["LateCount"] = lateCount;
                 ViewState["UndertimeCount"] = undertimeCount;
+                ViewState["OvertimeCount"] = PendingOvertimeRequests.Count;
 
                 // Bind the Repeater
                 if (rptAttendance != null)
@@ -258,6 +259,11 @@ namespace ExWebAppSia.webpage
         protected int GetUndertimeCount()
         {
             return ViewState["UndertimeCount"] != null ? (int)ViewState["UndertimeCount"] : 0;
+        }
+
+        protected int GetOvertimeCount()
+        {
+            return ViewState["OvertimeCount"] != null ? (int)ViewState["OvertimeCount"] : 0;
         }
 
         protected string GetUndertimeDisplay(string attendanceId)

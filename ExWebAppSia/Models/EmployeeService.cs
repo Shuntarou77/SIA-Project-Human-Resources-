@@ -394,11 +394,16 @@ namespace ExWebAppSia.Models
             if (_employees == null || _resignedEmployees == null) return false;
             try
             {
+                // Update status to Approved if it's not already (for HR immediate resignations)
+                var update = Builders<Employee>.Update.Set(e => e.ResignationStatus, "Approved");
+                await _employees.UpdateOneAsync(e => e.Id == id, update);
+
                 // Atomically find and remove the employee in one single fast operation (Reduces 2 network calls to 1)
                 var emp = await _employees.FindOneAndDeleteAsync(e => e.Id == id);
                 if (emp != null)
                 {
                     emp.IsActive = false;
+                    emp.ResignationStatus = "Approved";
                     
                     // Concurrently insert into Resigned and update the Users login account
                     var task1 = _resignedEmployees.InsertOneAsync(emp);
@@ -413,43 +418,123 @@ namespace ExWebAppSia.Models
             catch { return false; }
         }
 
+        public async Task<bool> RequestResignationAsync(string id, string reason = "")
+        {
+            if (_employees == null) return false;
+            try
+            {
+                var update = Builders<Employee>.Update
+                    .Set(e => e.ResignationStatus, "Pending")
+                    .Set(e => e.ResignationDate, DateTime.UtcNow)
+                    .Set(e => e.ResignationReason, reason);
+                var result = await _employees.UpdateOneAsync(e => e.Id == id, update);
+                return result.ModifiedCount > 0;
+            }
+            catch { return false; }
+        }
+
+        public async Task<List<Employee>> GetPendingResignationsAsync()
+        {
+            if (_employees == null) return new List<Employee>();
+            try
+            {
+                return await _employees.Find(e => e.IsActive && e.ResignationStatus == "Pending")
+                    .ToListAsync();
+            }
+            catch { return new List<Employee>(); }
+        }
+
         // Rehire employee (move back to active Employees collection, mark active)
         public async Task<bool> RehireEmployeeAsync(string id)
         {
             if (_employees == null || _resignedEmployees == null) return false;
             try
             {
-                // First check if they are in ResignedEmployees
-                var emp = await _resignedEmployees.Find(e => e.Id == id).FirstOrDefaultAsync();
-                
+                // Look for the employee in the ResignedEmployees collection
+                var emp = await _resignedEmployees.Find(e => e.Id == id).FirstOrDefaultAsync()
+                          .ConfigureAwait(false);
+
                 if (emp != null)
                 {
+                    // Reset to active state and clear resignation fields
                     emp.IsActive = true;
-                    emp.HiredDate = DateTime.UtcNow; // Optionally update hire date
-                    
-                    // Move back to Employees collection
-                    await _employees.InsertOneAsync(emp);
-                    var result = await _resignedEmployees.DeleteOneAsync(e => e.Id == id);
+                    emp.ResignationStatus = "None";
+                    emp.ResignationDate = null;
+                    // Keep original HiredDate — only update if a new hire date is needed
+                    // emp.HiredDate = DateTime.UtcNow;
 
-                    // Reactivate user account
-                    await _users.UpdateOneAsync(u => u.EmployeeId == emp.EmployeeId, Builders<User>.Update.Set(u => u.IsActive, true));
-                    
-                    return result.DeletedCount > 0;
+                    // Use ReplaceOneAsync with upsert=true to avoid duplicate key errors
+                    // if the document was ever partially in the Employees collection
+                    var replaceResult = await _employees.ReplaceOneAsync(
+                        e => e.Id == id,
+                        emp,
+                        new MongoDB.Driver.ReplaceOptions { IsUpsert = true }
+                    ).ConfigureAwait(false);
+
+                    // Remove from ResignedEmployees
+                    var deleteResult = await _resignedEmployees.DeleteOneAsync(e => e.Id == id)
+                        .ConfigureAwait(false);
+
+                    // Reactivate user login account
+                    if (_users != null)
+                    {
+                        await _users.UpdateOneAsync(
+                            u => u.EmployeeId == emp.EmployeeId,
+                            Builders<User>.Update.Set(u => u.IsActive, true)
+                        ).ConfigureAwait(false);
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"[RehireEmployeeAsync] Rehired '{emp.FullName}' — upserted: {replaceResult.IsAcknowledged}, deleted from resigned: {deleteResult.DeletedCount}");
+                    return replaceResult.IsAcknowledged;
                 }
                 else
                 {
-                    // Fallback to active employees just in case they weren't moved properly
-                    var update = Builders<Employee>.Update.Set(e => e.IsActive, true);
-                    var result = await _employees.UpdateOneAsync(e => e.Id == id, update);
-                    emp = await GetEmployeeByIdAsync(id);
-                    if (emp != null)
+                    // Fallback: employee may still be in the active collection but marked inactive
+                    System.Diagnostics.Debug.WriteLine($"[RehireEmployeeAsync] Employee {id} not in ResignedEmployees — trying active collection fallback.");
+                    var update = Builders<Employee>.Update
+                        .Set(e => e.IsActive, true)
+                        .Set(e => e.ResignationStatus, "None")
+                        .Set(e => e.ResignationDate, (DateTime?)null);
+
+                    var result = await _employees.UpdateOneAsync(e => e.Id == id, update)
+                        .ConfigureAwait(false);
+
+                    var emp2 = await GetEmployeeByIdAsync(id).ConfigureAwait(false);
+                    if (emp2 != null && _users != null)
                     {
-                        await _users.UpdateOneAsync(u => u.EmployeeId == emp.EmployeeId, Builders<User>.Update.Set(u => u.IsActive, true));
+                        await _users.UpdateOneAsync(
+                            u => u.EmployeeId == emp2.EmployeeId,
+                            Builders<User>.Update.Set(u => u.IsActive, true)
+                        ).ConfigureAwait(false);
                     }
+
+                    System.Diagnostics.Debug.WriteLine($"[RehireEmployeeAsync] Fallback update result: ModifiedCount={result.ModifiedCount}");
                     return result.ModifiedCount > 0;
                 }
             }
-            catch { return false; }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[RehireEmployeeAsync] ERROR: {ex.GetType().Name} — {ex.Message}");
+                if (ex.InnerException != null)
+                    System.Diagnostics.Debug.WriteLine($"[RehireEmployeeAsync] Inner: {ex.InnerException.Message}");
+                return false;
+            }
+        }
+
+        // Generic field update helper (used by CancelResignation, etc.)
+        public async Task<bool> UpdateEmployeeFieldsAsync(string id, MongoDB.Driver.UpdateDefinition<Employee> update)
+        {
+            if (_employees == null) return false;
+            try
+            {
+                var result = await _employees.UpdateOneAsync(e => e.Id == id, update).ConfigureAwait(false);
+                return result.ModifiedCount > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[UpdateEmployeeFieldsAsync] ERROR: {ex.Message}");
+                return false;
+            }
         }
 
         // Update employee department (deploy to another department)
@@ -716,6 +801,7 @@ namespace ExWebAppSia.Models
                 return new List<Employee>();
             }
         }
+
 
         // Get employee by email (Employees collection ONLY)
         public async Task<Employee> GetEmployeeByEmailAsync(string email)

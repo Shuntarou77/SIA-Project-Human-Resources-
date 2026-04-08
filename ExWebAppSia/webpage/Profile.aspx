@@ -700,12 +700,24 @@
                                     </div>
                                     <div class="stat-label">Remaining Absents</div>
                                 </div>
-                                <div class="stat-box">
-                                    <div class="stat-value" style="color: var(--success-color);">
-                                        <%= GetTargetWorkingDays() %>
-                                    </div>
-                                    <div class="stat-label">Working Days / Year</div>
-                                </div>
+                                 <div class="stat-box">
+                                     <div class="stat-value" style="color: var(--success-color);">
+                                         <%= GetTargetWorkingDays() %>
+                                     </div>
+                                     <div class="stat-label">Working Days / Year</div>
+                                 </div>
+                                 <div class="stat-box">
+                                     <div class="stat-value" style="color: #f59e0b;">
+                                         <%= GetOvertimeHours() %>h
+                                     </div>
+                                     <div class="stat-label">Overtime</div>
+                                 </div>
+                                 <div class="stat-box">
+                                     <div class="stat-value" style="color: #ef4444;">
+                                         <%= GetUndertimeCount() %>
+                                     </div>
+                                     <div class="stat-label">Undertime</div>
+                                 </div>
                             </div>
 
                             <div class="attendance-actions">
@@ -1036,6 +1048,7 @@
                         const overtimeBtn = document.getElementById('overtimeBtn');
                         
                         // Rule: OT button only appears starting 3:00 PM (2 hours before shift ends)
+                        const now = new Date();
                         const showOT = now.getHours() >= 15;
                         if (overtimeBtn) {
                             overtimeBtn.style.display = showOT ? 'flex' : 'none';

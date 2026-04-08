@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Web;
 using System.Web.Script.Serialization;
@@ -109,7 +109,7 @@ namespace ExWebAppSia.webpage.api
 
 			if (string.IsNullOrEmpty(targetDepartment) || targetDepartment == "General")
 			{
-				targetDepartment = !string.IsNullOrEmpty(role) && role.Equals("Admin", StringComparison.OrdinalIgnoreCase) ? "HR Department" : "General";
+				targetDepartment = "General";
 			}
 
 			var doc = new Announcement
@@ -138,10 +138,36 @@ namespace ExWebAppSia.webpage.api
                 
                 var logService = new ActivityLogService();
                 System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
-                    System.Threading.Tasks.Task.Run(() => logService.LogActionAsync(username, hrName, "Created Announcement", "Announcements", $"Posted: {titleSnippet}"))
+                    System.Threading.Tasks.Task.Run(() => logService.LogActionAsync(username, hrName, "Created Announcement", "Announcements", $"Posted: {titleSnippet} ({targetDepartment})"))
+                );
+
+                // AUTOMATION: Send announcement emails to employees (All or Targeted Dept)
+                var emailService = new EmailService();
+                var empService = new EmployeeService();
+                System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
+                    System.Threading.Tasks.Task.Run(async () => {
+                        try {
+                            List<Employee> employees;
+                            if (doc.Department == "General") {
+                                employees = await empService.GetAllEmployeesAsync();
+                            } else {
+                                employees = await empService.GetEmployeesByDepartmentAsync(doc.Department);
+                            }
+
+                            System.Diagnostics.Debug.WriteLine($"Automation: Sending announcement '{titleSnippet}' to {employees.Count} employees in {doc.Department}");
+
+                            foreach(var employee in employees) {
+                                if (!string.IsNullOrEmpty(employee.Email)) {
+                                    await emailService.SendAnnouncementEmailAsync(employee.Email, employee.FullName, doc.Content, doc.Department, doc.ImagePath);
+                                }
+                            }
+                        } catch (Exception ex) {
+                            System.Diagnostics.Debug.WriteLine($"Error in background announcement emails: {ex.Message}");
+                        }
+                    })
                 );
             }
-            catch { /* Ignore */ }
+            catch { /* Ignore log errors */ }
 
 			ctx.Response.StatusCode = 201;
 			ctx.Response.Write(_json.Serialize(doc));

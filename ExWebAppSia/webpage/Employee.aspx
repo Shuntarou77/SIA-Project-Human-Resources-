@@ -461,6 +461,26 @@
                 color: #721c24;
             }
 
+            .status-pending-res {
+                background: #fef3c7;
+                color: #92400e;
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 11px;
+                font-weight: 600;
+                border: 1px solid #fcd34d;
+            }
+
+            .status-active-emp {
+                background: #dcfce7;
+                color: #166534;
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 11px;
+                font-weight: 600;
+                border: 1px solid #86efac;
+            }
+
             /* Bottom Section Container */
             .bottom-section-container {
                 width: 100%;
@@ -871,7 +891,7 @@
                             </div>
                             <div class="filter-group">
                                 <select id="statusFilter" class="form-control"
-                                    style="height: 48px; border-radius: 12px; border: 1.5px solid #e5e7eb; min-width: 150px; font-size: 14px; padding: 0 16px; background: #fff; cursor: pointer;"
+                                    style="height: 48px; border-radius: 12px; border: 1.5px solid #e5e7eb; min-width: 180px; font-size: 14px; padding: 0 16px; background: #fff; cursor: pointer;"
                                     onchange="applyFilter(currentSelectedDept)">
                                     <option value="Active">Active Employees</option>
                                     <option value="Inactive">Resigned/Inactive</option>
@@ -901,6 +921,7 @@
                                         <th>Name</th>
                                         <th>Department</th>
                                         <th>Role</th>
+                                        <th>Status</th>
                                     </tr>
                                 </thead>
                                 <tbody id="employeeTableBody" runat="server">
@@ -923,7 +944,7 @@
             </div>
         </div>
 
-        <!-- Bottom Section: Leave Requests Table -->
+        <!-- Bottom Section: Leave Requests + Resignation Requests -->
         <div class="bottom-section-container">
             <div class="attendance-table-container">
                 <h3 class="table-title"><svg
@@ -950,6 +971,38 @@
                             <tr>
                                 <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
                                     Loading leave requests...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Resignation Requests Pending Approval -->
+            <div class="attendance-table-container" style="margin-top: 24px;">
+                <h3 class="table-title">
+                    <svg style="width:20px;height:20px;vertical-align:middle;margin-right:8px;fill:#f59e0b;" viewBox="0 0 24 24">
+                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                    </svg>
+                    Resignation Requests &mdash; Pending Approval
+                </h3>
+                <div class="table-scroll" style="max-height: 300px;">
+                    <table class="attendance-table">
+                        <thead>
+                            <tr>
+                                <th>Employee</th>
+                                <th>ID</th>
+                                <th>Department</th>
+                                <th>Role</th>
+                                <th>Date Requested</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resignationRequestsBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                                    Loading resignation requests...
                                 </td>
                             </tr>
                         </tbody>
@@ -1001,8 +1054,16 @@
                         }
 
                         const statusFilter = document.getElementById('statusFilter').value;
-                        const rowStatus = row.getAttribute('data-active');
-                        const matchesStatus = statusFilter === 'all' ? true : rowStatus === statusFilter;
+                        const rowActive = row.getAttribute('data-active');
+                        const rowResignStatus = row.getAttribute('data-resignation-status');
+                        let matchesStatus;
+                        if (statusFilter === 'all') {
+                            matchesStatus = true;
+                        } else if (statusFilter === 'Pending') {
+                            matchesStatus = rowResignStatus === 'Pending';
+                        } else {
+                            matchesStatus = rowActive === statusFilter;
+                        }
 
                         if (matchesDept && matchesSearch && matchesGovt && matchesStatus) {
                             row.classList.remove('filtered-out');
@@ -1162,14 +1223,25 @@
                     <button type="button" class="action-button">View History</button>
                 </div>`;
 
+                const resStatus = row.getAttribute('data-resignation-status');
+
                 // Add Resign/Rehire/Deploy Cards
                 if (active === "Active") {
-                    html += `<div class='action-card' onclick='resignEmployee("${id}")'>
-                        <div class='action-icon'><i class='fas fa-user-slash'></i></div>
-                        <h3 class='action-title'>Resigned</h3>
-                        <p class='action-description'>Mark this employee as resigned and deactivate their account.</p>
-                        <button type="button" class="action-button" style='background: #ef4444;'>Process Resignation</button>
-                    </div>`;
+                    if (resStatus === "Pending") {
+                        html += `<div class='action-card' onclick='resignEmployee("${id}")'>
+                            <div class='action-icon'><i class='fas fa-user-check'></i></div>
+                            <h3 class='action-title'>Approve Resignation</h3>
+                            <p class='action-description'>This employee has requested to resign. Review and approve to finalize.</p>
+                            <button type="button" class="action-button" style='background: #f59e0b;'>Approve Resignation</button>
+                        </div>`;
+                    } else {
+                        html += `<div class='action-card' onclick='resignEmployee("${id}")'>
+                            <div class='action-icon'><i class='fas fa-user-slash'></i></div>
+                            <h3 class='action-title'>Resigned</h3>
+                            <p class='action-description'>Mark this employee as resigned and deactivate their account.</p>
+                            <button type="button" class="action-button" style='background: #ef4444;'>Process Resignation</button>
+                        </div>`;
+                    }
 
                     html += `<div class='action-card' onclick='openDeployModal("${id}", "${dept}")'>
                         <div class='action-icon'><i class='fas fa-exchange-alt'></i></div>
@@ -1422,13 +1494,8 @@
                     const priorityColor = priority === "Urgent" ? "#ef4444" : priority === "High" ? "#f59e0b" : priority === "Medium" ? "#3b82f6" : "#10b981";
                     const statusColor = status === "Resolved" ? "#10b981" : status === "Closed" ? "#6b7280" : status === "In Progress" ? "#3b82f6" : "#f59e0b";
 
-                    html += `<div style="background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid ${priorityColor};">`;
-                    html += `  <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">`;
-                    html += `    <div><strong style="color: #333; font-size: 16px;">${subject}</strong></div>`;
-                    html += `    <div style="display: flex; gap: 8px; flex-wrap: wrap;">`;
-                    html += `      <span style="background: ${priorityColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;">${priority}</span>`;
-                    html += `      <span style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;">${status}</span>`;
-                    html += `    </div></div>`;
+                    html += `<div style="background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #E8C4C4;">`;
+                    html += `  <div style="margin-bottom: 12px;"><strong style="color: #333; font-size: 16px;">${subject}</strong></div>`;
                     html += `  <div style="margin-bottom: 8px; color: #666;"><strong>Type:</strong> ${type}</div>`;
                     html += `  <div style="margin-bottom: 8px; color: #666;"><strong>Description:</strong> ${desc}</div>`;
                     html += `  <div style="color: #999; font-size: 12px;"><strong>Submitted:</strong> ${dateStr}</div>`;
@@ -1620,7 +1687,82 @@
             // Load pending leave requests on page load
             document.addEventListener('DOMContentLoaded', function () {
                 loadPendingLeaveRequests();
+                loadPendingResignations();
             });
+
+            function loadPendingResignations() {
+                PageMethods.GetPendingResignations(function (response) {
+                    var result = typeof response === 'string' ? JSON.parse(response) : response;
+                    var tbody = document.getElementById('resignationRequestsBody');
+
+                    if (!result.success || !result.data || result.data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">No pending resignation requests.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = result.data.map(function (emp) {
+                        var initials = getInitials(emp.name);
+                        return '<tr>' +
+                            '<td><span class="avatar-initial">' + initials + '</span> ' + emp.name + '</td>' +
+                            '<td>' + emp.empId + '</td>' +
+                            '<td>' + emp.department + '</td>' +
+                            '<td>' + emp.role + '</td>' +
+                            '<td>' + emp.dateReq + '</td>' +
+                            '<td><span class="leave-status status-pending-res">Pending</span></td>' +
+                            '<td>' +
+                                '<button type="button" class="btn-outline" style="margin-right: 6px;" onclick="approveResignation(\'' + emp.id + '\', \'' + emp.name.replace(/'/g, "\\'") + '\', this)">' +
+                                    '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approve' +
+                                '</button>' +
+                                '<button type="button" class="btn-outline" style="background: #dc3545; border-color: #dc3545; color: white;" onclick="declineResignation(\'' + emp.id + '\', \'' + emp.name.replace(/'/g, "\\'") + '\', this)">' +
+                                    '<svg style="width:14px;height:14px;vertical-align:middle;fill:white;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Decline' +
+                                '</button>' +
+                            '</td>' +
+                        '</tr>';
+                    }).join('');
+                }, function (error) {
+                    console.error('Error loading resignation requests:', error);
+                    document.getElementById('resignationRequestsBody').innerHTML =
+                        '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">Error loading resignation requests.</td></tr>';
+                });
+            }
+
+            function approveResignation(id, name, btn) {
+                showConfirm('Approve Resignation', 'Approve the resignation of ' + name + '? This will deactivate their account and notify them via email.', function () {
+                    btn.disabled = true;
+                    PageMethods.ResignEmployee(id, function (r) {
+                        var result = typeof r === 'string' ? JSON.parse(r) : r;
+                        if (result.success) {
+                            showAlert('Success', name + ' has been resigned successfully.', 'success');
+                            setTimeout(function () { window.location.reload(); }, 700);
+                        } else {
+                            showAlert('Failed', result.message, 'error');
+                            btn.disabled = false;
+                        }
+                    }, function (e) {
+                        showAlert('Error', e.get_message ? e.get_message() : 'Server error.', 'error');
+                        btn.disabled = false;
+                    });
+                });
+            }
+
+            function declineResignation(id, name, btn) {
+                showConfirm('Decline Resignation', 'Decline the resignation request of ' + name + '? Their account will remain active.', function () {
+                    btn.disabled = true;
+                    PageMethods.CancelResignation(id, function (r) {
+                        var result = typeof r === 'string' ? JSON.parse(r) : r;
+                        if (result.success) {
+                            showAlert('Declined', 'Resignation request for ' + name + ' has been declined.', 'success');
+                            setTimeout(function () { window.location.reload(); }, 700);
+                        } else {
+                            showAlert('Failed', result.message, 'error');
+                            btn.disabled = false;
+                        }
+                    }, function (e) {
+                        showAlert('Error', e.get_message ? e.get_message() : 'Server error.', 'error');
+                        btn.disabled = false;
+                    });
+                });
+            }
 
             function loadPendingLeaveRequests() {
                 PageMethods.GetPendingLeaveRequests(function (response) {

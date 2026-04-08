@@ -173,9 +173,10 @@ namespace ExWebAppSia.Models
                             var ot = localTimeOut - shiftEnd;
                             string otWorked = $"{(int)ot.TotalHours:D2}:{ot.Minutes:D2}:{ot.Seconds:D2}";
                             
-                            // Fetch daily rate from employee base salary (simplified: monthly / 22)
                             var employeeService = new EmployeeService();
                             var employee = await employeeService.GetEmployeeByEmployeeIdAsync(employeeId);
+                            
+                            // Fetch daily rate from employee base salary (simplified: monthly / 22)
                             decimal dailyRate = 0;
                             if (employee != null)
                             {
@@ -197,12 +198,12 @@ namespace ExWebAppSia.Models
 
                     if (actualWorkedHours < 8)
                     {
-                        double undertimeHours = 8 - actualWorkedHours;
                         var empService = new EmployeeService();
                         var employee = await empService.GetByEmployeeIdAsync(employeeId);
                         
                         if (employee != null && employee.BaseSalary > 0)
                         {
+                            double undertimeHours = 8 - actualWorkedHours;
                             decimal dailyRate = (employee.BaseSalary * 12) / 313m;
                             decimal hourlyRate = dailyRate / 8m;
                             decimal deduction = (decimal)undertimeHours * hourlyRate;
@@ -471,28 +472,35 @@ namespace ExWebAppSia.Models
                             var otRequest = await otService.GetByAttendanceIdAsync(attendance.Id);
                             if (otRequest != null && otRequest.Status == "Approved")
                             {
-                                var localTimeOut = attendance.TimeOut.Value.AddHours(8); // Convert to PH time
-                                var shiftEnd = new DateTime(localTimeOut.Year, localTimeOut.Month, localTimeOut.Day, 17, 0, 0); // 5 PM
+                                var employeeService = new EmployeeService();
+                                var employee = await employeeService.GetEmployeeByEmployeeIdAsync(employeeId);
                                 
-                                if (localTimeOut > shiftEnd)
-                                {
-                                    var ot = localTimeOut - shiftEnd;
-                                    string otWorked = $"{(int)ot.TotalHours:D2}:{ot.Minutes:D2}:{ot.Seconds:D2}";
-                                    
-                                    // Fetch daily rate from employee base salary (simplified: monthly / 22)
-                                    var employeeService = new EmployeeService();
-                                    var employee = await employeeService.GetEmployeeByEmployeeIdAsync(employeeId);
-                                    decimal dailyRate = 0;
-                                    if (employee != null)
-                                    {
-                                        dailyRate = employee.BaseSalary / 22m; 
-                                    }
-                                    
-                                    // Determine type (simplified: weekend = RestDay)
-                                    string otType = (localTimeOut.DayOfWeek == DayOfWeek.Saturday || localTimeOut.DayOfWeek == DayOfWeek.Sunday) 
-                                        ? "RestDay" : "Regular";
+                                // NO Overtime for HR STAFF
+                                bool isHRStaff = employee != null && (employee.Department == "Human Resources" || (employee.Role != null && employee.Role.ToUpper().Contains("HR")));
 
-                                    await otService.SetOvertimeWorkedAsync(attendance.Id, otWorked, dailyRate, otType);
+                                if (!isHRStaff)
+                                {
+                                    var localTimeOut = attendance.TimeOut.Value.AddHours(8); // Convert to PH time
+                                    var shiftEnd = new DateTime(localTimeOut.Year, localTimeOut.Month, localTimeOut.Day, 17, 0, 0); // 5 PM
+                                    
+                                    if (localTimeOut > shiftEnd)
+                                    {
+                                        var ot = localTimeOut - shiftEnd;
+                                        string otWorked = $"{(int)ot.TotalHours:D2}:{ot.Minutes:D2}:{ot.Seconds:D2}";
+                                        
+                                        // Fetch daily rate from employee base salary (simplified: monthly / 22)
+                                        decimal dailyRate = 0;
+                                        if (employee != null)
+                                        {
+                                            dailyRate = employee.BaseSalary / 22m; 
+                                        }
+                                        
+                                        // Determine type (simplified: weekend = RestDay)
+                                        string otType = (localTimeOut.DayOfWeek == DayOfWeek.Saturday || localTimeOut.DayOfWeek == DayOfWeek.Sunday) 
+                                            ? "RestDay" : "Regular";
+
+                                        await otService.SetOvertimeWorkedAsync(attendance.Id, otWorked, dailyRate, otType);
+                                    }
                                 }
                             }
                     }

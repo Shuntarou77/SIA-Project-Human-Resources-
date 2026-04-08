@@ -26,10 +26,10 @@ namespace ExWebAppSia.Models
         public string Description { get; set; }
 
         [BsonElement("priorityLevel")]
-        public string PriorityLevel { get; set; } // Low, Medium, High, Urgent
+        public string PriorityLevel { get; set; } // Low, High, Urgent
 
         [BsonElement("status")]
-        public string Status { get; set; } // Pending, In Progress, Resolved, Closed
+        public string Status { get; set; } // Submitted, In Progress, Resolved, Closed
 
         [BsonElement("submittedDate")]
         public DateTime SubmittedDate { get; set; } = DateTime.UtcNow;

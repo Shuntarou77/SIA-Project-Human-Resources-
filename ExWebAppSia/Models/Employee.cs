@@ -101,6 +101,15 @@ namespace ExWebAppSia.Models
         [BsonElement("isActive")]
         public bool IsActive { get; set; } = true;
 
+        [BsonElement("resignationStatus")]
+        public string ResignationStatus { get; set; } = "None"; // None, Pending, Approved
+
+        [BsonElement("resignationDate")]
+        public DateTime? ResignationDate { get; set; }
+
+        [BsonElement("resignationReason")]
+        public string ResignationReason { get; set; }
+
         // Auto-calculate employment status based on HiredDate (6 months rule)
         [BsonIgnore]
         public string EmploymentStatus 

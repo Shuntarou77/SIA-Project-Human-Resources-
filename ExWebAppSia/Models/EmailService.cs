@@ -603,11 +603,11 @@ namespace ExWebAppSia.Models
         /// <summary>
         /// Send termination/account deactivation email to employee
         /// </summary>
-        public async Task<bool> SendTerminationEmailAsync(string toEmail, string employeeName)
+        public async Task<bool> SendAnnouncementEmailAsync(string toEmail, string employeeName, string announcementContent, string department = "General", string imagePath = null)
         {
             try
             {
-                string subject = "Account Status Update - SheEssentials Beauty Product Company";
+                string subject = $"📢 New Official Announcement: {department} - SheEssentials";
 
                 string body = $@"
 <!DOCTYPE html>
@@ -616,36 +616,46 @@ namespace ExWebAppSia.Models
     <style>
         body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
         .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-        .header {{ background: linear-gradient(135deg, #ef4444, #b91c1c); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
-        .content {{ background: white; padding: 30px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 8px 8px; }}
-        .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #999; }}
+        .header {{ background: linear-gradient(135deg, #A44F56, #8B5A58); color: white; padding: 30px; text-align: center; border-radius: 12px 12px 0 0; }}
+        .content {{ background: white; padding: 35px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 12px 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }}
+        .dept-tag {{ display: inline-block; background: #F8ECEB; color: #A44F56; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }}
+        .announcement-box {{ background: #fafafa; padding: 25px; border-radius: 10px; border-left: 5px solid #A44F56; margin: 25px 0; font-size: 16px; white-space: pre-wrap; }}
+        .footer {{ text-align: center; margin-top: 30px; font-size: 12px; color: #9B7B7B; }}
+        .btn {{ display: inline-block; background: #A44F56; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px; }}
     </style>
 </head>
 <body>
     <div class='container'>
         <div class='header'>
-            <h1 style='margin: 0; font-size: 28px;'>Account Deactivated</h1>
-            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials Beauty Product Company</p>
+            <h1 style='margin: 0; font-size: 26px; letter-spacing: 1px;'>OFFICIAL ANNOUNCEMENT</h1>
+            <p style='margin: 10px 0 0; opacity: 0.9;'>SheEssentials Beauty Product Company</p>
         </div>
         <div class='content'>
-            <p>Dear <strong>{employeeName}</strong>,</p>
+            <p>Hello <strong>{employeeName}</strong>,</p>
             
-            <p>We are writing to inform you that your employee account at <strong>SheEssentials Beauty Product Company</strong> has been deactivated, and you are no longer part of the active system.</p>
+            <p>New information has been posted on the company bulletin. Please take a moment to review the details below:</p>
             
-            <div style='background: #fee2e2; border-left: 4px solid #ef4444; padding: 20px; margin: 20px 0; border-radius: 4px;'>
-                <p style='margin: 0; color: #991b1b;'><strong>Note:</strong> You will no longer be able to log in to the Employee Portal or access any company resources associated with this account.</p>
+            <div class='dept-tag'>{department}</div>
+            
+            <div class='announcement-box'>
+                {announcementContent}
             </div>
+
+            {(!string.IsNullOrEmpty(imagePath) ? $"<p style='color: #666; font-style: italic; font-size: 13px;'>* This announcement includes an image attachment. Please log in to the portal to view the full post with all media.</p>" : "")}
             
-            <p>For any inquiries regarding your final pay, benefits, or employment records, please contact the HR department during regular business hours.</p>
+            <p>Stay informed and stay safe!</p>
             
-            <p>We wish you the best in your future endeavors.</p>
-            
-            <p>Best regards,<br/>
+            <div style='text-align: center;'>
+                <a href='http://localhost:54032/Login.aspx' class='btn'>Go to Employee Portal</a>
+            </div>
+
+            <p style='margin-top: 40px;'>Best regards,<br/>
             <strong>HR Department</strong><br/>
-            SheEssentials Beauty Product Company</p>
+            SheEssentials Team</p>
         </div>
         <div class='footer'>
-            <p>This is an automated message for record purposes. &copy; 2026 SheEssentials.</p>
+            <p>This is an automated company notification. &copy; 2026 SheEssentials Beauty Product Company</p>
+            <p>You are receiving this because you are an active employee in our system.</p>
         </div>
     </div>
 </body>
@@ -655,7 +665,58 @@ namespace ExWebAppSia.Models
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error sending termination email: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error sending announcement email: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> SendAccountStatusEmailAsync(string toEmail, string employeeName, string statusTitle = "Account Resigned")
+        {
+            try
+            {
+                string subject = $"Update Regarding Your Account Status - SheEssentials";
+
+                string body = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: #6c757d; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }}
+        .content {{ background: white; padding: 30px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 8px 8px; }}
+        .status-badge {{ display: inline-block; background: #f8d7da; color: #721c24; padding: 5px 15px; border-radius: 4px; font-weight: bold; margin: 15px 0; }}
+        .footer {{ text-align: center; margin-top: 20px; font-size: 12px; color: #999; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1 style='margin: 0; font-size: 24px;'>Account Status Update</h1>
+        </div>
+        <div class='content'>
+            <p>Dear <strong>{employeeName}</strong>,</p>
+            
+            <p>This is to inform you that your account status has been updated in our system.</p>
+            
+            <div class='status-badge'>{statusTitle}</div>
+            
+            <p>If you have any questions regarding this change, please contact the HR department during business hours.</p>
+            
+            <p>Thank you for your cooperation and service.</p>
+            
+            <p>Best regards,<br/><strong>HR Department</strong><br/>SheEssentials Beauty Product Company</p>
+        </div>
+        <div class='footer'><p>&copy; 2026 SheEssentials Beauty Product Company</p></div>
+    </div>
+</body>
+</html>";
+
+                return await SendEmailAsync(toEmail, subject, body, isHtml: true);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error sending account status email: {ex.Message}");
                 return false;
             }
         }
