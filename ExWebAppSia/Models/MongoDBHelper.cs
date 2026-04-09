@@ -136,6 +136,11 @@ namespace ExWebAppSia.Models
             return GetCollection<UndertimeRecord>("UndertimeRecords");
         }
 
+        public static IMongoCollection<UndertimeRequest> GetUndertimeRequestsCollection()
+        {
+            return GetCollection<UndertimeRequest>("UndertimeRequests");
+        }
+
         public static IMongoCollection<PayrollSnapshot> GetPayrollSnapshotsCollection()
         {
             try

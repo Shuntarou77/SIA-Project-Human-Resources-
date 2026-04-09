@@ -40,7 +40,7 @@ namespace ExWebAppSia.webpage.api
                 }
 
                 string action = context.Request["action"] ?? context.Request.QueryString["action"] ?? "";
-                string employeeId = context.Request["employeeId"] ?? context.Request.QueryString["employeeId"] ?? "";
+                string employeeId = (context.Request["employeeId"] ?? context.Request.QueryString["employeeId"] ?? "").Trim();
                 string employeeName = context.Request["employeeName"] ?? context.Request.QueryString["employeeName"] ?? "";
                 string department = context.Request["department"] ?? context.Request.QueryString["department"] ?? "";
 
@@ -211,37 +211,87 @@ namespace ExWebAppSia.webpage.api
                         {
                             try
                             {
-                                var todayAttendance = Task.Run(async () => await _attendanceService.GetTodayAttendanceAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
-                                
-                                string otStatus = "None";
-                                if (todayAttendance != null)
-                                {
-                                    var otRequest = Task.Run(async () => await _overtimeService.GetByAttendanceIdAsync(todayAttendance.Id).ConfigureAwait(false)).GetAwaiter().GetResult();
-                                    if (otRequest != null)
-                                    {
-                                        otStatus = otRequest.Status;
-                                    }
-                                }
+                                 var todayAttendance = Task.Run(async () => await _attendanceService.GetTodayAttendanceAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                 
+                                 string otStatus = "None";
+                                 if (todayAttendance != null)
+                                 {
+                                     var otRequest = Task.Run(async () => await _overtimeService.GetByAttendanceIdAsync(todayAttendance.Id).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                     if (otRequest != null)
+                                     {
+                                         otStatus = otRequest.Status;
+                                     }
+                                 }
 
-                                var statusResponse = new
-                                {
-                                    success = true,
-                                    hasTimedIn = todayAttendance != null && todayAttendance.TimeIn.HasValue,
-                                    hasTimedOut = todayAttendance != null && todayAttendance.TimeOut.HasValue,
-                                    timeIn = todayAttendance?.TimeIn?.ToLocalTime().ToString("h:mm tt"),
-                                    timeOut = todayAttendance?.TimeOut?.ToLocalTime().ToString("h:mm tt"),
-                                    overtimeStatus = otStatus
-                                };
+                                 // Check undertime status even if todayAttendance is null (e.g. if they already timed out)
+                                 string utStatus = "None";
+                                 var utService = new UndertimeService();
+                                 var utRequest = Task.Run(async () => await utService.GetActiveRequestAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                 if (utRequest != null)
+                                 {
+                                     utStatus = utRequest.Status;
+                                 }
 
-                                string jsonStatus = serializer.Serialize(statusResponse);
-                                context.Response.Write(jsonStatus);
-                                return; // End request here since we sent custom response
+                                 var statusResponse = new
+                                 {
+                                     success = true,
+                                     hasTimedIn = todayAttendance != null && todayAttendance.TimeIn.HasValue,
+                                     hasTimedOut = todayAttendance != null && todayAttendance.TimeOut.HasValue,
+                                     timeIn = todayAttendance?.TimeIn?.ToLocalTime().ToString("h:mm tt"),
+                                     timeOut = todayAttendance?.TimeOut?.ToLocalTime().ToString("h:mm tt"),
+                                     overtimeStatus = otStatus,
+                                     undertimeStatus = utStatus,
+                                     debugInfo = new {
+                                         receivedEmployeeId = employeeId,
+                                         foundStatus = utStatus,
+                                         attendanceFound = todayAttendance != null
+                                     }
+                                 };
+
+                                 string jsonStatus = serializer.Serialize(statusResponse);
+                                 context.Response.Write(jsonStatus);
+                                 return; // End request here since we sent custom response
                             }
                             catch (Exception ex)
                             {
                                 System.Diagnostics.Debug.WriteLine($"Error in GetStatus: {ex.Message}");
                                 message = "Error: " + ex.Message;
                                 result = false;
+                            }
+                        }
+                        break;
+
+                    case "requestundertime":
+                        string utReason = context.Request["reason"] ?? context.Request.QueryString["reason"] ?? "No reason provided";
+                        if (string.IsNullOrEmpty(employeeId))
+                        {
+                            message = "Missing employee ID";
+                        }
+                        else
+                        {
+                            // Modified: Check for any attendance today, even if already timed out
+                            var attendanceRecords = Task.Run(async () => await _attendanceService.GetEmployeeAttendanceAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            var today = DateTime.UtcNow.AddHours(8).Date;
+                            
+                            // Find the latest record for today
+                            var todayAttendance = attendanceRecords
+                                .Where(a => a.Date.Date == today || (a.TimeIn.HasValue && a.TimeIn.Value.ToLocalTime().Date == today))
+                                .OrderByDescending(a => a.TimeIn)
+                                .FirstOrDefault();
+
+                            if (todayAttendance == null)
+                            {
+                                result = false;
+                                message = "No attendance record found for today. Please time in first.";
+                            }
+                            else
+                            {
+                                var utService = new UndertimeService();
+                                var emp = Task.Run(async () => await _employeeService.GetEmployeeByIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                string empName = emp?.FullName ?? todayAttendance.EmployeeName;
+                                string dept = emp?.Department ?? todayAttendance.Department;
+                                result = Task.Run(async () => await utService.RequestUndertimeAsync(todayAttendance.Id, employeeId, empName, dept, utReason).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                message = result ? "Undertime request submitted successfully" : "Failed to submit undertime request.";
                             }
                         }
                         break;
@@ -296,6 +346,34 @@ namespace ExWebAppSia.webpage.api
                         {
                             result = Task.Run(async () => await _overtimeService.RejectAsync(rejOvertimeId).ConfigureAwait(false)).GetAwaiter().GetResult();
                             message = result ? "Overtime rejected successfully" : "Failed to reject overtime";
+                        }
+                        break;
+
+                    case "approveundertime":
+                        string utReqId = context.Request["attendanceId"] ?? context.Request.QueryString["attendanceId"] ?? "";
+                        if (string.IsNullOrEmpty(utReqId))
+                        {
+                            message = "Missing undertime request ID";
+                        }
+                        else
+                        {
+                            var utService = new UndertimeService();
+                            result = Task.Run(async () => await utService.ApproveRequestAsync(utReqId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            message = result ? "Undertime approved successfully" : "Failed to approve undertime";
+                        }
+                        break;
+
+                    case "rejectundertime":
+                        string rejUtId = context.Request["attendanceId"] ?? context.Request.QueryString["attendanceId"] ?? "";
+                        if (string.IsNullOrEmpty(rejUtId))
+                        {
+                            message = "Missing undertime request ID";
+                        }
+                        else
+                        {
+                            var utService = new UndertimeService();
+                            result = Task.Run(async () => await utService.RejectRequestAsync(rejUtId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            message = result ? "Undertime rejected successfully" : "Failed to reject undertime";
                         }
                         break;
                     

@@ -933,7 +933,10 @@
                     <h3 style="margin: 20px 0 10px; color: #333; font-size: 18px;">Gross Salary</h3>
                     <div class="payslip-item">
                         <span class="payslip-label">Basic Salary</span>
-                        <span id="ps_basic" class="payslip-value">₱<%= GetBasicSalary() %></span>
+                        <div style="text-align: right;">
+                            <span id="ps_basic" class="payslip-value">₱<%= GetBasicSalary() %></span>
+                            <div style="font-size: 10px; color: #666; margin-top: 2px;"><%= GetSalaryValidationMessage() %></div>
+                        </div>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Allowances</span>

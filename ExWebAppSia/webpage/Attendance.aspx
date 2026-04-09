@@ -1,5 +1,6 @@
 <%@ Page Title="" Language="C#" MasterPageFile="~/webpage/HR.Master" AutoEventWireup="true" Async="true"
     CodeBehind="Attendance.aspx.cs" Inherits="ExWebAppSia.webpage.WebForm3" %>
+<%@ Import Namespace="ExWebAppSia.Models" %>
     <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
         <style>
             :root {
@@ -686,12 +687,52 @@
 
             <!-- Undertime Tab Content -->
             <div id="undertime-tab" class="tab-content" style="display: none;">
+                <!-- Pending Undertime Requests Section -->
+                <% if (PendingUndertimeRequests != null && PendingUndertimeRequests.Count > 0) { %>
+                <div class="attendance-table-wrapper" style="margin-bottom: 24px; border: 1px solid #fca5a5; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.05);">
+                    <div style="background: #fef2f2; padding: 14px 20px; border-bottom: 1px solid #fee2e2; display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0; color: #b91c1c; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            Pending Undertime Requests
+                        </h3>
+                        <span style="background: #ef4444; color: white; padding: 3px 12px; border-radius: 50px; font-size: 12px; font-weight: 700;"><%= PendingUndertimeRequests.Count %> pending</span>
+                    </div>
+                    <table class="attendance-table">
+                        <thead class="table-header" style="background-color: #fff5f5;">
+                            <tr>
+                                <th style="width: 25%;">Employee</th>
+                                <th style="width: 20%;">Department</th>
+                                <th style="width: 35%;">Reason</th>
+                                <th style="width: 20%;">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <% foreach (var req in PendingUndertimeRequests) { %>
+                            <tr class="table-row">
+                                <td style="font-weight: 600;"><%= req.EmployeeName %></td>
+                                <td style="color: #666;"><%= req.Department %></td>
+                                <td style="font-style: italic; color: #444;">"<%= req.Reason %>"</td>
+                                <td>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button type="button" onclick="approveUndertime('<%= req.Id %>')"
+                                            style="background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">Approve</button>
+                                        <button type="button" onclick="rejectUndertime('<%= req.Id %>')"
+                                            style="background: white; color: #666; border: 1.5px solid #ddd; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">Reject</button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+                <% } %>
+
                 <% if (UndertimeRecords != null && UndertimeRecords.Count > 0) { %>
                 <div style="background-color: #fff; border-radius: 12px; border: 1px solid #fee2e2; margin-bottom: 24px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
                     <div style="background-color: #fef2f2; padding: 12px 20px; border-bottom: 1px solid #fee2e2; display: flex; align-items: center; justify-content: space-between;">
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <span style="background-color: #ef4444; width: 10px; height: 10px; border-radius: 50%;"></span>
-                            <h4 style="margin: 0; color: #991b1b; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Undertime Records - Today</h4>
+                            <h4 style="margin: 0; color: #991b1b; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Processed Undertime Records - Today</h4>
                         </div>
                     </div>
                     <table class="attendance-table" style="margin: 0; width: 100%;">
@@ -715,10 +756,10 @@
                         </tbody>
                     </table>
                 </div>
-                <% } else { %>
+                <% } else if (PendingUndertimeRequests == null || PendingUndertimeRequests.Count == 0) { %>
                 <div style="padding: 60px 20px; text-align: center; background-color: #f8fafc; border-radius: 12px; border: 1px dashed #fee2e2;">
                     <div style="color: #fca5a5; font-size: 40px; margin-bottom: 15px;">?</div>
-                    <div style="color: #991b1b; font-weight: 600;">No Undertime Records Found</div>
+                    <div style="color: #991b1b; font-weight: 600;">No Undertime Requests or Records Found</div>
                     <p style="color: #64748b; font-size: 13px; margin: 5px 0 0 0;">Employees who clock out earlier than required will appear here.</p>
                 </div>
                 <% } %>
@@ -963,6 +1004,42 @@
                         
                         if (result.success) {
                             showNotification('Overtime request rejected.', true, () => window.location.reload());
+                        } else {
+                            showNotification(result.message || 'Failed to reject request.', false);
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        showNotification('An error occurred. Please try again.', false);
+                    }
+                });
+            }
+
+            async function approveUndertime(requestId) {
+                showConfirm('Are you sure you want to approve this undertime request?', 'Approve Undertime', false, async function() {
+                    try {
+                        const response = await fetch(`${handlerUrl}?action=approveundertime&attendanceId=${requestId}`);
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            showNotification('Undertime request approved!', true, () => window.location.reload());
+                        } else {
+                            showNotification(result.message || 'Failed to approve request.', false);
+                        }
+                    } catch (error) {
+                        console.error('Error:', error);
+                        showNotification('An error occurred. Please try again.', false);
+                    }
+                });
+            }
+
+            async function rejectUndertime(requestId) {
+                showConfirm('Are you sure you want to reject this undertime request?', 'Reject Undertime', true, async function() {
+                    try {
+                        const response = await fetch(`${handlerUrl}?action=rejectundertime&attendanceId=${requestId}`);
+                        const result = await response.json();
+                        
+                        if (result.success) {
+                            showNotification('Undertime request rejected.', true, () => window.location.reload());
                         } else {
                             showNotification(result.message || 'Failed to reject request.', false);
                         }

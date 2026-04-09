@@ -492,7 +492,11 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
         }
 
         // Payroll Helper Methods
-        protected string GetBasicSalary() => _latestPayroll?.BasicSalary.ToString("N2") ?? "0.00";
+        protected string GetBasicSalary() 
+        {
+            if (_latestPayroll == null) return "0.00";
+            return _latestPayroll.BasicSalary.ToString("N2");
+        }
         protected string GetAllowances() => (_latestPayroll != null ? (_latestPayroll.HousingAllowance + _latestPayroll.TransportAllowance + _latestPayroll.MealAllowance + _latestPayroll.OtherAllowances) : 0).ToString("N2");
         protected string GetOvertimePay() => _latestPayroll?.TotalOvertime.ToString("N2") ?? "0.00";
         protected string GetGrossSalary() => _latestPayroll?.GrossPay.ToString("N2") ?? "0.00";
@@ -505,6 +509,19 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
         protected string GetTotalDeductions() => _latestPayroll?.TotalDeductions.ToString("N2") ?? "0.00";
         protected string GetNetSalary() => _latestPayroll?.NetPay.ToString("N2") ?? "0.00";
         protected string GetPayPeriod() => _latestPayroll != null ? (_latestPayroll.PayPeriodStart.ToString("MMMM dd, yyyy") + " - " + _latestPayroll.PayPeriodEnd.ToString("MMMM dd, yyyy")) : "N/A";
+        
+        protected string GetSalaryValidationMessage()
+        {
+            var employee = CurrentEmployee;
+            if (employee == null || _latestPayroll == null) return "";
+            
+            // Allow for small rounding differences
+            if (Math.Abs(_latestPayroll.BasicSalary - employee.BaseSalary) > 0.01m)
+            {
+                return "Note: This salary reflects your rate at the time of payroll processing.";
+            }
+            return "✓ Verified";
+        }
 
         protected void btnSubmitConcern_Click(object sender, EventArgs e)
         {

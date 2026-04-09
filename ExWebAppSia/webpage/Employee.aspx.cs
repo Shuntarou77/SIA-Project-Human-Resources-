@@ -1089,6 +1089,83 @@ namespace ExWebAppSia.webpage
         }
 
         [System.Web.Services.WebMethod(EnableSession = true)]
+        public static string GetPendingConcerns()
+        {
+            var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            try
+            {
+                return Task.Run(async () =>
+                {
+                    var concernService = new EmployeeConcernService();
+                    var employeeService = new EmployeeService();
+
+                    var allConcerns = await concernService.GetAllConcernsAsync().ConfigureAwait(false);
+                    var pendingConcerns = allConcerns.Where(c => c.Status == "Submitted" || c.Status == "In Progress").ToList();
+
+                    var allEmployees = await employeeService.GetAllEmployeesAsync().ConfigureAwait(false);
+                    var employeeCache = allEmployees
+                        .Where(e => !string.IsNullOrEmpty(e.EmployeeId))
+                        .GroupBy(e => e.EmployeeId)
+                        .ToDictionary(g => g.Key, g => g.First(), StringComparer.OrdinalIgnoreCase);
+
+                    var result = pendingConcerns.Select(c => {
+                        string empName = c.EmployeeName;
+                        string dept = "";
+                        if (!string.IsNullOrEmpty(c.EmployeeId) && employeeCache.TryGetValue(c.EmployeeId, out var emp))
+                        {
+                            empName = emp.FullName;
+                            dept = emp.Department;
+                        }
+
+                        return new
+                        {
+                            id = c.Id,
+                            employeeId = c.EmployeeId,
+                            employeeName = empName,
+                            department = dept,
+                            subject = c.Subject,
+                            description = c.Description,
+                            concernType = c.ConcernType,
+                            priorityLevel = c.PriorityLevel,
+                            submittedDate = c.SubmittedDate.ToLocalTime().ToString("MMM dd, yyyy h:mm tt"),
+                            status = c.Status
+                        };
+                    }).ToList();
+
+                    return serializer.Serialize(new { success = true, data = result });
+                }).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                return serializer.Serialize(new { success = false, message = ex.Message });
+            }
+        }
+
+        [System.Web.Services.WebMethod(EnableSession = true)]
+        public static string ResolveConcern(string id)
+        {
+            var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            try
+            {
+                return Task.Run(async () => {
+                    var concernService = new EmployeeConcernService();
+                    var success = await concernService.UpdateConcernStatusAsync(id, "Resolved").ConfigureAwait(false);
+
+                    if (success)
+                    {
+                        LogActivity("Resolved Concern", $"Resolved employee concern {id}");
+                        return serializer.Serialize(new { success = true, message = "Concern marked as resolved." });
+                    }
+                    return serializer.Serialize(new { success = false, message = "Failed to update concern status." });
+                }).GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                return serializer.Serialize(new { success = false, message = ex.Message });
+            }
+        }
+
+        [System.Web.Services.WebMethod(EnableSession = true)]
         public static string CancelResignation(string id)
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();

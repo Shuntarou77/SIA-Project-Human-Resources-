@@ -32,7 +32,7 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                var today = DateTime.UtcNow.Date;
+                var today = DateTime.UtcNow.AddHours(8).Date; // PH Local Date
                 var now = DateTime.UtcNow;
 
                 System.Diagnostics.Debug.WriteLine($"TimeInAsync called - EmployeeId: {employeeId}, EmployeeName: {employeeName}, Department: {department}");
@@ -53,7 +53,8 @@ namespace ExWebAppSia.Models
                         // Calculate Late Time
                         var localTime = now.AddHours(8);
                         var shiftStart = new DateTime(localTime.Year, localTime.Month, localTime.Day, 8, 0, 0);
-                        if (localTime > shiftStart)
+                        var gracePeriodEnd = shiftStart.AddMinutes(15);
+                        if (localTime > gracePeriodEnd)
                         {
                             var diff = localTime - shiftStart;
                             existingAttendance.LateTime = $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}:{(int)diff.Seconds:D2}";
@@ -100,8 +101,9 @@ namespace ExWebAppSia.Models
                     string lateTimeStr = null;
                     var localTime = now.AddHours(8); // Convert UTC to PH Time (UTC+8)
                     var shiftStart = new DateTime(localTime.Year, localTime.Month, localTime.Day, 8, 0, 0);
+                    var gracePeriodEnd = shiftStart.AddMinutes(15);
                     
-                    if (localTime > shiftStart)
+                    if (localTime > gracePeriodEnd)
                     {
                         var diff = localTime - shiftStart;
                         lateTimeStr = $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}:{(int)diff.Seconds:D2}";
@@ -113,7 +115,7 @@ namespace ExWebAppSia.Models
                         EmployeeId = employeeId,
                         EmployeeName = employeeName,
                         Department = department,
-                        Date = today,
+                        Date = today, // Uses PH Local Date (UTC+8)
                         TimeIn = now,
                         TimeOut = null,
                         LateTime = lateTimeStr,
@@ -145,7 +147,7 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                var today = DateTime.UtcNow.Date;
+                var today = DateTime.UtcNow.AddHours(8).Date;
                 var now = DateTime.UtcNow;
 
                 var attendance = await _attendance
@@ -198,30 +200,36 @@ namespace ExWebAppSia.Models
 
                     if (actualWorkedHours < 8)
                     {
-                        var empService = new EmployeeService();
-                        var employee = await empService.GetByEmployeeIdAsync(employeeId);
+                        var utService = new UndertimeService();
+                        // ONLY record if there is an APPROVED request for today
+                        var utRequest = await utService.GetActiveRequestAsync(employeeId);
                         
-                        if (employee != null && employee.BaseSalary > 0)
+                        if (utRequest != null && utRequest.Status == "Approved")
                         {
-                            double undertimeHours = 8 - actualWorkedHours;
-                            decimal dailyRate = (employee.BaseSalary * 12) / 313m;
-                            decimal hourlyRate = dailyRate / 8m;
-                            decimal deduction = (decimal)undertimeHours * hourlyRate;
-
-                            var utService = new UndertimeService();
-                            var utRecord = new UndertimeRecord
+                            var empService = new EmployeeService();
+                            var employee = await empService.GetByEmployeeIdAsync(employeeId);
+                            
+                            if (employee != null && employee.BaseSalary > 0)
                             {
-                                AttendanceId = attendance.Id,
-                                EmployeeId = employeeId,
-                                EmployeeName = employee.FullName,
-                                Date = DateTime.UtcNow.Date,
-                                HoursUndertime = undertimeHours,
-                                HourlyRate = hourlyRate,
-                                DeductionAmount = deduction,
-                                Reason = "Timed out early",
-                                RecordedAt = DateTime.UtcNow
-                            };
-                            await utService.RecordUndertimeAsync(utRecord);
+                                double undertimeHours = 8 - actualWorkedHours;
+                                decimal dailyRate = (employee.BaseSalary * 12) / 313m;
+                                decimal hourlyRate = dailyRate / 8m;
+                                decimal deduction = (decimal)undertimeHours * hourlyRate;
+
+                                var utRecord = new UndertimeRecord
+                                {
+                                    AttendanceId = attendance.Id,
+                                    EmployeeId = employeeId,
+                                    EmployeeName = employee.FullName,
+                                    Date = DateTime.UtcNow.AddHours(8).Date,
+                                    HoursUndertime = undertimeHours,
+                                    HourlyRate = hourlyRate,
+                                    DeductionAmount = deduction,
+                                    Reason = !string.IsNullOrEmpty(utRequest.Reason) ? utRequest.Reason : "Timed out early (Approved)",
+                                    RecordedAt = DateTime.UtcNow
+                                };
+                                await utService.RecordUndertimeAsync(utRecord);
+                            }
                         }
                     }
 
@@ -403,7 +411,7 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                var today = DateTime.UtcNow.Date;
+                var today = DateTime.UtcNow.AddHours(8).Date;
                 var attendance = await _attendance
                     .Find(a => a.EmployeeId == employeeId && 
                                a.Date == today && 
@@ -425,7 +433,7 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                var today = DateTime.UtcNow.Date;
+                var today = DateTime.UtcNow.AddHours(8).Date;
                 var attendance = await _attendance
                     .Find(a => a.EmployeeId == employeeId && 
                                a.Date == today && 
@@ -447,9 +455,25 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                var today = DateTime.UtcNow.Date;
+                var today = DateTime.UtcNow.AddHours(8).Date;
                 var now = DateTime.UtcNow;
 
+                // 1. First Priority: Look for an ACTIVE shift (timed in but not yet timed out)
+                // This handles cases where the shift started on one UTC day and is being checked on another.
+                var activeAttendance = await _attendance
+                    .Find(a => a.EmployeeId == employeeId && 
+                               a.TimeOut == null && 
+                               a.IsActive)
+                    .SortByDescending(a => a.TimeIn)
+                    .FirstOrDefaultAsync();
+
+                if (activeAttendance != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Found active shift for {employeeId} - Started at {activeAttendance.TimeIn}");
+                    return activeAttendance;
+                }
+
+                // 2. Second Priority: Look for a completed shift on the PH local "Today"
                 var attendance = await _attendance
                     .Find(a => a.EmployeeId == employeeId && 
                                a.Date == today && 
@@ -522,7 +546,7 @@ namespace ExWebAppSia.Models
             {
                 if (attendance.Date == DateTime.MinValue)
                 {
-                    attendance.Date = DateTime.UtcNow.Date;
+                    attendance.Date = DateTime.UtcNow.AddHours(8).Date;
                 }
                 if (attendance.CreatedAt == DateTime.MinValue)
                 {

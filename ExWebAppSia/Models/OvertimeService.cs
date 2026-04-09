@@ -33,7 +33,7 @@ namespace ExWebAppSia.Models
                     EmployeeId = employeeId,
                     EmployeeName = employeeName,
                     Department = department,
-                    Date = DateTime.UtcNow.Date,
+                    Date = DateTime.UtcNow.AddHours(8).Date, // PH Local Date (UTC+8)
                     Reason = reason,
                     Status = "Pending",
                     RequestedAt = DateTime.UtcNow,

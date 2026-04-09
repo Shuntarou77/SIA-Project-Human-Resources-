@@ -17,6 +17,7 @@ namespace ExWebAppSia.webpage
         private readonly UndertimeService _undertimeService = new UndertimeService();
         protected List<Attendance> AttendanceRecords { get; set; }
         protected List<OvertimeRequest> PendingOvertimeRequests { get; set; } = new List<OvertimeRequest>();
+        protected List<UndertimeRequest> PendingUndertimeRequests { get; set; } = new List<UndertimeRequest>();
         protected List<UndertimeRecord> UndertimeRecords { get; set; } = new List<UndertimeRecord>();
         protected List<Employee> AllEmployees { get; set; } = new List<Employee>();
         protected DateTime SelectedDate { get; set; }
@@ -88,6 +89,9 @@ namespace ExWebAppSia.webpage
 
                 // Load pending overtime requests from OvertimeRequests collection
                 PendingOvertimeRequests = await _overtimeService.GetPendingRequestsAsync();
+
+                // Load pending undertime requests
+                PendingUndertimeRequests = await _undertimeService.GetAllPendingRequestsAsync();
 
                 // Load undertime records for selected date
                 UndertimeRecords = await _undertimeService.GetUndertimeRecordsByDateAsync(SelectedDate);

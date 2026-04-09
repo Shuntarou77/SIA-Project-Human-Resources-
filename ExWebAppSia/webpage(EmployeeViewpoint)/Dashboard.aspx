@@ -1013,28 +1013,52 @@
 
         <!-- Undertime Warning Modal -->
         <div id="undertimeModal" class="custom-modal-v2">
-            <div class="custom-modal-v2-content" style="max-width: 450px;">
-                <div class="custom-modal-v2-header" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
-                    <span class="close" onclick="closeModal('undertimeModal')">&times;</span>
-                    <h2 class="custom-modal-v2-title">⚠️ Early Time Out</h2>
+            <div class="custom-modal-v2-content" style="max-width: 550px;">
+                <div class="custom-modal-v2-header" style="background: var(--primary-gradient); border: none;">
+                    <span class="close" onclick="closeModal('undertimeModal')" style="color: white; opacity: 1;">&times;</span>
+                    <h2 class="custom-modal-v2-title" style="color: white;">⚠️ Early Time Out</h2>
                 </div>
-                <div class="custom-modal-v2-body" style="text-align: center; padding: 30px;">
+                <!-- Initial Question Body -->
+                <div class="custom-modal-v2-body" id="undertimeQuestionBody" style="text-align: center; padding: 40px 30px;">
                     <div style="font-size: 50px; margin-bottom: 20px;">🕒</div>
-                    <h3 style="color: var(--text-primary); margin-bottom: 15px;">You are timing out early!</h3>
-                    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 20px;">
-                        It is not yet 5:00 PM. Timing out now will be recorded as <strong>Undertime</strong>.
+                    <h3 style="color: var(--text-primary); margin-bottom: 15px;">It's not yet 5:00 PM!</h3>
+                    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 25px;">
+                        Timing out now will be recorded as <strong>Undertime</strong>. 
+                        Have you already submitted an early departure request?
                     </p>
-                    <div
-                        style="background: #FFFBEB; border-left: 4px solid #f59e0b; padding: 15px; text-align: left; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
-                        <p style="color: #92400e; font-size: 14px; font-weight: 600;">
-                            Note: Please make sure to inform HR or your supervisor about your undertime.
-                        </p>
+                    <div style="display: flex; gap: 15px; justify-content: center;">
+                        <button type="button" class="action-btn btn-status" style="background: var(--info-color); color: white; width: 140px; border: none;" onclick="checkUndertimeRequestStatus()">Yes</button>
+                        <button type="button" class="action-btn btn-status" style="background: #ef4444; color: white; width: 140px; border: none;" onclick="showUndertimeForm()">No</button>
                     </div>
                 </div>
-                <div class="custom-modal-v2-footer">
-                    <button type="button" class="btn-cancel" onclick="closeModal('undertimeModal')">Cancel</button>
-                    <button type="button" class="btn-submit" style="background: #f59e0b;"
-                        onclick="proceedWithTimeOut()">Proceed anyway</button>
+                
+                <!-- Undertime Form Body -->
+                <div class="custom-modal-v2-body" id="undertimeFormBody" style="display: none; padding: 30px; text-align: left;">
+                    <h3 style="color: var(--text-primary); margin-bottom: 15px; text-align: center;">Undertime Form</h3>
+                    <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">
+                        Please provide a valid reason for timing out early to ensure your record is updated correctly.
+                    </p>
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">Reason for Early Departure:</label>
+                        <textarea id="utReason" style="width: 100%; border: 1.5px solid var(--border-color); border-radius: 12px; padding: 12px; height: 100px; resize: none; font-family: inherit; font-size: 14px;" placeholder="e.g., Medical emergency, Personal matters, etc."></textarea>
+                    </div>
+                    <div style="background: #FFF5F5; border-left: 4px solid #ef4444; padding: 12px; border-radius: 4px; margin-top: 10px;">
+                        <p style="color: #991b1b; font-size: 13px; font-weight: 600;">
+                            Note: This form will be submitted to HR for validation.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 25px;">
+                        <button type="button" class="btn-cancel" onclick="closeModal('undertimeModal')">Cancel</button>
+                        <button type="button" class="action-btn btn-status" id="btnSubmitUT" style="background: var(--primary-color); color: white; width: fit-content; border: none; padding: 8px 20px;" onclick="submitUndertimeRequest()">Submit Request</button>
+                    </div>
+                </div>
+
+                <!-- Status Check Body -->
+                <div class="custom-modal-v2-body" id="undertimeStatusBody" style="display: none; padding: 40px 30px; text-align: center;">
+                    <div style="font-size: 60px; margin-bottom: 20px;">⏳</div>
+                    <h3 id="utStatusTitle" style="color: var(--text-primary); margin-bottom: 10px;">Checking status...</h3>
+                    <p id="utStatusMessage" style="color: var(--text-secondary); line-height: 1.6;"></p>
+                    <button type="button" class="action-btn btn-status" style="margin: 25px auto 0; width: 150px; border: 2px solid var(--border-color);" onclick="closeModal('undertimeModal')">Close</button>
                 </div>
             </div>
         </div>
@@ -1384,12 +1408,6 @@
             }
 
             async function timeOut() {
-                const now = new Date();
-                const currentHour = now.getHours();
-                const currentMinutes = now.getMinutes();
-
-                console.log(`Time Out Validation - Status: In=${hasTimedIn}, Out=${hasTimedOut}, Time=${currentHour}:${currentMinutes}`);
-
                 if (hasTimedOut) {
                     showNotification('You have already timed out today.', false);
                     return;
@@ -1400,47 +1418,132 @@
                     return;
                 }
 
-                // If it's before 5:00 PM (17:00), show undertime warning
+                const now = new Date();
+                const currentHour = now.getHours();
+
+                // If it's before 5:00 PM (17:00), show undertime workflow
                 if (currentHour < 17) {
-                    console.log('Undertime detected! Opening modal.');
+                    // Reset modal state
+                    document.getElementById('undertimeQuestionBody').style.display = 'block';
+                    document.getElementById('undertimeFormBody').style.display = 'none';
+                    document.getElementById('undertimeStatusBody').style.display = 'none';
+                    
                     const modal = document.getElementById('undertimeModal');
                     if (modal) {
                         modal.classList.add('active');
-                        return;
-                    } else {
-                        console.error('Modal element "undertimeModal" not found in DOM!');
-                        if (confirm('Regular shift ends at 5:00 PM. Timing out now is considered UNDERTIME. Do you want to proceed?')) {
-                            await proceedWithTimeOut();
-                        }
+                        modal.style.display = 'flex';
                     }
                 } else {
-                    console.log('Valid shift end. Proceeding with time out.');
-                    await proceedWithTimeOut();
+                    if (confirm('Are you sure you want to time out now?')) {
+                        await proceedWithTimeOut();
+                    }
+                }
+            }
+
+            function showUndertimeForm() {
+                document.getElementById('undertimeQuestionBody').style.display = 'none';
+                document.getElementById('undertimeFormBody').style.display = 'block';
+            }
+
+            async function checkUndertimeRequestStatus() {
+                const questionBody = document.getElementById('undertimeQuestionBody');
+                const statusBody = document.getElementById('undertimeStatusBody');
+                const statusTitle = document.getElementById('utStatusTitle');
+                const statusMsg = document.getElementById('utStatusMessage');
+
+                questionBody.style.display = 'none';
+                statusBody.style.display = 'block';
+                statusTitle.textContent = "Checking Account...";
+                statusMsg.textContent = "Please wait while we verify your request status.";
+
+                try {
+                    const params = new URLSearchParams({
+                        action: 'getstatus',
+                        employeeId: employeeId
+                    });
+                    const response = await fetch(handlerUrl + '?' + params.toString());
+                    const data = await response.json();
+
+                    if (data.undertimeStatus === 'Approved') {
+                        statusTitle.textContent = "Request Approved!";
+                        statusMsg.textContent = "Your undertime request has been approved. You may now proceed to time out.";
+                        statusMsg.innerHTML += '<br><br><button type="button" class="action-btn btn-status" style="background:#10b981; color:white; border:none; width:180px; margin:0 auto;" onclick="proceedWithTimeOut()">Proceed to Time Out</button>';
+                    } else if (data.undertimeStatus === 'Pending') {
+                        statusTitle.textContent = "Request Pending";
+                        statusMsg.textContent = "Please wait for confirmation of HR STAFF. Your request is still being reviewed.";
+                    } else if (data.undertimeStatus === 'Rejected') {
+                        statusTitle.textContent = "Request Rejected";
+                        statusMsg.textContent = "Your undertime request was rejected. Please contact HR if you believe this is an error.";
+                    } else {
+                        statusTitle.textContent = "No Request Found";
+                        let debugText = "";
+                        if (data.debugInfo) {
+                            debugText = `<br><br><div style="font-size: 11px; opacity: 0.7; border-top: 1px solid #eee; pt-2">DEBUG: ID[${data.debugInfo.receivedEmployeeId}] Status[${data.debugInfo.foundStatus}]</div>`;
+                        }
+                        statusMsg.innerHTML = "We couldn't find an approved request for today. If you haven't submitted one, please fill out the form." + debugText;
+                        statusMsg.innerHTML += '<br><br><button type="button" class="btn-cancel" style="width:150px; margin:0 auto;" onclick="showUndertimeForm()">Fill out Form</button>';
+                    }
+                } catch (error) {
+                    statusTitle.textContent = "Connection Error";
+                    statusMsg.textContent = "Failed to verify status. Please try again later.";
+                }
+            }
+
+            async function submitUndertimeRequest() {
+                const reason = document.getElementById('utReason').value.trim();
+                if (!reason) {
+                    showNotification('Please provide a reason for timing out early.', false);
+                    return;
+                }
+
+                const btn = document.getElementById('btnSubmitUT');
+                btn.disabled = true;
+                btn.textContent = 'Submitting...';
+
+                try {
+                    const params = new URLSearchParams({
+                        action: 'requestundertime',
+                        employeeId: employeeId,
+                        reason: reason
+                    });
+
+                    const response = await fetch(handlerUrl + '?' + params.toString());
+                    const result = await response.json();
+
+                    if (result.success) {
+                        showNotification('Undertime request submitted successfully. Please wait for Admin approval.', true);
+                        
+                        // Switch to status view
+                        document.getElementById('undertimeFormBody').style.display = 'none';
+                        const statusBody = document.getElementById('undertimeStatusBody');
+                        const statusTitle = document.getElementById('utStatusTitle');
+                        const statusMsg = document.getElementById('utStatusMessage');
+                        
+                        statusBody.style.display = 'block';
+                        statusTitle.textContent = "Request Pending";
+                        statusMsg.textContent = "Your request has been submitted. Once an administrator approves it, you can return here to time out.";
+                    } else {
+                        showNotification('Failed: ' + result.message, false);
+                        btn.disabled = false;
+                        btn.textContent = 'Submit Request';
+                    }
+                } catch (error) {
+                    showNotification('Error: ' + error.message, false);
+                    btn.disabled = false;
+                    btn.textContent = 'Submit Request';
                 }
             }
 
             async function proceedWithTimeOut() {
-                if (hasTimedOut) {
-                    showNotification('You have already timed out today.', false);
-                    return;
+                const modal = document.getElementById('undertimeModal');
+                if (modal) {
+                    modal.classList.remove('active');
+                    modal.style.display = 'none';
                 }
-
-                if (!hasTimedIn) {
-                    showNotification('Please time in first before timing out.', false);
-                    return;
-                }
-
-                if (!employeeId || employeeId === 'N/A') {
-                    showNotification('Employee ID not found. Please contact HR.', false);
-                    return;
-                }
-
-                closeModal('undertimeModal');
 
                 const timeOutBtn = document.getElementById('timeOutBtn');
                 const statusEl = document.getElementById('attendanceStatus');
 
-                // Disable button during request
                 timeOutBtn.disabled = true;
                 timeOutBtn.textContent = 'Processing...';
 
@@ -1450,27 +1553,25 @@
                         employeeId: employeeId
                     });
 
-                    const response = await fetch(handlerUrl + '?' + params.toString(), {
-                        method: 'GET'
-                    });
-
+                    const response = await fetch(handlerUrl + '?' + params.toString());
                     const result = await response.json();
 
                     if (result.success) {
-                        // Refresh the page to load the updated status from the server
                         showNotification('Time out recorded successfully!', true, () => {
                             window.location.reload();
                         });
                     } else {
-                        showNotification(result.message || 'Failed to record time out. Please make sure you have timed in first.', false);
+                        showNotification(result.message || 'Failed to record time out.', false);
                         timeOutBtn.disabled = false;
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    showNotification('An error occurred while recording time out. Please try again.', false);
+                    showNotification('An error occurred during time out.', false);
                     timeOutBtn.disabled = false;
                 } finally {
-                    timeOutBtn.textContent = 'TIME OUT';
+                    if (!hasTimedOut) {
+                        timeOutBtn.textContent = 'TIME OUT';
+                    }
                 }
             }
 

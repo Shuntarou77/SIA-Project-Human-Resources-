@@ -19,9 +19,66 @@
                 --border-color: #D8BFBF;
             }
 
+            /* Tab Styles */
+            .tab-btn {
+                background: none;
+                border: none;
+                padding: 10px 20px;
+                font-size: 14px;
+                font-weight: 600;
+                color: #64748b;
+                cursor: pointer;
+                border-bottom: 3px solid transparent;
+                transition: all 0.3s ease;
+            }
+
+            .tab-btn.active {
+                color: var(--primary-color);
+                border-bottom-color: var(--primary-color);
+            }
+
+            .tab-btn:hover {
+                color: var(--primary-color);
+                background-color: #f8fafc;
+            }
+
+            .tab-content {
+                animation: fadeIn 0.4s ease;
+                display: none;
+            }
+
+            .tab-content.active {
+                display: block;
+            }
+
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+
+            .btn-outline {
+                background: white;
+                border: 1.5px solid #E5E7EB;
+                border-radius: 8px;
+                padding: 6px 12px;
+                font-size: 12px;
+                font-weight: 600;
+                color: #4B5563;
+                cursor: pointer;
+                transition: all 0.2s;
+                display: inline-flex;
+                align-items: center;
+                gap: 4px;
+            }
+            
+            .btn-outline:hover {
+                background: #f9fafb;
+                border-color: var(--primary-color);
+                color: var(--primary-color);
+            }
+
             .page-wrapper {
-                display: flex;
-                gap: 20px;
+                display: block;
                 padding: 20px;
                 width: 100%;
                 min-height: calc(100vh - 120px);
@@ -936,77 +993,118 @@
                     </ContentTemplate>
                 </asp:UpdatePanel>
             </div>
-
-            <!-- RIGHT SIDE: Employee Concerns Panel -->
-            <div class="concerns-panel">
-                <div class="concern-header">Employee Concern</div>
-                <asp:Literal ID="litConcerns" runat="server"></asp:Literal>
-            </div>
         </div>
 
-        <!-- Bottom Section: Leave Requests + Resignation Requests -->
-        <div class="bottom-section-container">
-            <div class="attendance-table-container">
-                <h3 class="table-title"><svg
-                        style="width:20px;height:20px;vertical-align:middle;margin-right:8px;fill:var(--primary-color);"
-                        viewBox="0 0 24 24">
-                        <path
-                            d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
-                    </svg> Leave Requests &mdash; Pending Approval</h3>
-                <div class="table-scroll" style="max-height: 350px;">
-                    <table class="attendance-table">
-                        <thead>
-                            <tr>
-                                <th>Employee</th>
-                                <th>ID</th>
-                                <th>Leave Type</th>
-                                <th>Date(s) Requested</th>
-                                <th>Duration</th>
-                                <th>Reason</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="leaveRequestsBody">
-                            <tr>
-                                <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
-                                    Loading leave requests...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+        <!-- Bottom Section: Tabs for Requests -->
+        <div class="bottom-section-container" style="margin-top: 30px;">
+            <!-- Tabs Navigation -->
+            <div style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 2px solid #f1f5f9; padding-bottom: 2px;">
+                <button type="button" onclick="switchRequestTab('leave-tab')" class="tab-btn active" id="tab-leave">Leave Requests</button>
+                <button type="button" onclick="switchRequestTab('concerns-tab')" class="tab-btn" id="tab-concerns">Employee Concerns</button>
+                <button type="button" onclick="switchRequestTab('resignation-tab')" class="tab-btn" id="tab-resignation">Resignation Requests</button>
+            </div>
+
+            <!-- Leave Requests Tab Content -->
+            <div id="leave-tab" class="tab-content active">
+                <div class="attendance-table-container">
+                    <h3 class="table-title">
+                        <svg style="width:20px;height:20px;vertical-align:middle;margin-right:8px;fill:var(--primary-color);" viewBox="0 0 24 24">
+                            <path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
+                        </svg> 
+                        Leave Requests &mdash; Pending Approval
+                    </h3>
+                    <div class="table-scroll" style="max-height: 400px;">
+                        <table class="attendance-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>ID</th>
+                                    <th>Leave Type</th>
+                                    <th>Date(s) Requested</th>
+                                    <th>Duration</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaveRequestsBody">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
+                                        Loading leave requests...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
 
-            <!-- Resignation Requests Pending Approval -->
-            <div class="attendance-table-container" style="margin-top: 24px;">
-                <h3 class="table-title">
-                    <svg style="width:20px;height:20px;vertical-align:middle;margin-right:8px;fill:#f59e0b;" viewBox="0 0 24 24">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
-                    </svg>
-                    Resignation Requests &mdash; Pending Approval
-                </h3>
-                <div class="table-scroll" style="max-height: 300px;">
-                    <table class="attendance-table">
-                        <thead>
-                            <tr>
-                                <th>Employee</th>
-                                <th>ID</th>
-                                <th>Department</th>
-                                <th>Role</th>
-                                <th>Date Requested</th>
-                                <th>Status</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="resignationRequestsBody">
-                            <tr>
-                                <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
-                                    Loading resignation requests...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <!-- Employee Concerns Tab Content -->
+            <div id="concerns-tab" class="tab-content">
+                <div class="attendance-table-container">
+                    <h3 class="table-title">
+                        <svg style="width:20px;height:20px;vertical-align:middle;margin-right:8px;fill:#3b82f6;" viewBox="0 0 24 24">
+                            <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V7h2v3z"/>
+                        </svg>
+                        Employee Concerns &mdash; Pending Review
+                    </h3>
+                    <div class="table-scroll" style="max-height: 400px;">
+                        <table class="attendance-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>ID</th>
+                                    <th style="width: 15%;">Type</th>
+                                    <th style="width: 20%;">Subject</th>
+                                    <th style="width: 25%;">Description</th>
+                                    <th>Date Submitted</th>
+                                    <th>Priority</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="employeeConcernsBody">
+                                <tr>
+                                    <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
+                                        Loading employee concerns...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resignation Requests Tab Content -->
+            <div id="resignation-tab" class="tab-content">
+                <div class="attendance-table-container">
+                    <h3 class="table-title">
+                        <svg style="width:20px;height:20px;vertical-align:middle;margin-right:8px;fill:#f59e0b;" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
+                        </svg>
+                        Resignation Requests &mdash; Pending Approval
+                    </h3>
+                    <div class="table-scroll" style="max-height: 400px;">
+                        <table class="attendance-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>ID</th>
+                                    <th>Department</th>
+                                    <th>Role</th>
+                                    <th>Date Requested</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="resignationRequestsBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                                        Loading resignation requests...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1014,6 +1112,11 @@
         <!-- JavaScript for Filtering -->
         <script>
             document.addEventListener('DOMContentLoaded', function () {
+                // Initialize request tabs
+                loadPendingLeaveRequests();
+                loadPendingConcerns();
+                loadPendingResignations();
+
                 const deptCards = document.querySelectorAll('.dept-card');
                 // Get the actual table body element using the server-side ID
                 const tableBody = document.getElementById('<%= employeeTableBody.ClientID %>');
@@ -1689,6 +1792,79 @@
                 loadPendingLeaveRequests();
                 loadPendingResignations();
             });
+
+            function switchRequestTab(tabId) {
+                // Remove active class from all tabs
+                document.querySelectorAll('.tab-content').forEach(function (content) {
+                    content.classList.remove('active');
+                });
+                document.querySelectorAll('.tab-btn').forEach(function (btn) {
+                    btn.classList.remove('active');
+                });
+
+                // Show selected tab
+                document.getElementById(tabId).classList.add('active');
+                
+                // Set button as active
+                var btnId = 'tab-' + tabId.replace('-tab', '');
+                document.getElementById(btnId).classList.add('active');
+            }
+
+            function loadPendingConcerns() {
+                PageMethods.GetPendingConcerns(function (response) {
+                    var result = typeof response === 'string' ? JSON.parse(response) : response;
+                    var tbody = document.getElementById('employeeConcernsBody');
+
+                    if (!result.success || !result.data || result.data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">No pending employee concerns.</td></tr>';
+                        return;
+                    }
+
+                    tbody.innerHTML = result.data.map(function (c) {
+                        var initials = getInitials(c.employeeName);
+                        var priorityClass = c.priorityLevel === 'Urgent' ? 'status-declined' : 
+                                           c.priorityLevel === 'High' ? 'status-pending-res' : 'status-pending';
+                        
+                        return '<tr>' +
+                            '<td><span class="avatar-initial">' + initials + '</span> ' + c.employeeName + '</td>' +
+                            '<td>' + (c.employeeId || '—') + '</td>' +
+                            '<td>' + c.concernType + '</td>' +
+                            '<td>' + (c.subject || '—') + '</td>' +
+                            '<td title="' + c.description + '">' + (c.description.length > 60 ? c.description.substring(0, 57) + '...' : c.description) + '</td>' +
+                            '<td>' + c.submittedDate + '</td>' +
+                            '<td><span class="leave-status ' + priorityClass + '">' + c.priorityLevel + '</span></td>' +
+                            '<td>' +
+                                '<button type="button" class="btn-outline" onclick="resolveConcern(\'' + c.id + '\', \'' + c.employeeName.replace(/'/g, "\\'") + '\', this)">' +
+                                    '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>Mark Resolved' +
+                                '</button>' +
+                            '</td>' +
+                        '</tr>';
+                    }).join('');
+                }, function (error) {
+                    console.error('Error loading employee concerns:', error);
+                    document.getElementById('employeeConcernsBody').innerHTML =
+                        '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">Error loading employee concerns.</td></tr>';
+                });
+            }
+
+            function resolveConcern(id, name, btn) {
+                showConfirm('Resolve Concern', 'Mark this concern from ' + name + ' as resolved?', function () {
+                    btn.disabled = true;
+                    PageMethods.ResolveConcern(id, function (r) {
+                        var result = typeof r === 'string' ? JSON.parse(r) : r;
+                        if (result.success) {
+                            showAlert('Resolved', 'The concern has been marked as resolved.', 'success');
+                            loadPendingConcerns(); // Reload data
+                        } else {
+                            showAlert('Failed', result.message, 'error');
+                            btn.disabled = false;
+                        }
+                    }, function (e) {
+                        showAlert('Error', e.get_message ? e.get_message() : 'Server error.', 'error');
+                        btn.disabled = false;
+                    });
+                });
+            }
 
             function loadPendingResignations() {
                 PageMethods.GetPendingResignations(function (response) {
