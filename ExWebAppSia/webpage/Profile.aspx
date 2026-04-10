@@ -700,24 +700,24 @@
                                     </div>
                                     <div class="stat-label">Remaining Absents</div>
                                 </div>
-                                 <div class="stat-box">
-                                     <div class="stat-value" style="color: var(--success-color);">
-                                         <%= GetTargetWorkingDays() %>
-                                     </div>
-                                     <div class="stat-label">Working Days / Year</div>
-                                 </div>
-                                 <div class="stat-box">
-                                     <div class="stat-value" style="color: #f59e0b;">
-                                         <%= GetOvertimeHours() %>h
-                                     </div>
-                                     <div class="stat-label">Overtime</div>
-                                 </div>
-                                 <div class="stat-box">
-                                     <div class="stat-value" style="color: #ef4444;">
-                                         <%= GetUndertimeCount() %>
-                                     </div>
-                                     <div class="stat-label">Undertime</div>
-                                 </div>
+                                <div class="stat-box">
+                                    <div class="stat-value" style="color: var(--success-color);">
+                                        <%= GetTargetWorkingDays() %>
+                                    </div>
+                                    <div class="stat-label">Working Days / Year</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-value" style="color: #f59e0b;">
+                                        <%= GetOvertimeHours() %>h
+                                    </div>
+                                    <div class="stat-label">Overtime</div>
+                                </div>
+                                <div class="stat-box">
+                                    <div class="stat-value" style="color: #ef4444;">
+                                        <%= GetUndertimeCount() %>
+                                    </div>
+                                    <div class="stat-label">Undertime</div>
+                                </div>
                             </div>
 
                             <div class="attendance-actions">
@@ -735,12 +735,6 @@
                                             d="M10.09 15.59L11.5 17l5-5-5-5-1.41 1.41L12.67 11H3v2h9.67l-2.58 2.59zM19 3H5c-1.11 0-2 .9-2 2v4h2V5h14v14H5v-4H3v4c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" />
                                     </svg>
                                     Time Out
-                                </button>
-                                <button id="overtimeBtn" type="button" class="action-btn btn-overtime" onclick="openOvertimeModal()" style="display: none;">
-                                    <svg style="width:20px;height:20px;fill:currentColor" viewBox="0 0 24 24">
-                                        <path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" />
-                                    </svg>
-                                    Overtime
                                 </button>
                             </div>
                         </div>
@@ -773,6 +767,24 @@
                             <button type="button" class="action-button" onclick="openConcernModal()">Submit
                                 Concern</button>
                         </div>
+
+                        <div class="action-card" onclick="openUndertimeRequestModal()">
+                            <div class="action-icon">🕒</div>
+                            <h3 class="action-title">Request Undertime</h3>
+                            <p class="action-description">Request to leave early for personal or medical reasons.</p>
+                            <button id="btnUndertimeCard" type="button" class="action-button"
+                                onclick="openUndertimeRequestModal()">Submit Request</button>
+                        </div>
+
+                        <div class="action-card" onclick="openResignationRequestModal()">
+                            <div class="action-icon">👋</div>
+                            <h3 class="action-title">Resignation Request</h3>
+                            <p class="action-description">Submit a formal resignation request to start the offboarding
+                                process.</p>
+                            <button id="btnResignationCard" type="button" class="action-button"
+                                onclick="openResignationRequestModal()" style="background: #ef4444;">Submit
+                                Request</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -786,9 +798,13 @@
                     <h2 class="modal-title">💰 Payslip Details</h2>
                 </div>
                 <div class="modal-body">
-                    <div id="ps_period_container" style="background: rgba(163, 106, 102, 0.05); border-radius: 12px; padding: 15px; margin-bottom: 25px; text-align: center; border: 1px dashed var(--primary-color);">
-                        <span style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px;">Pay Period</span>
-                        <span style="font-weight: 700; color: var(--primary-color); font-size: 15px;"><%= GetPayPeriod() %></span>
+                    <div id="ps_period_container"
+                        style="background: rgba(163, 106, 102, 0.05); border-radius: 12px; padding: 15px; margin-bottom: 25px; text-align: center; border: 1px dashed var(--primary-color);">
+                        <span style="font-size: 13px; color: var(--text-muted); display: block; margin-bottom: 5px;">Pay
+                            Period</span>
+                        <span style="font-weight: 700; color: var(--primary-color); font-size: 15px;">
+                            <%= GetPayPeriod() %>
+                        </span>
                     </div>
 
                     <h3 style="margin-bottom: 16px; color: var(--text-primary);">Gross Salary</h3>
@@ -818,7 +834,8 @@
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">PhilHealth</span>
-                        <span class="payslip-value" style="color: #ef4444;">- &#8369;<%= GetPhilHealthDeduction() %></span>
+                        <span class="payslip-value" style="color: #ef4444;">- &#8369;<%= GetPhilHealthDeduction() %>
+                        </span>
                     </div>
                     <div class="payslip-item">
                         <span class="payslip-label">Pag-IBIG</span>
@@ -943,61 +960,100 @@
             </div>
         </div>
 
-        <!-- Overtime Modal -->
-        <div id="overtimeModal" class="page-modal">
-            <div class="modal-content" style="max-width: 450px;">
-                <div class="modal-header" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
-                    <span class="close" onclick="closeModal('overtimeModal')">&times;</span>
-                    <h2 class="modal-title">⏰ Request Overtime</h2>
+
+        <!-- Undertime Warning Modal (Image Match) -->
+        <div id="undertimeModal" class="page-modal">
+            <div class="modal-content"
+                style="max-width: 450px; border-radius: 20px; overflow: hidden; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+                <div class="modal-header"
+                    style="background: #ef4444; border-bottom: none; padding: 12px 20px; position: relative; display: flex; align-items: center; justify-content: center;">
+                    <span class="close" onclick="closeModal('undertimeModal')"
+                        style="color: white; position: absolute; left: 15px; top: 10px; font-size: 24px;">&times;</span>
+                    <h2 class="modal-title"
+                        style="color: white; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                        ⚠️ Early Time Out
+                    </h2>
                 </div>
-                <div class="modal-body" style="padding: 30px;">
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <h3 style="color: var(--text-primary);">Extended Shift Request</h3>
-                        <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">
-                            Maximum overtime is 8 hours (total 16-hour shift).
-                        </p>
+                <div class="modal-body" style="text-align: center; padding: 35px 30px;">
+                    <div
+                        style="background: #f3f4f6; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;">
+                        <span style="font-size: 32px;">🕒</span>
                     </div>
-                    <div style="margin-bottom: 20px;">
-                        <label for="otReason" style="display: block; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">Reason for Overtime:</label>
-                        <textarea id="otReason" rows="3" class="form-control" 
-                            style="width: 100%; padding: 12px; border-radius: 10px; border: 2px solid var(--border-color); font-family: inherit; resize: none;"
-                            placeholder="Please provide a brief reason for requesting overtime..."></textarea>
+                    <h2 style="color: #111; font-size: 24px; font-weight: 800; margin-bottom: 12px;">It's not yet 5:00
+                        PM!</h2>
+                    <p style="color: #4b5563; line-height: 1.6; margin-bottom: 30px; font-size: 15px;">
+                        Timing out now will be recorded as <strong>Undertime</strong>. Have you already submitted an
+                        early departure request?
+                    </p>
+                    <div style="display: flex; gap: 12px; justify-content: center; width: 100%;">
+                        <button type="button" class="action-btn" onclick="undertimeYes()"
+                            style="flex: 1; background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 800; font-size: 14px; cursor: pointer; text-transform: uppercase;">YES</button>
+                        <button type="button" class="action-btn" onclick="undertimeNo()"
+                            style="flex: 1; background: #ef4444; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 800; font-size: 14px; cursor: pointer; text-transform: uppercase;">NO</button>
                     </div>
-                    <div style="background: #F5F3FF; border-left: 4px solid #8b5cf6; padding: 15px; border-radius: 0 8px 8px 0;">
-                        <p style="color: #5b21b6; font-size: 13px; font-weight: 600;">
-                            Note: Your request will be sent to Admin for approval. You will be automatically timed out after 16 hours of total work.
-                        </p>
-                    </div>
-                </div>
-                <div class="modal-footer" style="padding: 16px 24px; display: flex; gap: 12px; justify-content: flex-end; border-top: 1px solid var(--border-color); background: #f9fafb;">
-                    <button type="button" class="btn-cancel" onclick="closeModal('overtimeModal')">Cancel</button>
-                    <button type="button" class="btn-submit" style="background: #8b5cf6;" onclick="submitOvertimeRequest()">Submit Request</button>
                 </div>
             </div>
         </div>
 
-        <!-- Undertime Warning Modal -->
-        <div id="undertimeModal" class="page-modal">
+        <!-- Undertime Request Modal (Manual) -->
+        <div id="undertimeRequestModal" class="page-modal">
             <div class="modal-content" style="max-width: 450px;">
                 <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
-                    <span class="close" onclick="closeModal('undertimeModal')">&times;</span>
-                    <h2 class="modal-title">⚠️ Early Time Out</h2>
+                    <span class="close" onclick="closeModal('undertimeRequestModal')">&times;</span>
+                    <h2 class="modal-title">🕒 Request Undertime</h2>
                 </div>
-                <div class="modal-body" style="text-align: center; padding: 30px;">
-                    <div style="font-size: 50px; margin-bottom: 20px;">🕒</div>
-                    <h3 style="color: var(--text-primary); margin-bottom: 15px;">You are timing out early!</h3>
-                    <p style="color: var(--text-secondary); line-height: 1.6; margin-bottom: 20px;">
-                        It is not yet 5:00 PM. Timing out now will be recorded as <strong>Undertime</strong>.
-                    </p>
-                    <div style="background: #FFFBEB; border-left: 4px solid #f59e0b; padding: 15px; text-align: left; margin-bottom: 25px; border-radius: 0 8px 8px 0;">
-                        <p style="color: #92400e; font-size: 14px; font-weight: 600;">
-                            Note: Please make sure to inform HR or your supervisor about your undertime.
+                <div class="modal-body" style="padding: 24px;">
+                    <div class="form-group">
+                        <label class="form-label">Reason for Undertime *</label>
+                        <textarea id="txtUndertimeReason" class="form-textarea"
+                            placeholder="Please provide details about why you need to leave early..."></textarea>
+                    </div>
+                    <div
+                        style="background: #FFFBEB; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 0 8px 8px 0;">
+                        <p style="color: #92400e; font-size: 13px; font-weight: 600;">
+                            Note: Your request will be sent to Admin for approval. This is for formal record keeping.
                         </p>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="closeModal('undertimeModal')">Cancel</button>
-                    <button type="button" class="btn-submit" style="background: #f59e0b;" onclick="proceedWithTimeOut()">Proceed anyway</button>
+                    <button type="button" class="btn-cancel"
+                        onclick="closeModal('undertimeRequestModal')">Cancel</button>
+                    <button type="button" class="btn-submit" style="background: #f59e0b;"
+                        onclick="submitUndertimeRequest()">Submit Request</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resignation Request Modal -->
+        <div id="resignationRequestModal" class="page-modal">
+            <div class="modal-content" style="max-width: 450px;">
+                <div class="modal-header" style="background: linear-gradient(135deg, #ef4444, #dc2626);">
+                    <span class="close" onclick="closeModal('resignationRequestModal')">&times;</span>
+                    <h2 class="modal-title">👋 Resignation Request</h2>
+                </div>
+                <div class="modal-body" style="padding: 24px;">
+                    <div id="resignationStatusMsg"
+                        style="display: none; margin-bottom: 20px; padding: 15px; background: #FEF2F2; color: #991B1B; border-radius: 8px; border-left: 4px solid #EF4444;">
+                        <p id="resignationStatusText" style="font-weight: 700;"></p>
+                    </div>
+                    <div class="form-group" id="resignationFormGroup">
+                        <label class="form-label">Reason for Resignation *</label>
+                        <textarea id="txtResignationReason" class="form-textarea"
+                            placeholder="Please state your reason for resigning..."></textarea>
+                    </div>
+                    <div
+                        style="background: #FEF2F2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 0 8px 8px 0;">
+                        <p style="color: #991B1B; font-size: 13px; font-weight: 600;">
+                            Warning: This is a formal request. Once approved, your account will be scheduled for
+                            deactivation.
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel"
+                        onclick="closeModal('resignationRequestModal')">Cancel</button>
+                    <button id="btnConfirmResignation" type="button" class="btn-submit" style="background: #ef4444;"
+                        onclick="submitResignationRequest()">Submit Request</button>
                 </div>
             </div>
         </div>
@@ -1044,33 +1100,29 @@
                         statusLabel.style.color = 'var(--success-color)';
                         timeInBtn.disabled = true;
                         timeOutBtn.disabled = false;
-                        
-                        const overtimeBtn = document.getElementById('overtimeBtn');
-                        
-                        // Rule: OT button only appears starting 3:00 PM (2 hours before shift ends)
-                        const now = new Date();
-                        const showOT = now.getHours() >= 15;
-                        if (overtimeBtn) {
-                            overtimeBtn.style.display = showOT ? 'flex' : 'none';
-                            if (attendanceStatus.overtimeStatus === 'Pending' || attendanceStatus.overtimeStatus === 'Approved' || attendanceStatus.overtimeStatus === 'Rejected') {
-                                overtimeBtn.disabled = true;
-                                overtimeBtn.style.display = 'flex'; // Keep it visible if already requested
-                                overtimeBtn.innerHTML = `
-                                    <svg style="width:20px;height:20px;fill:currentColor" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z" /></svg>
-                                    OT ${attendanceStatus.overtimeStatus}
-                                `;
-                            } else {
-                                overtimeBtn.disabled = false;
-                            }
-                        }
-                        
                         hasTimedIn = true;
                     }
                 } else {
                     statusLabel.textContent = 'Not timed in yet';
                     timeInBtn.disabled = false;
                     timeOutBtn.disabled = true;
-                    if (overtimeBtn) overtimeBtn.style.display = 'none';
+                }
+
+                // Handle Resignation Status in UI
+                if (attendanceStatus.resignationStatus === 'Pending') {
+                    const resCard = document.getElementById('btnResignationCard');
+                    if (resCard) {
+                        resCard.innerText = 'Resignation Pending';
+                        resCard.disabled = true;
+                        resCard.style.opacity = '0.7';
+                    }
+                } else if (attendanceStatus.resignationStatus === 'Approved') {
+                    const resCard = document.getElementById('btnResignationCard');
+                    if (resCard) {
+                        resCard.innerText = 'Resignation Approved';
+                        resCard.disabled = true;
+                        resCard.style.opacity = '0.7';
+                    }
                 }
             }
 
@@ -1114,28 +1166,46 @@
             function timeOut() {
                 const now = new Date();
                 const hours = now.getHours();
-                
-                // Strictly check if it's before 5:00 PM (17:00)
+
                 if (hours < 17) {
                     const modal = document.getElementById('undertimeModal');
                     if (modal) {
                         modal.style.display = 'block';
-                    } else {
-                        // Fallback safety
-                        if (confirm("It is not yet 5:00 PM. Timing out now will be recorded as Undertime. Do you want to proceed?")) {
-                            proceedWithTimeOut();
-                        }
                     }
                 } else {
                     proceedWithTimeOut();
                 }
             }
 
+            async function undertimeYes() {
+                // Fetch fresh status to check approval
+                try {
+                    const response = await fetch(`${handlerUrl}?action=getstatus&employeeId=${employeeId}`);
+                    const status = await response.json();
+
+                    if (status.undertimeStatus === 'Approved') {
+                        proceedWithTimeOut();
+                    } else if (status.undertimeStatus === 'Pending') {
+                        alert('Your undertime request is still pending admin approval. Please wait for approval before timing out.');
+                    } else {
+                        alert('No approved undertime request found. Please click "No" to submit a formal request.');
+                    }
+                } catch (error) {
+                    console.error('Error fetching status:', error);
+                    alert('Could not verify undertime status. Please try again.');
+                }
+            }
+
+            function undertimeNo() {
+                closeModal('undertimeModal');
+                openUndertimeRequestModal();
+            }
+
             async function proceedWithTimeOut() {
                 const btn = document.getElementById('timeOutBtn');
                 btn.disabled = true;
                 btn.innerHTML = 'Processing...';
-                
+
                 // Close modal if it was open
                 const utModal = document.getElementById('undertimeModal');
                 if (utModal) utModal.style.display = 'none';
@@ -1179,25 +1249,50 @@
             function openConcernModal() {
                 document.getElementById('concernModal').style.display = 'block';
             }
-            
-            function openOvertimeModal() {
-                document.getElementById('overtimeModal').style.display = 'block';
+
+            function openUndertimeRequestModal() {
+                document.getElementById('undertimeRequestModal').style.display = 'block';
             }
 
-            async function submitOvertimeRequest() {
-                const reason = document.getElementById('otReason').value.trim();
-                
+            function openResignationRequestModal() {
+                const modal = document.getElementById('resignationRequestModal');
+                const formGroup = document.getElementById('resignationFormGroup');
+                const statusMsg = document.getElementById('resignationStatusMsg');
+                const statusText = document.getElementById('resignationStatusText');
+                const btnSubmit = document.getElementById('btnConfirmResignation');
+
+                if (attendanceStatus.resignationStatus === 'Pending') {
+                    formGroup.style.display = 'none';
+                    statusMsg.style.display = 'block';
+                    statusText.innerText = 'Your resignation request is currently pending approval.';
+                    btnSubmit.style.display = 'none';
+                } else if (attendanceStatus.resignationStatus === 'Approved') {
+                    formGroup.style.display = 'none';
+                    statusMsg.style.display = 'block';
+                    statusText.innerText = 'Your resignation has been approved.';
+                    btnSubmit.style.display = 'none';
+                } else {
+                    formGroup.style.display = 'block';
+                    statusMsg.style.display = 'none';
+                    btnSubmit.style.display = 'block';
+                }
+
+                modal.style.display = 'block';
+            }
+
+            async function submitUndertimeRequest() {
+                const reason = document.getElementById('txtUndertimeReason').value.trim();
                 if (!reason) {
-                    alert('Please provide a reason for the overtime.');
+                    alert('Please provide a reason for the undertime.');
                     return;
                 }
 
                 try {
-                    const response = await fetch(`${handlerUrl}?action=requestovertime&employeeId=${employeeId}&reason=${encodeURIComponent(reason)}`);
+                    const response = await fetch(`${handlerUrl}?action=requestundertime&employeeId=${employeeId}&reason=${encodeURIComponent(reason)}`);
                     const result = await response.json();
-                    
+
                     if (result.success) {
-                        alert('Overtime request submitted successfully!');
+                        alert('Undertime request submitted successfully!');
                         window.location.reload();
                     } else {
                         alert(result.message || 'Failed to submit request.');
@@ -1207,6 +1302,34 @@
                     alert('An error occurred. Please try again.');
                 }
             }
+
+            async function submitResignationRequest() {
+                const reason = document.getElementById('txtResignationReason').value.trim();
+                if (!reason) {
+                    alert('Please provide a reason for your resignation.');
+                    return;
+                }
+
+                if (!confirm("Are you sure you want to submit your resignation request? This is a formal action.")) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(`${handlerUrl}?action=requestresignation&employeeId=${employeeId}&reason=${encodeURIComponent(reason)}`);
+                    const result = await response.json();
+
+                    if (result.success) {
+                        alert('Resignation request submitted successfully!');
+                        window.location.reload();
+                    } else {
+                        alert(result.message || 'Failed to submit request.');
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('An error occurred. Please try again.');
+                }
+            }
+
 
             // Close modal when clicking outside
             window.onclick = function (event) {

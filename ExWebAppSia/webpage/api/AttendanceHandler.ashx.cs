@@ -5,9 +5,11 @@ using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using ExWebAppSia.Models;
 
+using System.Web.SessionState;
+
 namespace ExWebAppSia.webpage.api
 {
-    public class AttendanceHandler : IHttpHandler
+    public class AttendanceHandler : IHttpHandler, IRequiresSessionState
     {
         private readonly AttendanceService _attendanceService = new AttendanceService();
         private readonly EmployeeService _employeeService = new EmployeeService();
@@ -40,9 +42,31 @@ namespace ExWebAppSia.webpage.api
                 }
 
                 string action = context.Request["action"] ?? context.Request.QueryString["action"] ?? "";
+                
+                // Security: Prefer Identity from Session to prevent "automatic" timing in/out for wrong users
+                string sessionEmployeeId = context.Session?["Employee"] is Employee sessionEmp ? sessionEmp.EmployeeId : null;
                 string employeeId = (context.Request["employeeId"] ?? context.Request.QueryString["employeeId"] ?? "").Trim();
+                
+                if (string.IsNullOrEmpty(employeeId))
+                {
+                    employeeId = sessionEmployeeId;
+                }
+                
+                // If session is active, override param if mismatch to prevent accidental errors
+                if (!string.IsNullOrEmpty(sessionEmployeeId) && employeeId != sessionEmployeeId)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Security] Identity mismatch in Handler: Param={employeeId}, Session={sessionEmployeeId}. Using Session.");
+                    employeeId = sessionEmployeeId;
+                }
+
                 string employeeName = context.Request["employeeName"] ?? context.Request.QueryString["employeeName"] ?? "";
                 string department = context.Request["department"] ?? context.Request.QueryString["department"] ?? "";
+
+                if (string.IsNullOrEmpty(employeeName) && context.Session?["Employee"] is Employee empData)
+                {
+                    employeeName = empData.FullName;
+                    department = empData.Department;
+                }
 
                 System.Diagnostics.Debug.WriteLine($"AttendanceHandler called - Action: {action}, EmployeeId: {employeeId}, EmployeeName: {employeeName}");
                 System.Diagnostics.Trace.WriteLine($"TRACE: AttendanceHandler - Action: {action}, EmployeeId: {employeeId}");
@@ -271,15 +295,15 @@ namespace ExWebAppSia.webpage.api
                         {
                             // Modified: Check for any attendance today, even if already timed out
                             var attendanceRecords = Task.Run(async () => await _attendanceService.GetEmployeeAttendanceAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
-                            var today = DateTime.UtcNow.AddHours(8).Date;
+                            var todayDate = DateTime.UtcNow.AddHours(8).Date;
                             
                             // Find the latest record for today
-                            var todayAttendance = attendanceRecords
-                                .Where(a => a.Date.Date == today || (a.TimeIn.HasValue && a.TimeIn.Value.ToLocalTime().Date == today))
+                            var latestTodayAttendance = attendanceRecords
+                                .Where(a => a.Date.Date == todayDate || (a.TimeIn.HasValue && a.TimeIn.Value.ToLocalTime().Date == todayDate))
                                 .OrderByDescending(a => a.TimeIn)
                                 .FirstOrDefault();
 
-                            if (todayAttendance == null)
+                            if (latestTodayAttendance == null)
                             {
                                 result = false;
                                 message = "No attendance record found for today. Please time in first.";
@@ -287,10 +311,10 @@ namespace ExWebAppSia.webpage.api
                             else
                             {
                                 var utService = new UndertimeService();
-                                var emp = Task.Run(async () => await _employeeService.GetEmployeeByIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
-                                string empName = emp?.FullName ?? todayAttendance.EmployeeName;
-                                string dept = emp?.Department ?? todayAttendance.Department;
-                                result = Task.Run(async () => await utService.RequestUndertimeAsync(todayAttendance.Id, employeeId, empName, dept, utReason).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                var empUt = Task.Run(async () => await _employeeService.GetEmployeeByIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                string empNameUt = empUt?.FullName ?? latestTodayAttendance.EmployeeName;
+                                string deptUt = empUt?.Department ?? latestTodayAttendance.Department;
+                                result = Task.Run(async () => await utService.RequestUndertimeAsync(latestTodayAttendance.Id, employeeId, empNameUt, deptUt, utReason).ConfigureAwait(false)).GetAwaiter().GetResult();
                                 message = result ? "Undertime request submitted successfully" : "Failed to submit undertime request.";
                             }
                         }
@@ -305,8 +329,8 @@ namespace ExWebAppSia.webpage.api
                         else
                         {
                             // Get today's attendance record to get its ID
-                            var todayAttendance = Task.Run(async () => await _attendanceService.GetTodayAttendanceAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
-                            if (todayAttendance == null || todayAttendance.TimeOut.HasValue)
+                            var currentAttendance = Task.Run(async () => await _attendanceService.GetTodayAttendanceAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            if (currentAttendance == null || currentAttendance.TimeOut.HasValue)
                             {
                                 result = false;
                                 message = "No active shift found. Make sure you are timed in.";
@@ -314,10 +338,10 @@ namespace ExWebAppSia.webpage.api
                             else
                             {
                                 // Get employee details for the request
-                                var emp = Task.Run(async () => await _employeeService.GetEmployeeByIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
-                                string empName = emp?.FullName ?? todayAttendance.EmployeeName;
-                                string dept = emp?.Department ?? todayAttendance.Department;
-                                result = Task.Run(async () => await _overtimeService.RequestOvertimeAsync(todayAttendance.Id, employeeId, empName, dept, reason).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                var empOt = Task.Run(async () => await _employeeService.GetEmployeeByIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                string empNameOt = empOt?.FullName ?? currentAttendance.EmployeeName;
+                                string deptOt = empOt?.Department ?? currentAttendance.Department;
+                                result = Task.Run(async () => await _overtimeService.RequestOvertimeAsync(currentAttendance.Id, employeeId, empNameOt, deptOt, reason).ConfigureAwait(false)).GetAwaiter().GetResult();
                                 message = result ? "Overtime request submitted successfully" : "Failed to submit overtime request. A request may already be pending.";
                             }
                         }
@@ -386,10 +410,10 @@ namespace ExWebAppSia.webpage.api
                         else
                         {
                             // Need to handle Mongodb _id if passed, or convert EmployeeId to Mongodb _id
-                            var emp = Task.Run(async () => await _employeeService.GetByEmployeeIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
-                            if (emp != null)
+                            var empResign = Task.Run(async () => await _employeeService.GetByEmployeeIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            if (empResign != null)
                             {
-                                result = Task.Run(async () => await _employeeService.RequestResignationAsync(emp.Id, resignReason).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                result = Task.Run(async () => await _employeeService.RequestResignationAsync(empResign.Id, resignReason).ConfigureAwait(false)).GetAwaiter().GetResult();
                                 message = result ? "Resignation request submitted" : "Failed to submit resignation request";
                             }
                             else

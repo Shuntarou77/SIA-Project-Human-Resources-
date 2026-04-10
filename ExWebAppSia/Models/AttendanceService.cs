@@ -36,104 +36,83 @@ namespace ExWebAppSia.Models
                 var now = DateTime.UtcNow;
 
                 System.Diagnostics.Debug.WriteLine($"TimeInAsync called - EmployeeId: {employeeId}, EmployeeName: {employeeName}, Department: {department}");
-                System.Diagnostics.Debug.WriteLine($"UTC Date: {today:yyyy-MM-dd}, UTC Now: {now:yyyy-MM-dd HH:mm:ss}");
 
-                // Check if attendance record already exists for today
-                var existingAttendance = await _attendance
-                    .Find(a => a.EmployeeId == employeeId && 
-                               a.Date == today && 
-                               a.IsActive)
+                // 1. Check for ANY active shift (no TimeOut) regardless of date
+                var activeShift = await _attendance
+                    .Find(a => a.EmployeeId == employeeId && a.TimeOut == null && a.IsActive)
+                    .SortByDescending(a => a.TimeIn)
                     .FirstOrDefaultAsync();
 
-                if (existingAttendance != null)
+                if (activeShift != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"Existing record found - ID: {existingAttendance.Id}, TimeIn: {existingAttendance.TimeIn}, TimeOut: {existingAttendance.TimeOut}");
-                    if (!existingAttendance.TimeIn.HasValue)
+                    // If the active shift is from a previous day, auto-close it
+                    if (activeShift.Date < today)
                     {
-                        // Calculate Late Time
-                        var localTime = now.AddHours(8);
-                        var shiftStart = new DateTime(localTime.Year, localTime.Month, localTime.Day, 8, 0, 0);
-                        var gracePeriodEnd = shiftStart.AddMinutes(15);
-                        if (localTime > gracePeriodEnd)
-                        {
-                            var diff = localTime - shiftStart;
-                            existingAttendance.LateTime = $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}:{(int)diff.Seconds:D2}";
-                        }
-
-                        existingAttendance.TimeIn = now;
-                        existingAttendance.EmployeeName = employeeName;
-                        existingAttendance.Department = department;
-                        var updateResult = await _attendance.ReplaceOneAsync(
-                            a => a.Id == existingAttendance.Id,
-                            existingAttendance);
-                        System.Diagnostics.Debug.WriteLine($"Updated existing record - Matched: {updateResult.MatchedCount}, Modified: {updateResult.ModifiedCount}");
-                        return true;
-                    }
-                    else if (existingAttendance.TimeOut.HasValue)
-                    {
-                        // Employee has already timed out, create a new record for a new shift
-                        System.Diagnostics.Debug.WriteLine("Employee has timed out, creating new record for new shift");
-                        var newAttendance = new Attendance
-                        {
-                            EmployeeId = employeeId,
-                            EmployeeName = employeeName,
-                            Department = department,
-                            Date = today,
-                            TimeIn = now,
-                            TimeOut = null,
-                            CreatedAt = now,
-                            IsActive = true
-                        };
-                        await _attendance.InsertOneAsync(newAttendance);
-                        System.Diagnostics.Debug.WriteLine($"New shift record created - ID: {newAttendance.Id}");
-                        return true;
+                        System.Diagnostics.Debug.WriteLine($"Closing stale shift from {activeShift.Date:yyyy-MM-dd} before new TimeIn");
+                        activeShift.TimeOut = activeShift.TimeIn.Value.AddHours(8); // Default to 8 hour shift if forgotten
+                        await _attendance.ReplaceOneAsync(a => a.Id == activeShift.Id, activeShift);
                     }
                     else
                     {
-                        // Already timed in today but not timed out yet
-                        System.Diagnostics.Debug.WriteLine("Already timed in today (not timed out yet)");
+                        System.Diagnostics.Debug.WriteLine("Already have an active shift for today");
                         return false;
                     }
                 }
-                else
+
+                // 2. Check if a RECORD exists for today (maybe already timed out)
+                var existingRecord = await _attendance
+                    .Find(a => a.EmployeeId == employeeId && a.Date == today && a.IsActive)
+                    .SortByDescending(a => a.TimeIn)
+                    .FirstOrDefaultAsync();
+
+                if (existingRecord != null && existingRecord.TimeOut.HasValue)
                 {
-                    // Calculate Late Time (Standard shift starts at 8:00 AM Local/UTC+8)
-                    string lateTimeStr = null;
-                    var localTime = now.AddHours(8); // Convert UTC to PH Time (UTC+8)
-                    var shiftStart = new DateTime(localTime.Year, localTime.Month, localTime.Day, 8, 0, 0);
-                    var gracePeriodEnd = shiftStart.AddMinutes(15);
-                    
-                    if (localTime > gracePeriodEnd)
-                    {
-                        var diff = localTime - shiftStart;
-                        lateTimeStr = $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}:{(int)diff.Seconds:D2}";
-                    }
-
-                    // Create new attendance record
-                    var attendance = new Attendance
-                    {
-                        EmployeeId = employeeId,
-                        EmployeeName = employeeName,
-                        Department = department,
-                        Date = today, // Uses PH Local Date (UTC+8)
-                        TimeIn = now,
-                        TimeOut = null,
-                        LateTime = lateTimeStr,
-                        CreatedAt = now,
-                        IsActive = true
-                    };
-
-                    System.Diagnostics.Debug.WriteLine($"Attempting to insert attendance record...");
-                    await _attendance.InsertOneAsync(attendance);
-                    System.Diagnostics.Debug.WriteLine($"InsertOneAsync completed - ID: {attendance.Id}");
-                    
-                    if (string.IsNullOrEmpty(attendance.Id))
-                    {
-                        System.Diagnostics.Debug.WriteLine($"ERROR - Insert completed but ID is null or empty!");
-                        return false;
-                    }
-                                        return true;
+                    System.Diagnostics.Debug.WriteLine("Employee already timed out today, creating second shift");
                 }
+                else if (existingRecord != null && !existingRecord.TimeIn.HasValue)
+                {
+                    var localNow = now.AddHours(8);
+                    existingRecord.TimeIn = now;
+                    existingRecord.EmployeeName = employeeName;
+                    existingRecord.Department = department;
+                    
+                    var shiftStart = new DateTime(localNow.Year, localNow.Month, localNow.Day, 8, 0, 0);
+                    if (localNow > shiftStart.AddMinutes(15))
+                    {
+                        var diff = localNow - shiftStart;
+                        existingRecord.LateTime = $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}:{(int)diff.Seconds:D2}";
+                    }
+                    
+                    await _attendance.ReplaceOneAsync(a => a.Id == existingRecord.Id, existingRecord);
+                    return true;
+                }
+
+                // 3. Create new attendance record
+                string lateTimeStr = null;
+                var localTime = now.AddHours(8);
+                var standardStart = new DateTime(localTime.Year, localTime.Month, localTime.Day, 8, 0, 0);
+                
+                if (localTime > standardStart.AddMinutes(15))
+                {
+                    var diff = localTime - standardStart;
+                    lateTimeStr = $"{(int)diff.TotalHours:D2}:{(int)diff.Minutes:D2}:{(int)diff.Seconds:D2}";
+                }
+
+                var attendance = new Attendance
+                {
+                    EmployeeId = employeeId,
+                    EmployeeName = employeeName,
+                    Department = department,
+                    Date = today,
+                    TimeIn = now,
+                    TimeOut = null,
+                    LateTime = lateTimeStr,
+                    CreatedAt = now,
+                    IsActive = true
+                };
+
+                await _attendance.InsertOneAsync(attendance);
+                return true;
             }
             catch (Exception ex)
             {
@@ -150,11 +129,13 @@ namespace ExWebAppSia.Models
                 var today = DateTime.UtcNow.AddHours(8).Date;
                 var now = DateTime.UtcNow;
 
+                // Find the active shift. Prefer today's shift if multiple exist
                 var attendance = await _attendance
                     .Find(a => a.EmployeeId == employeeId && 
                                a.TimeOut == null && 
                                a.IsActive)
-                    .SortByDescending(a => a.TimeIn)
+                    .SortByDescending(a => a.Date)
+                    .ThenByDescending(a => a.TimeIn)
                     .FirstOrDefaultAsync();
 
                 if (attendance != null && attendance.TimeIn != null && attendance.TimeOut == null)
@@ -458,79 +439,54 @@ namespace ExWebAppSia.Models
                 var today = DateTime.UtcNow.AddHours(8).Date;
                 var now = DateTime.UtcNow;
 
-                // 1. First Priority: Look for an ACTIVE shift (timed in but not yet timed out)
-                // This handles cases where the shift started on one UTC day and is being checked on another.
-                var activeAttendance = await _attendance
-                    .Find(a => a.EmployeeId == employeeId && 
-                               a.TimeOut == null && 
-                               a.IsActive)
-                    .SortByDescending(a => a.TimeIn)
-                    .FirstOrDefaultAsync();
-
-                if (activeAttendance != null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"Found active shift for {employeeId} - Started at {activeAttendance.TimeIn}");
-                    return activeAttendance;
-                }
-
-                // 2. Second Priority: Look for a completed shift on the PH local "Today"
-                var attendance = await _attendance
+                // 1. Look for a record SPECIFICALLY for today's local date
+                var todayAttendance = await _attendance
                     .Find(a => a.EmployeeId == employeeId && 
                                a.Date == today && 
                                a.IsActive)
                     .SortByDescending(a => a.TimeIn)
                     .FirstOrDefaultAsync();
 
-                // Auto-timeout: Max 16 hours (8 base + 8 overtime)
-                if (attendance != null && attendance.TimeIn.HasValue && !attendance.TimeOut.HasValue)
+                if (todayAttendance != null)
                 {
-                    var hoursWorked = (now - attendance.TimeIn.Value).TotalHours;
-                    if (hoursWorked >= 16)
+                    // If it's still open, check for auto-timeout (16h)
+                    if (todayAttendance.TimeIn.HasValue && !todayAttendance.TimeOut.HasValue)
                     {
-                        attendance.TimeOut = attendance.TimeIn.Value.AddHours(16);
-                        await _attendance.ReplaceOneAsync(a => a.Id == attendance.Id, attendance);
-                        System.Diagnostics.Debug.WriteLine($"Auto-timed out employee {employeeId} after 16 hours.");
-
-                            // Record overtime worked via OvertimeService (at auto-timeout)
-                            var otService = new OvertimeService();
-                            var otRequest = await otService.GetByAttendanceIdAsync(attendance.Id);
-                            if (otRequest != null && otRequest.Status == "Approved")
-                            {
-                                var employeeService = new EmployeeService();
-                                var employee = await employeeService.GetEmployeeByEmployeeIdAsync(employeeId);
-                                
-                                // NO Overtime for HR STAFF
-                                bool isHRStaff = employee != null && (employee.Department == "Human Resources" || (employee.Role != null && employee.Role.ToUpper().Contains("HR")));
-
-                                if (!isHRStaff)
-                                {
-                                    var localTimeOut = attendance.TimeOut.Value.AddHours(8); // Convert to PH time
-                                    var shiftEnd = new DateTime(localTimeOut.Year, localTimeOut.Month, localTimeOut.Day, 17, 0, 0); // 5 PM
-                                    
-                                    if (localTimeOut > shiftEnd)
-                                    {
-                                        var ot = localTimeOut - shiftEnd;
-                                        string otWorked = $"{(int)ot.TotalHours:D2}:{ot.Minutes:D2}:{ot.Seconds:D2}";
-                                        
-                                        // Fetch daily rate from employee base salary (simplified: monthly / 22)
-                                        decimal dailyRate = 0;
-                                        if (employee != null)
-                                        {
-                                            dailyRate = employee.BaseSalary / 22m; 
-                                        }
-                                        
-                                        // Determine type (simplified: weekend = RestDay)
-                                        string otType = (localTimeOut.DayOfWeek == DayOfWeek.Saturday || localTimeOut.DayOfWeek == DayOfWeek.Sunday) 
-                                            ? "RestDay" : "Regular";
-
-                                        await otService.SetOvertimeWorkedAsync(attendance.Id, otWorked, dailyRate, otType);
-                                    }
-                                }
-                            }
+                        var hoursWorked = (now - todayAttendance.TimeIn.Value).TotalHours;
+                        if (hoursWorked >= 16)
+                        {
+                            todayAttendance.TimeOut = todayAttendance.TimeIn.Value.AddHours(16);
+                            await _attendance.ReplaceOneAsync(a => a.Id == todayAttendance.Id, todayAttendance);
+                            System.Diagnostics.Debug.WriteLine($"Auto-timed out TODAY'S shift for {employeeId}");
+                        }
                     }
+                    return todayAttendance;
                 }
 
-                return attendance;
+                // 2. If no record for today, check for an ACTIVE shift from a previous day
+                var staleShift = await _attendance
+                    .Find(a => a.EmployeeId == employeeId && 
+                               a.TimeOut == null && 
+                               a.IsActive)
+                    .SortByDescending(a => a.TimeIn)
+                    .FirstOrDefaultAsync();
+
+                if (staleShift != null)
+                {
+                    // Check if it should be auto-timed out
+                    var hoursWorked = (now - staleShift.TimeIn.Value).TotalHours;
+                    if (hoursWorked >= 16 || staleShift.Date < today)
+                    {
+                        // Shift is too old or from previous day
+                        staleShift.TimeOut = staleShift.TimeIn.Value.AddHours(8); // Default closure
+                        await _attendance.ReplaceOneAsync(a => a.Id == staleShift.Id, staleShift);
+                        System.Diagnostics.Debug.WriteLine($"Auto-closed stale shift from {staleShift.Date:yyyy-MM-dd} for {employeeId}");
+                        return null; // Return null so UI shows "Not timed in yet" for today
+                    }
+                    return staleShift;
+                }
+
+                return null;
             }
             catch (Exception ex)
             {

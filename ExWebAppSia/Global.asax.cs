@@ -45,6 +45,13 @@ namespace ExWebAppSia
                     // Trigger Employees collection
                     var employees = database.GetCollection<Employee>("Employees");
                     await employees.CountDocumentsAsync(MongoDB.Driver.Builders<Employee>.Filter.Empty);
+                    
+                    // DATA FIX: Correct HiredDate for Steven Andrei Baliong (was incorrectly 2028)
+                    var baliongFilter = MongoDB.Driver.Builders<Employee>.Filter.Eq(emp => emp.Email, "steven.andrei.baliong@gmail.com");
+                    var baliongUpdate = MongoDB.Driver.Builders<Employee>.Update.Set(emp => emp.HiredDate, new DateTime(2026, 1, 21, 0, 0, 0, DateTimeKind.Utc));
+                    await employees.UpdateOneAsync(baliongFilter, baliongUpdate);
+                    System.Diagnostics.Debug.WriteLine("[Startup] ? Corrected HiredDate for Steven Andrei Baliong to Jan 21, 2026");
+
                     System.Diagnostics.Debug.WriteLine("[Startup] ? Employees collection warmed");
 
                     // Trigger PayrollConfigurations collection
