@@ -1,4 +1,4 @@
-﻿using MongoDB.Bson;
+using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
 using System;
 
@@ -15,6 +15,9 @@ namespace ExWebAppSia.Models
 
         [BsonElement("employeeName")]
         public string EmployeeName { get; set; }
+
+        [BsonElement("department")]
+        public string Department { get; set; } // e.g., "Research & Development"
 
         [BsonElement("leaveType")]
         public string LeaveType { get; set; } // Sick, Vacation, Personal, Emergency, Maternity, Paternity

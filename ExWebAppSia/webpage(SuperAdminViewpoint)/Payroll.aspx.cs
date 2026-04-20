@@ -1,0 +1,1380 @@
+using ExWebAppSia.Models;
+using MongoDB.Bson.IO;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Web;
+using System.Web.Script.Serialization;
+using System.Web.Script.Services;
+using System.Web.Services;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+
+namespace ExWebAppSia.webpage_SuperAdminViewpoint_
+{
+    public partial class WebForm6 : System.Web.UI.Page
+    {
+        // Service instances - Use lazy initialization to avoid startup deadlocks
+        private static readonly Lazy<PayrollConfigurationService> ConfigServiceLazy = new Lazy<PayrollConfigurationService>(() => new PayrollConfigurationService());
+        private static readonly Lazy<PayrollProcessingService> ProcessingServiceLazy = new Lazy<PayrollProcessingService>(() => new PayrollProcessingService());
+        private static readonly Lazy<PayRunService> PayRunServiceLazy = new Lazy<PayRunService>(() => new PayRunService());
+        private static readonly Lazy<PayslipService> PayslipServiceLazy = new Lazy<PayslipService>(() => new PayslipService());
+        private static readonly Lazy<FinanceIntegrationService> FinanceServiceLazy = new Lazy<FinanceIntegrationService>(() => new FinanceIntegrationService());
+        private static readonly Lazy<PayrollReportService> ReportServiceLazy = new Lazy<PayrollReportService>(() => new PayrollReportService());
+        private static readonly Lazy<EmployeeService> EmployeeServiceLazy = new Lazy<EmployeeService>(() => new EmployeeService());
+        private static readonly Lazy<PayScheduleService> ScheduleServiceLazy = new Lazy<PayScheduleService>(() => new PayScheduleService());
+        private static readonly Lazy<PayrollDisbursementService> DisbursementServiceLazy = new Lazy<PayrollDisbursementService>(() => new PayrollDisbursementService());
+
+        // Properties to access lazy-initialized services
+        private static PayrollConfigurationService ConfigService => ConfigServiceLazy.Value;
+        private static PayrollProcessingService ProcessingService => ProcessingServiceLazy.Value;
+        private static PayRunService PayRunService => PayRunServiceLazy.Value;
+        private static PayslipService PayslipService => PayslipServiceLazy.Value;
+        private static FinanceIntegrationService FinanceService => FinanceServiceLazy.Value;
+        private static PayrollReportService ReportService => ReportServiceLazy.Value;
+        private static EmployeeService EmployeeService => EmployeeServiceLazy.Value;
+        private static PayScheduleService ScheduleService => ScheduleServiceLazy.Value;
+        private static PayrollDisbursementService DisbursementService => DisbursementServiceLazy.Value;
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                // Initialize payroll period (optional - non-blocking)
+                RegisterAsyncTask(new PageAsyncTask(InitializePayrollPeriodAsync));
+                
+                // Pre-load configurations in background (so they're cached when user clicks tab)
+                RegisterAsyncTask(new PageAsyncTask(PreLoadConfigurationsAsync));
+            }
+        }
+
+        private async Task InitializePayrollPeriodAsync()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[InitializePayrollPeriodAsync] START");
+                
+                var schedule = await ScheduleService.GetActiveScheduleAsync().ConfigureAwait(false);
+                
+                if (schedule != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[InitializePayrollPeriodAsync] Active schedule found: {schedule.ScheduleType}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine("[InitializePayrollPeriodAsync] No active schedule found (OK - user will select dates manually)");
+                }
+                
+                System.Diagnostics.Debug.WriteLine("[InitializePayrollPeriodAsync] COMPLETE");
+            }
+            catch (TimeoutException tex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[InitializePayrollPeriodAsync] TIMEOUT (non-fatal): {tex.Message}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[InitializePayrollPeriodAsync] ERROR (non-fatal): {ex.Message}");
+            }
+        }
+
+        private async Task PreLoadConfigurationsAsync()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[PreLoadConfigurations] START - warming up configuration cache");
+                
+                var configs = await ConfigService.GetAllActiveAsync().ConfigureAwait(false);
+                
+                System.Diagnostics.Debug.WriteLine($"[PreLoadConfigurations] SUCCESS - {configs?.Count ?? 0} configurations cached");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[PreLoadConfigurations] ERROR (non-fatal): {ex.Message}");
+            }
+        }
+
+        // ========== FUNCTION 6.1: PAYROLL CONFIGURATION WEB METHODS ==========
+
+        [WebMethod]
+        public static string GetPayrollConfigurations()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("========================================");
+                System.Diagnostics.Debug.WriteLine("?? GetPayrollConfigurations called");
+                System.Diagnostics.Debug.WriteLine("========================================");
+
+                System.Diagnostics.Debug.WriteLine("?? Creating PayrollConfigurationService...");
+                
+                System.Diagnostics.Debug.WriteLine("?? Calling GetAllActiveAsync...");
+                
+                var configTask = ConfigService.GetAllActiveAsync();
+                
+                System.Diagnostics.Debug.WriteLine("?? Waiting for task completion...");
+                
+                if (!configTask.Wait(TimeSpan.FromSeconds(10)))
+                {
+                    System.Diagnostics.Debug.WriteLine("?? TIMEOUT: GetAllActiveAsync took longer than 10 seconds");
+                    var serializer = new JavaScriptSerializer();
+                    return serializer.Serialize(new 
+                    { 
+                        success = false, 
+                        message = "Database query timed out. The collection may not exist yet or MongoDB is slow. Please try refreshing the page." 
+                    });
+                }
+                
+                var configs = configTask.Result;
+                
+                System.Diagnostics.Debug.WriteLine($"? Fetched {configs?.Count ?? 0} configurations from database");
+
+                if (configs == null || configs.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("?? No configurations found in database");
+                    var serializer = new JavaScriptSerializer();
+                    return serializer.Serialize(new { success = true, data = new List<object>(), message = "No configurations found" });
+                }
+
+                System.Diagnostics.Debug.WriteLine($"?? Mapping {configs.Count} configurations...");
+
+                var result = configs.Select(c => new
+                {
+                    id = c.Id,
+                    employeeId = c.EmployeeId,
+                    employeeName = c.EmployeeName,
+                    employeeNumber = c.EmployeeNumber,
+                    department = c.Department,
+                    basicSalary = c.BasicSalary,
+                    housingAllowance = c.HousingAllowance,
+                    transportAllowance = c.TransportAllowance,
+                    mealAllowance = c.MealAllowance,
+                    otherAllowances = c.OtherAllowances,
+                    totalAllowances = c.TotalAllowances,
+                    grossMonthlySalary = c.GrossMonthlySalary,
+                    sssContribution = c.SSSContribution,
+                    philHealthContribution = c.PhilHealthContribution,
+                    pagIbigContribution = c.PagIbigContribution,
+                    withholdingTax = c.WithholdingTax,
+                    totalStatutoryDeductions = c.TotalStatutoryDeductions,
+                    sssLoan = c.SSSLoan,
+                    pagIbigLoan = c.PagIbigLoan,
+                    companyLoan = c.CompanyLoan,
+                    totalLoanDeductions = c.TotalLoanDeductions,
+                    otherDeductions = c.OtherDeductions,
+                    absencePenaltyRate = c.AbsencePenaltyRate,
+                    latePenaltyRate = c.LatePenaltyRate,
+                    regularOvertimeRate = c.RegularOvertimeRate,
+                    holidayOvertimeRate = c.HolidayOvertimeRate,
+                    nightDifferentialRate = c.NightDifferentialRate,
+                    effectiveDate = c.EffectiveDate.ToString("yyyy-MM-dd"),
+                    isActive = c.IsActive,
+                    createdAt = c.CreatedAt,
+                    updatedAt = c.UpdatedAt
+                }).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"? Mapped {result.Count} configurations successfully");
+
+                System.Diagnostics.Debug.WriteLine("?? Creating JavaScriptSerializer...");
+                var serializer2 = new JavaScriptSerializer { MaxJsonLength = Int32.MaxValue };
+
+                System.Diagnostics.Debug.WriteLine("?? Serializing to JSON...");
+                var json = serializer2.Serialize(new { success = true, data = result });
+
+                System.Diagnostics.Debug.WriteLine($"? JSON output length: {json.Length} chars");
+                System.Diagnostics.Debug.WriteLine($"? JSON preview: {json.Substring(0, Math.Min(200, json.Length))}...");
+
+                System.Diagnostics.Debug.WriteLine("? Returning JSON to client");
+                System.Diagnostics.Debug.WriteLine("========================================");
+ 
+                return json;
+            }
+            catch (System.AggregateException ae)
+            {
+                System.Diagnostics.Debug.WriteLine($"? AggregateException in GetPayrollConfigurations");
+                foreach (var innerEx in ae.InnerExceptions)
+                {
+                    System.Diagnostics.Debug.WriteLine($"   - {innerEx.GetType().Name}: {innerEx.Message}");
+                    if (innerEx.InnerException != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"     Inner: {innerEx.InnerException.Message}");
+                    }
+                }
+                var serializer = new JavaScriptSerializer();
+                return serializer.Serialize(new { success = false, message = $"Database error: {ae.InnerExceptions.First().Message}" });
+            }
+            catch (System.Threading.Tasks.TaskCanceledException ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"?? TIMEOUT in GetPayrollConfigurations: {ex.Message}");
+                var serializer = new JavaScriptSerializer();
+                return serializer.Serialize(new { success = false, message = "Request timed out. Database may be slow or unavailable." });
+            }
+            catch (Exception ex) when (ex.GetType().FullName.Contains("Mongo"))
+            {
+                System.Diagnostics.Debug.WriteLine($"? MongoDB Error in GetPayrollConfigurations: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"? Stack trace: {ex.StackTrace}");
+                var serializer = new JavaScriptSerializer();
+                return serializer.Serialize(new { success = false, message = $"Database connection error: {ex.Message}" });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"? Error in GetPayrollConfigurations: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"? Error Type: {ex.GetType().FullName}");
+                System.Diagnostics.Debug.WriteLine($"? Stack trace: {ex.StackTrace}");
+
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"? Inner Exception: {ex.InnerException.Message}");
+                }
+
+                var serializer = new JavaScriptSerializer();
+                return serializer.Serialize(new { success = false, message = $"Error: {ex.Message}" });
+            }
+        }
+
+        [WebMethod]
+        public static string GetConfigurationById(string configId)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"?? GetConfigurationById called for ID: {configId}");
+
+                var config = ConfigService.GetByIdAsync(configId)
+                    .ConfigureAwait(false)
+                    .GetAwaiter()
+                    .GetResult();
+
+                if (config == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"?? Configuration not found: {configId}");
+                    var serializer = new JavaScriptSerializer();
+                    return serializer.Serialize(new { success = false, message = "Configuration not found" });
+                }
+
+                var result = new
+                {
+                    id = config.Id,
+                    employeeId = config.EmployeeId,
+                    employeeName = config.EmployeeName,
+                    employeeNumber = config.EmployeeNumber,
+                    department = config.Department,
+                    basicSalary = config.BasicSalary,
+                    housingAllowance = config.HousingAllowance,
+                    transportAllowance = config.TransportAllowance,
+                    mealAllowance = config.MealAllowance,
+                    otherAllowances = config.OtherAllowances,
+                    sssContribution = config.SSSContribution,
+                    philHealthContribution = config.PhilHealthContribution,
+                    pagIbigContribution = config.PagIbigContribution,
+                    withholdingTax = config.WithholdingTax,
+                    sssLoan = config.SSSLoan,
+                    pagIbigLoan = config.PagIbigLoan,
+                    companyLoan = config.CompanyLoan,
+                    otherDeductions = config.OtherDeductions,
+                    absencePenaltyRate = config.AbsencePenaltyRate,
+                    latePenaltyRate = config.LatePenaltyRate,
+                    regularOvertimeRate = config.RegularOvertimeRate,
+                    holidayOvertimeRate = config.HolidayOvertimeRate,
+                    nightDifferentialRate = config.NightDifferentialRate,
+                    effectiveDate = config.EffectiveDate.ToString("yyyy-MM-dd")
+                };
+
+                System.Diagnostics.Debug.WriteLine($"? Configuration loaded for employee: {config.EmployeeName}");
+
+                var serializer2 = new JavaScriptSerializer();
+                return serializer2.Serialize(new { success = true, data = result });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"? Error in GetConfigurationById: {ex.Message}");
+                var serializer = new JavaScriptSerializer();
+                return serializer.Serialize(new { success = false, message = ex.Message });
+            }
+        }
+
+        [WebMethod]
+        public static string GetEmployeesWithoutConfig()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("========================================");
+                System.Diagnostics.Debug.WriteLine("?? GetEmployeesWithoutConfig called");
+                System.Diagnostics.Debug.WriteLine("?? TEMPORARY: Showing ALL employees (filter disabled)");
+                System.Diagnostics.Debug.WriteLine("========================================");
+
+                System.Diagnostics.Debug.WriteLine("Step 1: Fetching all employees from Employees collection...");
+                
+                var employeeService = new EmployeeService();
+                var allEmployees = employeeService.GetAllEmployeesAsync()
+                    .ConfigureAwait(false)
+                    .GetAwaiter()
+                    .GetResult();
+
+                System.Diagnostics.Debug.WriteLine($"? Retrieved {allEmployees?.Count ?? 0} total employees from Employees collection");
+
+                if (allEmployees == null || allEmployees.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("?? No employees found in Employees collection");
+                    var serializer = new JavaScriptSerializer();
+                    return serializer.Serialize(new 
+                    { 
+                        success = false, 
+                        message = "No employees found in Employees collection. Please hire employees in Recruitment module first." 
+                    });
+                }
+
+                if (allEmployees.Count > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("?? First 3 employees from Employees collection:");
+                    foreach (var emp in allEmployees.Take(3))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"  - ID: {emp.Id}, EmployeeId: {emp.EmployeeId}, Name: {emp.FullName}, Dept: {emp.Department}, Active: {emp.IsActive}");
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine("?? SKIPPING configuration filter - showing ALL employees");
+                
+                var employeesWithoutConfig = allEmployees
+                    .Where(e => e != null && e.IsActive && !string.IsNullOrEmpty(e.Id))
+                    .Select(e => new
+                    {
+                        employeeId = e.Id,
+                        employeeNumber = e.EmployeeId ?? "N/A",
+                        fullName = e.FullName ?? "N/A",
+                        department = e.Department ?? "N/A",
+                        role = e.Role ?? "Employee"
+                    })
+                    .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"? Returning {employeesWithoutConfig.Count} employees (ALL active employees)");
+
+                if (employeesWithoutConfig.Count > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("?? Employees to show (first 3):");
+                    foreach (var emp in employeesWithoutConfig.Take(3))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"  - {emp.employeeNumber}: {emp.fullName} ({emp.department}) - ID: {emp.employeeId}");
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine("========================================");
+
+                var serializer2 = new JavaScriptSerializer();
+                return serializer2.Serialize(new { success = true, data = employeesWithoutConfig });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"? Error in GetEmployeesWithoutConfig: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"? Stack trace: {ex.StackTrace}");
+                var serializer = new JavaScriptSerializer();
+                return serializer.Serialize(new { success = false, message = $"Error loading employees: {ex.Message}" });
+            }
+        }
+
+        [WebMethod]
+        public static string SavePayrollConfiguration(object config)
+        {
+            var serializer = new JavaScriptSerializer();
+            
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("?? SavePayrollConfiguration called");
+
+                var configDict = serializer.Deserialize<Dictionary<string, object>>(serializer.Serialize(config));
+
+                string id = configDict.ContainsKey("id") ? configDict["id"]?.ToString() : null;
+                string employeeId = configDict["employeeId"]?.ToString();
+                string employeeName = configDict["employeeName"]?.ToString();
+                string employeeNumber = configDict["employeeNumber"]?.ToString();
+                string department = configDict["department"]?.ToString();
+                decimal basicSalary = Convert.ToDecimal(configDict["basicSalary"]);
+                decimal housingAllowance = Convert.ToDecimal(configDict["housingAllowance"]);
+                decimal transportAllowance = Convert.ToDecimal(configDict["transportAllowance"]);
+                decimal mealAllowance = Convert.ToDecimal(configDict["mealAllowance"]);
+                decimal otherAllowances = Convert.ToDecimal(configDict["otherAllowances"]);
+                decimal sssContribution = Convert.ToDecimal(configDict["sssContribution"]);
+                decimal philHealthContribution = Convert.ToDecimal(configDict["philHealthContribution"]);
+                decimal pagIbigContribution = Convert.ToDecimal(configDict["pagIbigContribution"]);
+                decimal withholdingTax = Convert.ToDecimal(configDict["withholdingTax"]);
+                decimal sssLoan = Convert.ToDecimal(configDict["sssLoan"]);
+                decimal pagIbigLoan = Convert.ToDecimal(configDict["pagIbigLoan"]);
+                decimal companyLoan = Convert.ToDecimal(configDict["companyLoan"]);
+                decimal otherDeductions = Convert.ToDecimal(configDict["otherDeductions"]);
+                decimal absencePenaltyRate = Convert.ToDecimal(configDict["absencePenaltyRate"]);
+                decimal latePenaltyRate = Convert.ToDecimal(configDict["latePenaltyRate"]);
+                decimal regularOvertimeRate = Convert.ToDecimal(configDict["regularOvertimeRate"]);
+                decimal holidayOvertimeRate = Convert.ToDecimal(configDict["holidayOvertimeRate"]);
+                decimal nightDifferentialRate = Convert.ToDecimal(configDict["nightDifferentialRate"]);
+                DateTime effectiveDate = DateTime.Parse(configDict["effectiveDate"]?.ToString());
+
+                PayrollConfiguration payrollConfig;
+
+                if (string.IsNullOrEmpty(id))
+                {
+                    System.Diagnostics.Debug.WriteLine($"?? Creating new configuration for employee: {employeeName}");
+
+                    payrollConfig = new PayrollConfiguration
+                    {
+                        EmployeeId = employeeId,
+                        EmployeeName = employeeName,
+                        EmployeeNumber = employeeNumber,
+                        Department = department,
+                        BasicSalary = basicSalary,
+                        HousingAllowance = housingAllowance,
+                        TransportAllowance = transportAllowance,
+                        MealAllowance = mealAllowance,
+                        OtherAllowances = otherAllowances,
+                        SSSContribution = sssContribution,
+                        PhilHealthContribution = philHealthContribution,
+                        PagIbigContribution = pagIbigContribution,
+                        WithholdingTax = withholdingTax,
+                        SSSLoan = sssLoan,
+                        PagIbigLoan = pagIbigLoan,
+                        CompanyLoan = companyLoan,
+                        OtherDeductions = otherDeductions,
+                        AbsencePenaltyRate = absencePenaltyRate,
+                        LatePenaltyRate = latePenaltyRate,
+                        RegularOvertimeRate = regularOvertimeRate,
+                        HolidayOvertimeRate = holidayOvertimeRate,
+                        NightDifferentialRate = nightDifferentialRate,
+                        EffectiveDate = effectiveDate,
+                        IsActive = true,
+                        CreatedBy = "HR Admin",
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    };
+
+                    payrollConfig.CalculateTotals();
+
+                    var saveTask = ConfigService.CreateAsync(payrollConfig);
+                    if (!saveTask.Wait(TimeSpan.FromSeconds(120)))
+                    {
+                        System.Diagnostics.Debug.WriteLine("?? TIMEOUT: CreateAsync took too long (>2 minutes");
+                        return serializer.Serialize(new { success = false, message = "Save timeout - Database extremely slow (>120s)" });
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"? Configuration created successfully for {employeeName}");
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"?? Updating configuration ID: {id}");
+
+                    var getTask = ConfigService.GetByIdAsync(id);
+                    if (!getTask.Wait(TimeSpan.FromSeconds(120)))
+                    {
+                        return serializer.Serialize(new { success = false, message = "Get timeout - Database slow (>10s)" });
+                    }
+                    
+                    payrollConfig = getTask.Result;
+
+                    if (payrollConfig == null)
+                    {
+                        return serializer.Serialize(new { success = false, message = "Configuration not found" });
+                    }
+
+                    payrollConfig.BasicSalary = basicSalary;
+                    payrollConfig.HousingAllowance = housingAllowance;
+                    payrollConfig.TransportAllowance = transportAllowance;
+                    payrollConfig.MealAllowance = mealAllowance;
+                    payrollConfig.OtherAllowances = otherAllowances;
+                    payrollConfig.SSSContribution = sssContribution;
+                    payrollConfig.PhilHealthContribution = philHealthContribution;
+                    payrollConfig.PagIbigContribution = pagIbigContribution;
+                    payrollConfig.WithholdingTax = withholdingTax;
+                    payrollConfig.SSSLoan = sssLoan;
+                    payrollConfig.PagIbigLoan = pagIbigLoan;
+                    payrollConfig.CompanyLoan = companyLoan;
+                    payrollConfig.OtherDeductions = otherDeductions;
+                    payrollConfig.AbsencePenaltyRate = absencePenaltyRate;
+                    payrollConfig.LatePenaltyRate = latePenaltyRate;
+                    payrollConfig.RegularOvertimeRate = regularOvertimeRate;
+                    payrollConfig.HolidayOvertimeRate = holidayOvertimeRate;
+                    payrollConfig.NightDifferentialRate = nightDifferentialRate;
+                    payrollConfig.EffectiveDate = effectiveDate;
+                    payrollConfig.UpdatedAt = DateTime.UtcNow;
+
+                    payrollConfig.CalculateTotals();
+
+                    var updateTask = ConfigService.UpdateAsync(id, payrollConfig);
+                    if (!updateTask.Wait(TimeSpan.FromSeconds(120)))
+                    {
+                        System.Diagnostics.Debug.WriteLine("?? TIMEOUT: UpdateAsync took too long");
+                        return serializer.Serialize(new { success = false, message = "Update timeout - Database slow (>30s)" });
+                    }
+
+                    System.Diagnostics.Debug.WriteLine($"? Configuration updated successfully for {employeeName}");
+                }
+
+                System.Diagnostics.Debug.WriteLine("? Returning success response to client");
+                return serializer.Serialize(new { success = true, message = "Configuration saved successfully" });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"? Error in SavePayrollConfiguration: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"? Stack trace: {ex.StackTrace}");
+                return serializer.Serialize(new { success = false, message = $"Error: {ex.Message}" });
+            }
+        }
+
+        // ========== FUNCTION 6.3.x: PAY RUN APPROVAL & FINANCE WEB METHODS ==========
+
+
+
+        [WebMethod]
+        public static string DeactivateConfiguration(string configId)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"?? DeactivateConfiguration called for ID: {configId}");
+
+                var success = ConfigService.DeactivateAsync(configId)
+                    .ConfigureAwait(false)
+                    .GetAwaiter()
+                    .GetResult();
+
+                if (success)
+                {
+                    System.Diagnostics.Debug.WriteLine($"? Configuration deactivated successfully");
+                    var serializer = new JavaScriptSerializer();
+                    return serializer.Serialize(new { success = true, message = "Configuration deactivated successfully" });
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"?? Failed to deactivate configuration");
+                    var serializer = new JavaScriptSerializer();
+                    return serializer.Serialize(new { success = false, message = "Failed to deactivate configuration" });
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"? Error in DeactivateConfiguration: {ex.Message}");
+                var serializer = new JavaScriptSerializer();
+                return serializer.Serialize(new { success = false, message = ex.Message });
+            }
+        }
+
+        // ========== FUNCTION 6.2: PAYROLL PROCESSING WEB METHODS ==========
+
+        [WebMethod]
+        [System.Web.Script.Services.ScriptMethod(ResponseFormat = System.Web.Script.Services.ResponseFormat.Json)]
+        public static string GetEmployees()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("========================================");
+                System.Diagnostics.Debug.WriteLine("?? GetEmployees called for payroll generation");
+                System.Diagnostics.Debug.WriteLine("========================================");
+
+                System.Diagnostics.Debug.WriteLine("Step 1: Fetching employees from EmployeeService...");
+                var employees = EmployeeService
+                    .GetAllEmployeesAsync()
+                    .ConfigureAwait(false)
+                    .GetAwaiter()
+                    .GetResult();
+
+                System.Diagnostics.Debug.WriteLine($"Step 2: Retrieved {employees?.Count ?? 0} employees");
+
+                if (employees == null || employees.Count == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("?? No employees found in database");
+                    var serializer = new JavaScriptSerializer();
+                    return serializer.Serialize(new { success = false, message = "No employees found in database. Please add employees in the Recruitment module first." });
+                }
+
+                System.Diagnostics.Debug.WriteLine("?? Sample employees:");
+                foreach (var emp in employees.Take(3))
+                {
+                    System.Diagnostics.Debug.WriteLine($"  - {emp.EmployeeId}: {emp.FullName} ({emp.Department}) - Active: {emp.IsActive}");
+                }
+
+                System.Diagnostics.Debug.WriteLine("Step 3: Mapping employees to DTO...");
+                var result = employees
+                    .Where(e => e != null && e.IsActive)
+                    .Select(e => new
+                    {
+                        employeeId = e.Id ?? string.Empty,
+                        employeeNumber = e.EmployeeId ?? "N/A",
+                        fullName = e.FullName ?? "N/A",
+                        department = e.Department ?? "N/A",
+                        position = e.Role ?? "Employee",
+                        employmentType = e.ContractType ?? "Regular"
+                    })
+                    .ToList();
+
+                System.Diagnostics.Debug.WriteLine($"? Mapped {result.Count} active employees");
+                
+                if (result.Count > 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("?? Mapped sample:");
+                    foreach (var emp in result.Take(3))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"  - {emp.employeeNumber}: {emp.fullName} ({emp.department})");
+                    }
+                }
+
+                System.Diagnostics.Debug.WriteLine("Step 4: Serializing to JSON...");
+                var serializer2 = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
+                var json = serializer2.Serialize(new { success = true, data = result });
+                
+                System.Diagnostics.Debug.WriteLine($"? JSON length: {json.Length} chars");
+                System.Diagnostics.Debug.WriteLine("========================================");
+                
+                return json;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("========================================");
+                System.Diagnostics.Debug.WriteLine($"? Error in GetEmployees: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"? Type: {ex.GetType().FullName}");
+                System.Diagnostics.Debug.WriteLine($"? Stack trace: {ex.StackTrace}");
+                
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"? Inner Exception: {ex.InnerException.Message}");
+                }
+                
+                System.Diagnostics.Debug.WriteLine("========================================");
+                
+                var serializer = new JavaScriptSerializer();
+                return serializer.Serialize(new { success = false, message = $"Error loading employees: {ex.Message}" });
+            }
+        }
+
+        [WebMethod]
+        [System.Web.Script.Services.ScriptMethod(ResponseFormat = System.Web.Script.Services.ResponseFormat.Json)]
+        public static string GeneratePayroll(string[] employeeIds, string startDate, string endDate, string createdBy)
+        {
+            var serializer = new JavaScriptSerializer { MaxJsonLength = int.MaxValue };
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[GeneratePayroll] ========== START ==========");
+                System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] Received {employeeIds?.Length ?? 0} employee IDs");
+                System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] Date range: {startDate} to {endDate}");
+                
+                if (employeeIds == null || employeeIds.Length == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine("[GeneratePayroll] ERROR: No employees selected");
+                    return serializer.Serialize(new { success = false, message = "No employees selected" });
+                }
+
+                var idList = new List<string>(employeeIds);
+                var start = DateTime.Parse(startDate);
+                var end = DateTime.Parse(endDate);
+
+                System.Diagnostics.Debug.WriteLine("[GeneratePayroll] Calling GeneratePayRunAsync...");
+                
+                PayRun payRun = null;
+                try
+                {
+                    payRun = ProcessingService
+                        .GeneratePayRunAsync(idList, start, end, createdBy ?? "System")
+                        .ConfigureAwait(false).GetAwaiter().GetResult();
+                }
+                catch (Exception procEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] ERROR in GeneratePayRunAsync: {procEx.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] Stack: {procEx.StackTrace}");
+                    
+                    if (procEx.Message.Contains("pay schedule") || procEx.Message.Contains("PaySchedule"))
+                    {
+                        return serializer.Serialize(new
+                        {
+                            success = false,
+                            message = "?? Pay Schedule not configured. Please go to Settings ? Payroll Configuration to set up your pay schedule first.",
+                            errorType = "MissingPaySchedule"
+                        });
+                    }
+                    
+                    throw;
+                }
+
+                if (payRun == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[GeneratePayroll] ERROR: GeneratePayRunAsync returned null");
+                    return serializer.Serialize(new { success = false, message = "Failed to generate pay run (null result)" });
+                }
+
+                System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] Pay run generated: {payRun.PayRunNumber}, {payRun.Items?.Count ?? 0} items");
+                System.Diagnostics.Debug.WriteLine("[GeneratePayroll] Saving to database...");
+
+                PayRun savedPayRun = null;
+                try
+                {
+                    var saveTask = PayRunService.CreateAsync(payRun);
+                    if (!saveTask.Wait(TimeSpan.FromSeconds(45)))
+                    {
+                        System.Diagnostics.Debug.WriteLine("[GeneratePayroll] TIMEOUT: Database save took >45 seconds");
+                        return serializer.Serialize(new 
+                        { 
+                            success = false, 
+                            message = "?? Payroll calculation completed, but saving to database timed out (>45s).\n\n" +
+                                     "This usually means:\n" +
+                                     "ï¿½ MongoDB Atlas is slow or unreachable\n" +
+                                     "ï¿½ Network firewall is blocking the save\n" +
+                                     "ï¿½ Database connection pool is exhausted\n\n" +
+                                     "Please check:\n" +
+                                     "1. MongoDB Atlas is running\n" +
+                                     "2. IP whitelist includes your current IP\n" +
+                                     "3. Connection string is correct\n\n" +
+                                     "You can try clicking 'Refresh' in Payroll Configuration tab to see if it was saved."
+                        });
+                    }
+                    
+                    savedPayRun = saveTask.Result;
+                }
+                catch (AggregateException aggEx) when (aggEx.InnerException is TimeoutException)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] TIMEOUT EXCEPTION: {aggEx.InnerException.Message}");
+                    return serializer.Serialize(new 
+                    { 
+                        success = false, 
+                        message = "?? Database save timed out after 30 seconds.\n\n" +
+                                 "MongoDB Atlas may be slow or unreachable. Please:\n" +
+                                 "1. Check MongoDB Atlas is running\n" +
+                                 "2. Verify IP whitelist settings\n" +
+                                 "3. Try again in a few moments"
+                    });
+                }
+                catch (Exception saveEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] ERROR saving pay run: {saveEx.Message}");
+                    
+                    if (saveEx.Message.Contains("MongoDB") || saveEx.Message.Contains("timeout") || 
+                        saveEx.GetType().FullName.Contains("Mongo"))
+                    {
+                        return serializer.Serialize(new 
+                        { 
+                            success = false, 
+                            message = "?? Database connection error while saving payroll.\n\n" +
+                                     $"Error: {saveEx.Message}\n\n" +
+                                     "Please check MongoDB Atlas connection and try again."
+                        });
+                    }
+                    
+                    throw;
+                }
+
+                if (savedPayRun == null)
+                {
+                    System.Diagnostics.Debug.WriteLine("[GeneratePayroll] ERROR: CreateAsync returned null");
+                    return serializer.Serialize(new { success = false, message = "Failed to save pay run (null result)" });
+                }
+
+                System.Diagnostics.Debug.WriteLine("[GeneratePayroll] Building result DTO...");
+
+                var result = new
+                {
+                    payRunId = savedPayRun.Id,
+                    payRunNumber = savedPayRun.PayRunNumber,
+                    status = savedPayRun.Status,
+                    totalEmployees = savedPayRun.TotalEmployees,
+                    totalGross = savedPayRun.TotalGrossSalary,
+                    totalDeductions = savedPayRun.TotalDeductions,
+                    totalNet = savedPayRun.TotalNetSalary,
+                    items = savedPayRun.Items.Select(item => new
+                    {
+                        employeeId = item.EmployeeId,
+                        employeeName = item.EmployeeName,
+                        department = item.Department,
+                        position = item.Position,
+                        daysPresent = item.DaysPresent,
+                        daysAbsent = item.DaysAbsent,
+                        daysLate = item.DaysLate,
+                        lateMinutes = item.LateMinutes,
+                        basicSalary = item.BasicSalary,
+                        proratedBasic = item.ProratedBasicSalary,
+                        allowances = item.Allowances,
+                        overtimePay = item.OvertimePay,
+                        grossSalary = item.GrossSalary,
+                        sssDeduction = item.SSSDeduction,
+                        philHealthDeduction = item.PhilHealthDeduction,
+                        pagIbigDeduction = item.PagIbigDeduction,
+                        withholdingTax = item.WithholdingTax,
+                        sssLoan = item.SSSLoan,
+                        pagIbigLoan = item.PagIbigLoan,
+                        companyLoan = item.CompanyLoan,
+                        absencePenalty = item.AbsencePenalty,
+                        latePenalty = item.LatePenalty,
+                        unpaidLeaveDeduction = item.UnpaidLeaveDeduction,
+                        otherDeductions = item.OtherDeductions,
+                        totalDeductions = item.TotalDeductions,
+                        netSalary = item.NetSalary,
+                        status = item.Status
+                    }).ToList()
+                };
+
+                var json = serializer.Serialize(new { success = true, data = result });
+                System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] SUCCESS - Returning {json.Length} chars");
+                System.Diagnostics.Debug.WriteLine("[GeneratePayroll] ========== END ==========");
+                return json;
+            }
+            catch (TimeoutException tex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] TIMEOUT: {tex.Message}");
+                return serializer.Serialize(new 
+                { 
+                    success = false, 
+                    message = "?? Operation timed out.\n\n" + tex.Message 
+                });
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] ========== FATAL ERROR ==========");
+                System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] Type: {ex.GetType().FullName}");
+                System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] Message: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] Stack: {ex.StackTrace}");
+                if (ex.InnerException != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] Inner: {ex.InnerException.Message}");
+                    System.Diagnostics.Debug.WriteLine($"[GeneratePayroll] Inner Stack: {ex.InnerException.StackTrace}");
+                }
+                return serializer.Serialize(new { success = false, message = $"Error: {ex.Message}" });
+            }
+        }
+
+        [WebMethod]
+        public static async Task<object> GetPayRunDetails(string payRunId)
+        {
+            try
+            {
+                var payRun = await PayRunService.GetByIdAsync(payRunId);
+                if (payRun == null)
+                    return new { success = false, message = "Pay run not found" };
+
+                var result = new
+                {
+                    payRunId = payRun.Id,
+                    payRunNumber = payRun.PayRunNumber,
+                    payPeriodStart = payRun.PayPeriodStart.ToString("yyyy-MM-dd"),
+                    payPeriodEnd = payRun.PayPeriodEnd.ToString("yyyy-MM-dd"),
+                    payDate = payRun.PayDate.ToString("yyyy-MM-dd"),
+                    status = payRun.Status,
+                    totalEmployees = payRun.TotalEmployees,
+                    totalGross = payRun.TotalGrossSalary,
+                    totalDeductions = payRun.TotalDeductions,
+                    totalNet = payRun.TotalNetSalary,
+                    createdBy = payRun.CreatedBy,
+                    createdAt = payRun.CreatedAt,
+                    items = payRun.Items.Select(item => new
+                    {
+                        employeeId = item.EmployeeId,
+                        employeeName = item.EmployeeName,
+                        department = item.Department,
+                        grossSalary = item.GrossSalary,
+                        totalDeductions = item.TotalDeductions,
+                        netSalary = item.NetSalary
+                    }).ToList()
+                };
+
+                return new { success = true, data = result };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod]
+        public static async Task<object> UpdatePayrollItem(string payRunId, string employeeId, decimal grossSalary, string remarks)
+        {
+            try
+            {
+                var payRun = await PayRunService.GetByIdAsync(payRunId);
+                if (payRun == null)
+                    return new { success = false, message = "Pay run not found" };
+
+                var item = payRun.Items.FirstOrDefault(i => i.EmployeeId == employeeId);
+                if (item == null)
+                    return new { success = false, message = "Employee not found in pay run" };
+
+                item.GrossSalary = grossSalary;
+                item.NetSalary = grossSalary - item.TotalDeductions;
+                item.Remarks = remarks;
+                item.IsManuallyAdjusted = true;
+
+                payRun.RecalculateTotals();
+
+                await PayRunService.UpdateAsync(payRunId, payRun);
+
+                return new { success = true, message = "Payroll item updated successfully" };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        // ========== FUNCTION 6.3: APPROVAL & FINANCE WEB METHODS ==========
+
+        [WebMethod]
+        public static async Task<object> ApprovePayRun(string payRunId, string approvedBy, string comments)
+        {
+            try
+            {
+                var success = await PayRunService.ApproveAsync(payRunId, approvedBy, comments);
+
+                if (success)
+                {
+                    return new { success = true, message = "Payroll approved successfully" };
+                }
+                else
+                {
+                    return new { success = false, message = "Failed to approve payroll" };
+                }
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod]
+        public static async Task<object> SendToFinance(string payRunId)
+        {
+            try
+            {
+                var success = await PayRunService.MarkSentToFinanceAsync(payRunId);
+
+                if (!success)
+                    return new { success = false, message = "Failed to send to finance" };
+
+                var journalEntry = await FinanceService.GenerateJournalEntryAsync(payRunId);
+
+                return new
+                {
+                    success = true,
+                    message = "Payroll sent to finance successfully",
+                    journalEntryNumber = journalEntry.EntryNumber
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod]
+        public static async Task<object> GenerateBankTransferFile(string payRunId)
+        {
+            try
+            {
+                var bankFile = await DisbursementService.GenerateBankTransferFileAsync(payRunId);
+
+                if (bankFile == null)
+                    return new { success = false, message = "Failed to generate bank transfer file" };
+
+                return new
+                {
+                    success = true,
+                    message = "Bank transfer file generated successfully",
+                    fileName = bankFile.FileName,
+                    totalAmount = bankFile.TotalAmount,
+                    recordCount = bankFile.TotalRecords,
+                    fileContent = bankFile.FileContent,
+                    format = bankFile.Format
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        // ========== FUNCTION 6.4: PAYSLIP WEB METHODS ==========
+
+        [WebMethod]
+        public static async Task<object> GeneratePayslips(string payRunId)
+        {
+            try
+            {
+                var payslips = await PayslipService.GeneratePayslipsAsync(payRunId);
+
+                return new
+                {
+                    success = true,
+                    message = $"{payslips.Count} payslips generated successfully",
+                    count = payslips.Count
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        // ========== PAYROLL HISTORY WEB METHOD ==========
+
+        [WebMethod]
+        public static async Task<object> GetPayrollHistory()
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine("[GetPayrollHistory] START");
+                
+                var payRuns = await PayRunService.GetAllAsync();
+                
+                System.Diagnostics.Debug.WriteLine($"[GetPayrollHistory] Found {payRuns?.Count ?? 0} pay runs");
+
+                var history = (payRuns ?? new List<PayRun>()).Select(pr => new
+                {
+                    id = pr.Id,
+                    payRunNumber = pr.PayRunNumber,
+                    description = pr.Description,
+                    payPeriodStart = pr.PayPeriodStart.ToString("MMM dd, yyyy"),
+                    payPeriodEnd = pr.PayPeriodEnd.ToString("MMM dd, yyyy"),
+                    period = $"{pr.PayPeriodStart:MMM dd} - {pr.PayPeriodEnd:MMM dd, yyyy}",
+                    totalEmployees = pr.TotalEmployees,
+                    totalGrossSalary = pr.TotalGrossSalary,
+                    totalDeductions = pr.TotalDeductions,
+                    totalNetSalary = pr.TotalNetSalary,
+                    status = pr.Status,
+                    payDate = pr.PayDate.ToString("MMM dd, yyyy"),
+                    approvedBy = pr.ApprovedBy ?? pr.CreatedBy ?? "N/A",
+                    approvedAt = pr.ApprovedAt?.ToString("MMM dd, yyyy") ?? pr.CreatedAt.ToString("MMM dd, yyyy"),
+                    createdAt = pr.CreatedAt.ToString("MMM dd, yyyy"),
+                    isFinalized = pr.IsFinalized,
+                    isSentToFinance = pr.IsSentToFinance,
+                    isPayslipsGenerated = pr.IsPayslipsGenerated
+                }).ToList();
+
+                System.Diagnostics.Debug.WriteLine($"[GetPayrollHistory] Returning {history.Count} items");
+                
+                return new
+                {
+                    success = true,
+                    data = history,
+                    count = history.Count
+                };
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetPayrollHistory] ERROR: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"[GetPayrollHistory] Stack: {ex.StackTrace}");
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod]
+        public static async Task<object> GetPayslipContent(string payslipId)
+        {
+            try
+            {
+                var payslip = await PayslipService.GetPayslipByIdAsync(payslipId);
+
+                if (payslip == null)
+                    return new { success = false, message = "Payslip not found" };
+
+                return new
+                {
+                    success = true,
+                    htmlContent = payslip.HtmlContent
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod]
+        public static async Task<object> EmailPayslip(string payslipId)
+        {
+            try
+            {
+                var success = await PayslipService.EmailPayslipAsync(payslipId);
+
+                if (success)
+                    return new { success = true, message = "Payslip emailed successfully" };
+                else
+                    return new { success = false, message = "Failed to email payslip" };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        // ========== FUNCTION 6.5: FINANCE INTEGRATION WEB METHODS ==========
+
+        [WebMethod]
+        public static async Task<object> GetJournalEntries()
+        {
+            try
+            {
+                var entries = await FinanceService.GetAllJournalEntriesAsync();
+
+                var result = entries.Select(j => new
+                {
+                    id = j.Id,
+                    entryNumber = j.EntryNumber,
+                    entryDate = j.EntryDate.ToString("yyyy-MM-dd"),
+                    postingDate = j.PostingDate.ToString("yyyy-MM-dd"),
+                    description = j.Description,
+                    totalDebit = j.TotalDebit,
+                    totalCredit = j.TotalCredit,
+                    isBalanced = j.IsBalanced,
+                    status = j.Status,
+                    isSynced = j.IsSynced,
+                    syncedAt = j.SyncedAt
+                }).ToList();
+
+                return new { success = true, data = result };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod]
+        public static async Task<object> ExportJournalEntry(string journalEntryId, string format)
+        {
+            try
+            {
+                var journalEntry = await FinanceService.GetJournalEntryByIdAsync(journalEntryId);
+                
+                if (journalEntry == null)
+                    return new { success = false, message = "Journal entry not found" };
+
+                string content = "";
+                string fileName = "";
+
+                switch (format.ToLower())
+                {
+                    case "csv":
+                        content = FinanceService.ExportJournalEntryToCSV(journalEntry);
+                        fileName = $"{journalEntry.EntryNumber}.csv";
+                        break;
+                    case "excel":
+                        content = FinanceService.ExportJournalEntryToExcel(journalEntry);
+                        fileName = $"{journalEntry.EntryNumber}.xlsx";
+                        break;
+                    case "quickbooks":
+                        content = FinanceService.ExportToQuickBooksIIF(journalEntry);
+                        fileName = $"{journalEntry.EntryNumber}.iif";
+                        break;
+                    default:
+                        return new { success = false, message = "Invalid format" };
+                }
+
+                return new
+                {
+                    success = true,
+                    content,
+                    fileName
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod]
+        public static async Task<object> ExportMonthlyReportCSV(int year, int month)
+        {
+            try
+            {
+                var report = await ReportService.GenerateMonthlyPayrollSummaryAsync(year, month);
+                var csv = ReportService.ExportMonthlyPayrollToCSV(report);
+                
+                return new
+                {
+                    success = true,
+                    content = csv,
+                    fileName = $"Payroll_Summary_{year}_{month:D2}.csv"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        // ========== HISTORY TAB WEB METHODS ==========
+
+        [WebMethod]
+        public static async Task<object> GetPayrollHistory(int pageNumber = 1, int pageSize = 10)
+        {
+            try
+            {
+                var allPayRuns = await PayRunService.GetAllAsync();
+                
+                var pagedResults = allPayRuns
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .Select(p => new
+                    {
+                        payRunId = p.Id,
+                        payRunNumber = p.PayRunNumber,
+                        totalEmployees = p.TotalEmployees,
+                        totalGross = p.TotalGrossSalary,
+                        totalDeductions = p.TotalDeductions,
+                        totalNet = p.TotalNetSalary,
+                        status = p.Status,
+                        createdBy = p.CreatedBy,
+                        createdAt = p.CreatedAt.ToString("MMM dd, yyyy")
+                    }).ToList();
+
+                return new
+                {
+                    success = true,
+                    data = pagedResults,
+                    totalRecords = allPayRuns.Count,
+                    totalPages = (int)Math.Ceiling(allPayRuns.Count / (double)pageSize)
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        [WebMethod]
+        public static async Task<object> GetDashboardStats()
+        {
+            try
+            {
+                var latestPayRun = await PayRunService.GetLatestAsync();
+                var totalPayRuns = await PayRunService.GetTotalCountAsync();
+                var totalPaid = await PayRunService.GetTotalNetSalaryPaidAsync();
+
+                return new
+                {
+                    success = true,
+                    data = new
+                    {
+                        currentPeriod = latestPayRun?.PayPeriodDisplay ?? "N/A",
+                        totalEmployees = latestPayRun?.TotalEmployees ?? 0,
+                        totalGross = latestPayRun?.TotalGrossSalary ?? 0,
+                        status = latestPayRun?.Status ?? "Draft",
+                        totalPayRuns,
+                        totalPaid
+                    }
+                };
+            }
+            catch (Exception ex)
+            {
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        // ========== PAYMENT RELEASE WEB METHOD ==========
+        
+        [WebMethod]
+        public static async Task<object> ReleasePayment(string payRunId, string paidBy)
+        {
+            try
+            {
+                System.Diagnostics.Debug.WriteLine($"[ReleasePayment] Releasing payment for payroll: {payRunId}");
+                
+                var success = await PayRunService.MarkAsPaidAsync(payRunId, paidBy);
+                
+                if (success)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ReleasePayment] âœ… Payment released successfully");
+                    return new { success = true, message = "Payment released successfully" };
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"[ReleasePayment] âŒ Failed to release payment");
+                    return new { success = false, message = "Failed to release payment" };
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[ReleasePayment] ERROR: {ex.Message}");
+                return new { success = false, message = ex.Message };
+            }
+        }
+
+        // ========== STEP 4 & 5 WORKFLOW: SUBMIT TO FINANCE ==========
+        [WebMethod]
+        public static object SubmitToFinance(object payrollData)
+        {
+            try
+            {
+                var json = Newtonsoft.Json.JsonConvert.SerializeObject(payrollData);
+                var submission = Newtonsoft.Json.JsonConvert.DeserializeObject<PayrollSubmission>(json);
+
+                if (submission == null || submission.Items == null || submission.Items.Count == 0)
+                {
+                    return new { success = false, message = "No payroll data to submit" };
+                }
+
+                var payRunService = new PayRunService();
+                var payRun = new PayRun
+                {
+                    Status = "Pending Finance Approval",
+                    PayPeriodStart = DateTime.Parse(submission.StartDate),
+                    PayPeriodEnd = DateTime.Parse(submission.EndDate),
+                    PayDate = DateTime.Parse(submission.CutoffDate),
+                    TotalEmployees = submission.TotalEmployees,
+                    TotalGrossSalary = submission.TotalGross,
+                    TotalNetSalary = submission.TotalNet,
+                    CreatedBy = submission.SubmittedBy,
+                    CreatedAt = DateTime.Parse(submission.SubmittedAt),
+                    Items = submission.Items.Select(i => new PayrollItem
+                    {
+                        EmployeeId = i.EmployeeId,
+                        EmployeeName = i.EmployeeName,
+                        Department = i.Department,
+                        GrossSalary = i.GrossSalary,
+                        TotalDeductions = i.TotalDeductions,
+                        NetSalary = i.NetSalary,
+                        Remarks = i.Remarks
+                    }).ToList()
+                };
+
+                var savedPayRun = payRunService.CreateAsync(payRun)
+                    .ConfigureAwait(false)
+                    .GetAwaiter()
+                    .GetResult();
+
+                System.Diagnostics.Debug.WriteLine($"Payroll {savedPayRun.Id} submitted by {submission.SubmittedBy}");
+
+                return new
+                {
+                    success = true,
+                    message = "Payroll submitted successfully",
+                    payRunId = savedPayRun.Id
+                };
+            }
+            catch (Exception ex)
+            {
+                return new
+                {
+                    success = false,
+                    message = "Submission failed: " + ex.Message
+                };
+            }
+        }
+    }
+
+    // Data models for Step 4 & 5 workflow
+    public class PayrollSubmission
+    {
+        public string PayRunId { get; set; }
+        public string Status { get; set; }
+        public string SubmittedBy { get; set; }
+        public string SubmittedAt { get; set; }
+        public string Period { get; set; }
+        public string StartDate { get; set; }
+        public string EndDate { get; set; }
+        public string CutoffDate { get; set; }
+        public int TotalEmployees { get; set; }
+        public decimal TotalGross { get; set; }
+        public decimal TotalNet { get; set; }
+        public List<PayrollItemData> Items { get; set; }
+    }
+
+    public class PayrollItemData
+    {
+        public string EmployeeId { get; set; }
+        public string EmployeeName { get; set; }
+        public string Department { get; set; }
+        public decimal GrossSalary { get; set; }
+        public decimal TotalDeductions { get; set; }
+        public decimal NetSalary { get; set; }
+        public string Remarks { get; set; }
+    }
+}

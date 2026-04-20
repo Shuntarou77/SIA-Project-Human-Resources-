@@ -159,6 +159,7 @@ namespace ExWebAppSia.webpage_ManagerViewpoint
                 html.AppendLine($"<div class='employee-info-item'><label>Age</label><span>{(employee.Age.HasValue ? employee.Age.Value.ToString() : "—")}</span></div>");
                 html.AppendLine($"<div class='employee-info-item'><label>Birth Date</label><span>{(employee.BirthDate.HasValue ? employee.BirthDate.Value.ToLocalTime().ToString("MMMM dd, yyyy") : "—")}</span></div>");
                 html.AppendLine($"<div class='employee-info-item'><label>Hired Date</label><span>{employee.HiredDate.ToLocalTime():MMMM dd, yyyy}</span></div>");
+                html.AppendLine($"<div class='employee-info-item'><label>Availability Status</label><span><span class='leave-status {(employee.AvailabilityStatus == "On Leave" ? "status-declined" : "status-approved")}'>{HttpUtility.HtmlEncode(employee.AvailabilityStatus ?? "Available")}</span></span></div>");
                 html.AppendLine($"<div class='employee-info-item'><label>Contract Type</label><span>{HttpUtility.HtmlEncode(employee.ContractType ?? "—")}</span></div>");
                 html.AppendLine($"<div class='employee-info-item'><label>Address</label><span>{HttpUtility.HtmlEncode(employee.Address ?? "—")}</span></div>");
                 html.AppendLine("</div>");

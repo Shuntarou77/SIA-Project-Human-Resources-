@@ -32,7 +32,7 @@
 
             /* ✅ Unified background — matches EmployeeHR.master & ManagerHR.master */
             body {
-                background: linear-gradient(180deg, #F5DDD8 0%, #D4999C 50%, #A85B5B 100%);
+                background: #fdfaf9;
                 font-family: 'Poppins', sans-serif;
             }
 
@@ -970,6 +970,17 @@
 
                             <div class="info-card">
                                 <div class="info-header">
+                                    <div class="info-icon status-icon" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">
+                                        <span class="icon">📅</span>
+                                    </div>
+                                    <div class="info-label">Absence Allowance</div>
+                                </div>
+                                <div class="info-value" style="color: #f59e0b;"><%= GetRemainingAbsences() %> Days</div>
+                                <div style="font-size: 13px; color: var(--text-muted); margin-top: 5px;">Remaining for this year</div>
+                            </div>
+
+                            <div class="info-card">
+                                <div class="info-header">
                                     <div class="info-icon status-icon">
                                         <span class="clock-icon icon"></span>
                                     </div>
@@ -1322,6 +1333,15 @@
 
                 if (!employeeId || employeeId === 'N/A') {
                     showNotification('Employee ID not found. Please contact HR.', false);
+                    return;
+                }
+
+                // Client-side late check (8:16 AM cutoff)
+                const now = new Date();
+                const hours = now.getHours();
+                const minutes = now.getMinutes();
+                if (hours > 8 || (hours === 8 && minutes >= 16)) {
+                    showNotification('Time-in is restricted after 8:16 AM. You are late by 16 minutes or more and cannot time-in for today. Please contact HR.', false);
                     return;
                 }
 

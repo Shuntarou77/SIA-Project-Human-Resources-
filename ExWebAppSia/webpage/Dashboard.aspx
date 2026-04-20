@@ -856,24 +856,33 @@
                                                 <div class="chart-fill"
                                                     style="height: <asp:Literal ID='litRegularPercentage' runat='server' Text='0' />%;">
                                                     <span class="chart-value">
-                                                        <asp:Literal ID='litRegularPercentageDisplay' runat='server'
-                                                            Text='0%' />
+                                                        <asp:Literal ID='litRegularPercentageDisplay' runat='server' Text='0 (0%)' />
                                                     </span>
                                                 </div>
                                             </div>
                                             <div class="chart-label">Regular</div>
+                                        </div>
+                                        <div class="chart-bar chart-probationary">
+                                            <div class="bar-wrapper">
+                                                <div class="chart-fill"
+                                                    style='height: <asp:Literal ID="litProbationaryPercentage" runat="server" Text="0" />%;'>
+                                                    <span class="chart-value">
+                                                        <asp:Literal ID="litProbationaryPercentageDisplay" runat="server" Text="0 (0%)" />
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="chart-label">Probationary</div>
                                         </div>
                                         <div class="chart-bar chart-contractual">
                                             <div class="bar-wrapper">
                                                 <div class="chart-fill"
                                                     style='height: <asp:Literal ID="litContractualPercentage" runat="server" Text="0" />%;'>
                                                     <span class="chart-value">
-                                                        <asp:Literal ID="litContractualPercentageDisplay" runat="server"
-                                                            Text="0%" />
+                                                        <asp:Literal ID="litContractualPercentageDisplay" runat="server" Text="0 (0%)" />
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div class="chart-label">Probationary</div>
+                                            <div class="chart-label">Contractual</div>
                                         </div>
                                     </div>
                                 </div>

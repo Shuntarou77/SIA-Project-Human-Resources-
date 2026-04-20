@@ -196,8 +196,6 @@ namespace ExWebAppSia.webpage
                 // Fix missing genders for dashboard counts
                 await _employeeService.FixMissingGendersAsync();
 
-                // Seed specific HR employees requested by the user
-                await EmployeeSeeder.SeedSpecificHREmployeesAsync();
 
                 // Core optimization: Load employees once to share across all other tasks
                 var employees = await _employeeService.GetAllEmployeesAsync();
@@ -220,29 +218,40 @@ namespace ExWebAppSia.webpage
         {
             try
             {
-                int totalEmployees = employees.Count;
-                int femaleCount = employees.Count(e => !string.IsNullOrEmpty(e.Gender) && 
+                // Filter out Executive department from dashboard counts as requested
+                var countableEmployees = employees.Where(e => e.Department != "Executive").ToList();
+
+                int totalEmployees = countableEmployees.Count;
+                int femaleCount = countableEmployees.Count(e => !string.IsNullOrEmpty(e.Gender) && 
                     e.Gender.Equals("Female", StringComparison.OrdinalIgnoreCase));
-                int maleCount = employees.Count(e => !string.IsNullOrEmpty(e.Gender) && 
+                int maleCount = countableEmployees.Count(e => !string.IsNullOrEmpty(e.Gender) && 
                     e.Gender.Equals("Male", StringComparison.OrdinalIgnoreCase));
 
-                int regularCount = employees.Count(e => e.ContractType == "Regular");
-                int probationaryCount = employees.Count(e => e.ContractType == "Probationary");
+                int contractualCount = countableEmployees.Count(e => !string.IsNullOrEmpty(e.ContractType) && e.ContractType.ToLower().Contains("contract") && e.IsActive && (e.ResignationStatus == "None" || string.IsNullOrEmpty(e.ResignationStatus)));
+                int regularCount = countableEmployees.Count(e => e.EmploymentStatus == "Regular" && e.IsActive && !(e.ContractType != null && e.ContractType.ToLower().Contains("contract")) && (e.ResignationStatus == "None" || string.IsNullOrEmpty(e.ResignationStatus)));
+                int probationaryCount = countableEmployees.Count(e => e.EmploymentStatus == "Probationary" && e.IsActive && !(e.ContractType != null && e.ContractType.ToLower().Contains("contract")) && (e.ResignationStatus == "None" || string.IsNullOrEmpty(e.ResignationStatus)));
 
-                double regularPercentage = totalEmployees > 0 ? (regularCount * 100.0 / totalEmployees) : 0;
-                double probationaryPercentage = totalEmployees > 0 ? (probationaryCount * 100.0 / totalEmployees) : 0;
+                int activeTotal = regularCount + probationaryCount + contractualCount;
+
+                double regularPercentage = activeTotal > 0 ? (regularCount * 100.0 / activeTotal) : 0;
+                double probationaryPercentage = activeTotal > 0 ? (probationaryCount * 100.0 / activeTotal) : 0;
+                double contractualPercentage = activeTotal > 0 ? (contractualCount * 100.0 / activeTotal) : 0;
 
                 if (litTotalEmployees != null) litTotalEmployees.Text = totalEmployees.ToString();
                 if (litFemaleCount != null) litFemaleCount.Text = femaleCount.ToString();
                 if (litMaleCount != null) litMaleCount.Text = maleCount.ToString();
                 
                 if (litRegularPercentage != null) litRegularPercentage.Text = regularPercentage.ToString("F0");
-                if (litRegularPercentageDisplay != null) litRegularPercentageDisplay.Text = $"{regularPercentage:F0}%";
-                if (litContractualPercentage != null) litContractualPercentage.Text = probationaryPercentage.ToString("F0"); // Reusing Contractual Literal for Probationary
-                if (litContractualPercentageDisplay != null) litContractualPercentageDisplay.Text = $"{probationaryPercentage:F0}%";
+                if (litRegularPercentageDisplay != null) litRegularPercentageDisplay.Text = $"{regularCount} ({regularPercentage:F0}%)";
+
+                if (litProbationaryPercentage != null) litProbationaryPercentage.Text = probationaryPercentage.ToString("F0");
+                if (litProbationaryPercentageDisplay != null) litProbationaryPercentageDisplay.Text = $"{probationaryCount} ({probationaryPercentage:F0}%)";
+                
+                if (litContractualPercentage != null) litContractualPercentage.Text = contractualPercentage.ToString("F0"); 
+                if (litContractualPercentageDisplay != null) litContractualPercentageDisplay.Text = $"{contractualCount} ({contractualPercentage:F0}%)";
              
-                // Headcount per Department
-                var headcountData = employees
+                // Headcount per Department (excluding Executive)
+                var headcountData = countableEmployees
                     .GroupBy(e => e.Department ?? "Unassigned")
                     .Select(g => new { Dept = g.Key, Count = g.Count() })
                     .OrderByDescending(x => x.Count)
@@ -293,11 +302,12 @@ namespace ExWebAppSia.webpage
 
                 await Task.WhenAll(attendanceTask, leavesTask);
                 
-                var attendanceRecords = attendanceTask.Result;
+                var allAttendanceRecords = attendanceTask.Result;
+                var attendanceRecords = allAttendanceRecords.Where(a => a.Department != "Executive").ToList();
                 var leavesToday = leavesTask.Result;
 
-                int totalActiveEmployees = allEmployees.Count(e => e.IsActive);
-                int onLeaveCount = leavesToday.Count(l => l.Status == "Approved");
+                int totalActiveEmployees = allEmployees.Count(e => e.IsActive && e.Department != "Executive");
+                int onLeaveCount = leavesToday.Count(l => l.Status == "Approved" && l.Department != "Executive");
                 int presentCount = attendanceRecords.Count(a => a.TimeIn.HasValue);
                 int lateCount = attendanceRecords.Count(a => a.TimeIn.HasValue && 
                     (a.TimeIn.Value.ToLocalTime().Hour > 8 || 

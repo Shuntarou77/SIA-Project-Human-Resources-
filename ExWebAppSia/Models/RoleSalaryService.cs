@@ -45,7 +45,7 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                return await _roleSalaries.Find(r => r.IsActive).ToListAsync();
+                return await _roleSalaries.Find(_ => true).ToListAsync();
             }
             catch (Exception ex)
             {
@@ -59,7 +59,7 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                return await _roleSalaries.Find(r => r.RoleName == roleName && r.IsActive).FirstOrDefaultAsync();
+                return await _roleSalaries.Find(r => r.RoleName == roleName).FirstOrDefaultAsync();
             }
             catch (Exception ex)
             {
@@ -71,8 +71,13 @@ namespace ExWebAppSia.Models
         // Seed initial data if needed
         public async Task SeedRoleSalariesAsync()
         {
+            var hasLegacyDept = await _roleSalaries.Find(r => r.Department == "IT Support" || r.Department == "Quality Control").AnyAsync();
+            var hasNewRole = await _roleSalaries.Find(r => r.RoleName == "Fulfillment & Logistics Coordinator").AnyAsync();
+            var hasInactive = await _roleSalaries.Find(r => !r.IsActive).AnyAsync();
             var count = await _roleSalaries.CountDocumentsAsync(new BsonDocument());
-            if (count <= 6) // If only the old small set exists or it's empty
+            
+            // Re-seed if count is low, legacy depts found, new role missing, OR any role is inactive
+            if (count <= 6 || hasLegacyDept || !hasNewRole || hasInactive) 
             {
                 // Clear existing if it's the old 6-role set to avoid duplicates/confusion
                 if (count > 0)
@@ -82,65 +87,47 @@ namespace ExWebAppSia.Models
 
                 var initialSalaries = new List<RoleSalary>
                 {
-                    // Research & Development
-                    new RoleSalary { RoleName = "Research Scientist", Department = "Research & Development", BaseSalary = 48000 },
-                    new RoleSalary { RoleName = "Lab Technician", Department = "Research & Development", BaseSalary = 25000 },
-                    new RoleSalary { RoleName = "Product Developer", Department = "Research & Development", BaseSalary = 42000 },
-                    new RoleSalary { RoleName = "R&D Manager", Department = "Research & Development", BaseSalary = 85000 },
-                    
-                    // Quality Control
-                    new RoleSalary { RoleName = "QC Analyst", Department = "Quality Control", BaseSalary = 30000 },
-                    new RoleSalary { RoleName = "QC Inspector", Department = "Quality Control", BaseSalary = 24000 },
-                    new RoleSalary { RoleName = "QC Manager", Department = "Quality Control", BaseSalary = 75000 },
-                    new RoleSalary { RoleName = "Laboratory Supervisor", Department = "Quality Control", BaseSalary = 55000 },
-                    
                     // Human Resources
-                    new RoleSalary { RoleName = "HR Generalist", Department = "Human Resources", BaseSalary = 32500 },
-                    new RoleSalary { RoleName = "Recruitment Specialist", Department = "Human Resources", BaseSalary = 28000 },
-                    new RoleSalary { RoleName = "HR Manager", Department = "Human Resources", BaseSalary = 75000 },
-                    new RoleSalary { RoleName = "Training Coordinator", Department = "Human Resources", BaseSalary = 35000 },
-                    
-                    // Finance
-                    new RoleSalary { RoleName = "Accountant", Department = "Finance", BaseSalary = 40000 },
-                    new RoleSalary { RoleName = "Financial Analyst", Department = "Finance", BaseSalary = 45000 },
-                    new RoleSalary { RoleName = "Finance Manager", Department = "Finance", BaseSalary = 85000 },
-                    new RoleSalary { RoleName = "Payroll Specialist", Department = "Finance", BaseSalary = 32000 },
-                    
-                    // Marketing
-                    new RoleSalary { RoleName = "Marketing Coordinator", Department = "Marketing", BaseSalary = 28000 },
-                    new RoleSalary { RoleName = "Brand Manager", Department = "Marketing", BaseSalary = 70000 },
-                    new RoleSalary { RoleName = "Digital Marketing Specialist", Department = "Marketing", BaseSalary = 35000 },
-                    new RoleSalary { RoleName = "Content Creator", Department = "Marketing", BaseSalary = 26000 },
-                    
-                    // IT Support
-                    new RoleSalary { RoleName = "IT Support Specialist", Department = "IT Support", BaseSalary = 32000 },
-                    new RoleSalary { RoleName = "Network Administrator", Department = "IT Support", BaseSalary = 55000 },
-                    new RoleSalary { RoleName = "System Administrator", Department = "IT Support", BaseSalary = 58000 },
-                    new RoleSalary { RoleName = "IT Manager", Department = "IT Support", BaseSalary = 95000 },
-                    
-                    // Operations
-                    new RoleSalary { RoleName = "Operations Coordinator", Department = "Operations", BaseSalary = 30000 },
-                    new RoleSalary { RoleName = "Operations Manager", Department = "Operations", BaseSalary = 80000 },
-                    new RoleSalary { RoleName = "Supply Chain Specialist", Department = "Operations", BaseSalary = 42000 },
-                    new RoleSalary { RoleName = "Logistics Coordinator", Department = "Operations", BaseSalary = 28000 },
-                    
-                    // Sales
-                    new RoleSalary { RoleName = "Sales Representative", Department = "Sales", BaseSalary = 25000 },
-                    new RoleSalary { RoleName = "Sales Manager", Department = "Sales", BaseSalary = 70000 },
-                    new RoleSalary { RoleName = "Account Executive", Department = "Sales", BaseSalary = 45000 },
-                    new RoleSalary { RoleName = "Business Development Manager", Department = "Sales", BaseSalary = 80000 },
+                    new RoleSalary { RoleName = "HR Manager", Department = "Human Resources", BaseSalary = 31000, IsActive = true },
+                    new RoleSalary { RoleName = "HR Generalist", Department = "Human Resources", BaseSalary = 21000, IsActive = true },
+                    new RoleSalary { RoleName = "Recruitment Specialist", Department = "Human Resources", BaseSalary = 20000, IsActive = true },
+                    new RoleSalary { RoleName = "Payroll Manager", Department = "Human Resources", BaseSalary = 31000, IsActive = true },
+                    new RoleSalary { RoleName = "Payroll Specialist", Department = "Human Resources", BaseSalary = 20000, IsActive = true },
+
+                    // Operations (includes QC and IT Support)
+                    new RoleSalary { RoleName = "Operations Manager", Department = "Operations", BaseSalary = 40000, IsActive = true },
+                    new RoleSalary { RoleName = "Order Processing Specialist", Department = "Operations", BaseSalary = 20000, IsActive = true },
+                    new RoleSalary { RoleName = "Supply Chain Coordinator", Department = "Operations", BaseSalary = 20000, IsActive = true },
+                    new RoleSalary { RoleName = "Quality Control Manager", Department = "Operations", BaseSalary = 20000, IsActive = true },
+                    new RoleSalary { RoleName = "IT Systems Administrator", Department = "Operations", BaseSalary = 29000, IsActive = true },
+                    new RoleSalary { RoleName = "E-Commerce Tech Support Specialist", Department = "Operations", BaseSalary = 21000, IsActive = true },
+                    new RoleSalary { RoleName = "Fulfillment & Logistics Coordinator", Department = "Operations", BaseSalary = 28000, IsActive = true },
+                    new RoleSalary { RoleName = "Product Quality Inspector", Department = "Operations", BaseSalary = 24000, IsActive = true },
+
+                    // Marketing (includes Sales and Customer Service)
+                    new RoleSalary { RoleName = "Digital Marketing Manager", Department = "Marketing", BaseSalary = 34000, IsActive = true },
+                    new RoleSalary { RoleName = "Social Media & Content Specialist", Department = "Marketing", BaseSalary = 20000, IsActive = true },
+                    new RoleSalary { RoleName = "Sales Manager", Department = "Marketing", BaseSalary = 34000, IsActive = true },
+                    new RoleSalary { RoleName = "Online Sales Specialist", Department = "Marketing", BaseSalary = 20000, IsActive = true },
+                    new RoleSalary { RoleName = "Beauty Brand Partnership Associate", Department = "Marketing", BaseSalary = 20000, IsActive = true },
+                    new RoleSalary { RoleName = "Customer Service Team Lead", Department = "Marketing", BaseSalary = 25000, IsActive = true },
+                    new RoleSalary { RoleName = "Customer Support Representative", Department = "Marketing", BaseSalary = 19000, IsActive = true },
+
+                    // Finance/Accounting
+                    new RoleSalary { RoleName = "Finance Manager", Department = "Finance/Accounting", BaseSalary = 38000, IsActive = true },
+                    new RoleSalary { RoleName = "Senior Accountant", Department = "Finance/Accounting", BaseSalary = 29000, IsActive = true },
+                    new RoleSalary { RoleName = "Accounts Payable Specialist", Department = "Finance/Accounting", BaseSalary = 20000, IsActive = true },
+                    new RoleSalary { RoleName = "Accounts Receivable Specialist", Department = "Finance/Accounting", BaseSalary = 20000, IsActive = true },
                     
                     // Inventory
-                    new RoleSalary { RoleName = "Inventory Manager", Department = "Inventory", BaseSalary = 75000 },
-                    new RoleSalary { RoleName = "Inventory Specialist", Department = "Inventory", BaseSalary = 40000 },
-                    new RoleSalary { RoleName = "Warehouseman", Department = "Inventory", BaseSalary = 22000 },
-                    new RoleSalary { RoleName = "Storekeeper", Department = "Inventory", BaseSalary = 28000 },
+                    new RoleSalary { RoleName = "Inventory Manager", Department = "Inventory", BaseSalary = 29000, IsActive = true },
+                    new RoleSalary { RoleName = "Inventory Control Specialist", Department = "Inventory", BaseSalary = 20000, IsActive = true },
+                    new RoleSalary { RoleName = "Warehouse & Stock Associate", Department = "Inventory", BaseSalary = 19000, IsActive = true },
                     
-                    // Customer Service
-                    new RoleSalary { RoleName = "Customer Service Representative", Department = "Customer Service", BaseSalary = 22000 },
-                    new RoleSalary { RoleName = "Customer Support Specialist", Department = "Customer Service", BaseSalary = 28000 },
-                    new RoleSalary { RoleName = "Call Center Agent", Department = "Customer Service", BaseSalary = 24000 },
-                    new RoleSalary { RoleName = "Customer Service Manager", Department = "Customer Service", BaseSalary = 70000 }
+                    // R&D
+                    new RoleSalary { RoleName = "R&D Manager", Department = "R&D", BaseSalary = 38000, IsActive = true },
+                    new RoleSalary { RoleName = "Cosmetic Formulation Specialist", Department = "R&D", BaseSalary = 25000, IsActive = true },
+                    new RoleSalary { RoleName = "Product Development & Testing Associate", Department = "R&D", BaseSalary = 20000, IsActive = true }
                 };
                 await _roleSalaries.InsertManyAsync(initialSalaries);
             }

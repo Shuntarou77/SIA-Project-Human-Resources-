@@ -20,6 +20,7 @@ namespace ExWebAppSia.webpage
         protected List<UndertimeRequest> PendingUndertimeRequests { get; set; } = new List<UndertimeRequest>();
         protected List<UndertimeRecord> UndertimeRecords { get; set; } = new List<UndertimeRecord>();
         protected List<Employee> AllEmployees { get; set; } = new List<Employee>();
+        protected Dictionary<string, int> AbsenceAllowanceCache { get; set; } = new Dictionary<string, int>();
         protected DateTime SelectedDate { get; set; }
 
         protected string CurrentAdminId 
@@ -96,6 +97,9 @@ namespace ExWebAppSia.webpage
                 // Load undertime records for selected date
                 UndertimeRecords = await _undertimeService.GetUndertimeRecordsByDateAsync(SelectedDate);
 
+                // FETCH ALL EMPLOYEES FIRST
+                AllEmployees = await _employeeService.GetAllEmployeesAsync();
+
                 // Convert local date to UTC date for querying
                 // The attendance records are stored with UTC dates
                 var localDate = SelectedDate.Date;
@@ -148,16 +152,48 @@ namespace ExWebAppSia.webpage
                 }).ToList();
                 
                 System.Diagnostics.Debug.WriteLine($"Found {AttendanceRecords.Count} attendance records for local date {localDate:yyyy-MM-dd}");
+
+                // NEW: Ensure ALL employees are shown in the list for the current day
+                // Only do this if there is AT LEAST one record, otherwise it's just an empty day
+                if (AttendanceRecords.Count > 0)
+                {
+                    var finalDisplayList = new List<Attendance>();
+                    foreach (var emp in AllEmployees)
+                    {
+                        var record = AttendanceRecords.FirstOrDefault(r => r.EmployeeId == emp.EmployeeId);
+                        if (record != null)
+                        {
+                            finalDisplayList.Add(record);
+                        }
+                        else
+                        {
+                            // Create a dummy "Absent" record for display
+                            finalDisplayList.Add(new Attendance
+                            {
+                                EmployeeId = emp.EmployeeId,
+                                EmployeeName = emp.FullName,
+                                Department = emp.Department,
+                                Date = localDate,
+                                TimeIn = null,
+                                TimeOut = null
+                            });
+                        }
+                    }
+                    AttendanceRecords = finalDisplayList.OrderBy(a => a.EmployeeName).ToList();
+                }
                 
                 // Calculate statistics
                 var presentCount = AttendanceRecords.Count(a => a.TimeIn != null);
-                var absentCount = 0; // This would need total employees count - attendance records
-                // Count as late if time in is after 9:00 AM local time
+                
+                // Real calculation: All Active Employees - Those who showed up
+                var absentCount = Math.Max(0, AllEmployees.Count - presentCount);
+
+                // Count as late if time in is after 8:15 AM local time (since shift starts at 8:00 AM)
                 var lateCount = AttendanceRecords.Count(a => 
                     {
                         if (a.TimeIn == null) return false;
                         var localTime = a.TimeIn.Value.ToLocalTime();
-                        return localTime.Hour > 8 || (localTime.Hour == 8 && localTime.Minute > 0) || (localTime.Hour == 8 && localTime.Second > 0);
+                        return localTime.Hour > 8 || (localTime.Hour == 8 && localTime.Minute > 15);
                     });
 
                 var undertimeCount = UndertimeRecords.Count;
@@ -167,6 +203,21 @@ namespace ExWebAppSia.webpage
                 ViewState["LateCount"] = lateCount;
                 ViewState["UndertimeCount"] = undertimeCount;
                 ViewState["OvertimeCount"] = PendingOvertimeRequests.Count;
+
+                // Pre-calculate Absence Allowance for all employees in the records
+                AbsenceAllowanceCache.Clear();
+                foreach (var record in AttendanceRecords)
+                {
+                    if (!AbsenceAllowanceCache.ContainsKey(record.EmployeeId))
+                    {
+                        var emp = AllEmployees.FirstOrDefault(e => e.EmployeeId == record.EmployeeId);
+                        if (emp != null)
+                        {
+                            int remaining = await _attendanceService.GetRemainingAbsencesAsync(record.EmployeeId, emp.HiredDate);
+                            AbsenceAllowanceCache[record.EmployeeId] = remaining;
+                        }
+                    }
+                }
 
                 // Bind the Repeater
                 if (rptAttendance != null)
@@ -207,21 +258,21 @@ namespace ExWebAppSia.webpage
 
         protected string FormatTime(DateTime? time)
         {
-            if (time == null) return "<span class=\"time-empty\">-</span>";
+            if (time == null) return "<span style=\"color: #ef4444; font-weight: 700;\">ABSENT</span>";
             // Convert UTC time to local time for display
             return time.Value.ToLocalTime().ToString("h:mm tt");
         }
 
         protected string FormatTimeIn(DateTime? time)
         {
-            if (time == null) return "<span class=\"time-empty\">-</span>";
+            if (time == null) return "<span style=\"color: #ef4444; font-weight: 700;\">ABSENT</span>";
             string timeStr = time.Value.ToLocalTime().ToString("h:mm:ss tt");
             return $"<span class=\"time-in-box\">{Server.HtmlEncode(timeStr)}</span>";
         }
 
         protected string FormatTimeOut(DateTime? time)
         {
-            if (time == null) return "<span class=\"time-empty\">-</span>";
+            if (time == null) return "<span style=\"color: #ef4444; font-weight: 700;\">ABSENT</span>";
             string timeStr = time.Value.ToLocalTime().ToString("h:mm:ss tt");
             return $"<span class=\"time-out-box\">{Server.HtmlEncode(timeStr)}</span>";
         }
@@ -276,6 +327,16 @@ namespace ExWebAppSia.webpage
             if (ut == null) return "<span class=\"time-empty\">-</span>";
             
             return $"<span style=\"color: #ef4444; font-weight: 700;\">-{ut.HoursUndertime:N1}h (₱{ut.DeductionAmount:N2})</span>";
+        }
+
+        protected string GetAbsenceAllowance(string employeeId)
+        {
+            if (AbsenceAllowanceCache.TryGetValue(employeeId, out int allowance))
+            {
+                string color = allowance <= 3 ? "#ef4444" : (allowance <= 7 ? "#f59e0b" : "#10b981");
+                return $"<span style=\"color: {color}; font-weight: 700;\">{allowance} Days</span>";
+            }
+            return "<span class=\"time-empty\">-</span>";
         }
 
         protected string GetOTStatusBadgeStyle(object statusObj)

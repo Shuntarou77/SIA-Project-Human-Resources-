@@ -200,7 +200,7 @@ namespace ExWebAppSia.Models
 
             // Header
             sb.AppendLine("<div class='header'>");
-            sb.AppendLine("<div class='company-name'>SheEssentials</div>");
+            sb.AppendLine("<div class='company-name'>Sheessentials</div>");
             sb.AppendLine("<div class='payslip-title'>PAYSLIP</div>");
             sb.AppendLine($"<div class='period'>Pay Period: {payRun.PayPeriodDisplay}</div>");
             sb.AppendLine($"<div class='period'>Pay Date: {payRun.PayDate:MMMM dd, yyyy}</div>");

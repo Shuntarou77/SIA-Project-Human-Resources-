@@ -37,9 +37,7 @@ namespace ExWebAppSia.Models
         /// </summary>
         public async Task<bool> SendInterviewInvitationEmailAsync(string toEmail, string applicantName, DateTime interviewDateTime, string location, string interviewerName, string notes = "")
         {
-            try
-            {
-                string subject = "Interview Invitation - SheEssentials Beauty Product Company";
+            string subject = "Interview Invitation - Sheessentials Beauty Product Company";
 
                 string body = $@"
 <!DOCTYPE html>
@@ -58,12 +56,12 @@ namespace ExWebAppSia.Models
     <div class='container'>
         <div class='header'>
             <h1 style='margin: 0; font-size: 28px;'>Interview Invitation</h1>
-            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials Beauty Product Company</p>
+            <p style='margin: 10px 0 0; opacity: 0.95;'>Sheessentials Beauty Product Company</p>
         </div>
         <div class='content'>
             <p>Dear <strong>{applicantName}</strong>,</p>
             
-            <p>Congratulations! Following the approval of your initial application, we are pleased to officially invite you for an interview at <strong>SheEssentials Beauty Product Company</strong>.</p>
+            <p>Congratulations! Following the approval of your initial application, we are pleased to officially invite you for an interview at <strong>Sheessentials Beauty Product Company</strong>.</p>
             
             <div class='details'>
                 <p><strong>📅 Interview Date & Time:</strong><br/>{interviewDateTime.ToLocalTime():dddd, MMMM dd, yyyy} at {interviewDateTime.ToLocalTime():h:mm tt}</p>
@@ -92,7 +90,7 @@ namespace ExWebAppSia.Models
             
             <p>Best regards,<br/>
             <strong>HR Department</strong><br/>
-            SheEssentials Beauty Product Company</p>
+            Sheessentials Beauty Product Company</p>
         </div>
         <div class='footer'>
             <p>This is an automated message. Please do not reply directly to this email.</p>
@@ -102,12 +100,6 @@ namespace ExWebAppSia.Models
 </html>";
 
                 return await SendEmailAsync(toEmail, subject, body, isHtml: true);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error sending interview invitation email: {ex.Message}");
-                return false;
-            }
         }
 
         /// <summary>
@@ -115,10 +107,8 @@ namespace ExWebAppSia.Models
         /// </summary>
         public async Task<bool> SendHiredEmailAsync(string toEmail, string applicantName, string department, string role, string username, string password, bool isManager = false, bool isOrientation = false)
         {
-            try
-            {
-                string subject = isOrientation ? "Hiring Update: Mandatory Orientation Required - SheEssentials" : "Congratulations! You're Hired - SheEssentials Beauty Product Company";
-                string portalType = isManager ? "Manager Portal" : "Employee Self-Service Portal";
+            string subject = isOrientation ? "Hiring Update: Mandatory Orientation Required - Sheessentials" : "Congratulations! You're Hired - Sheessentials Beauty Product Company";
+            string portalType = isManager ? "Manager Portal" : "Employee Self-Service Portal";
                 string headerColor = isOrientation ? "#3b82f6, #2563eb" : "#4CAF50, #45a049";
                 string headerTitle = isOrientation ? "Hiring Update" : "Congratulations!";
                 
@@ -138,10 +128,10 @@ namespace ExWebAppSia.Models
                 sbBody.Append("</style></head><body>");
                 sbBody.Append("<div class='container'>");
                 sbBody.AppendFormat("<div class='header'><h1 style='margin: 0; font-size: 32px;'>{0}</h1>", headerTitle);
-                sbBody.Append("<p style='margin: 10px 0 0; opacity: 0.95; font-size: 18px;'>Welcome to SheEssentials Beauty Product Company</p></div>");
+                sbBody.Append("<p style='margin: 10px 0 0; opacity: 0.95; font-size: 18px;'>Welcome to Sheessentials Beauty Product Company</p></div>");
                 sbBody.AppendFormat("<div class='content'><p>Dear <strong>{0}</strong>,</p>", applicantName);
                 sbBody.AppendFormat("<p>{0}</p>", mainMessage);
-                sbBody.Append("<p>Welcome to the SheEssentials Beauty Product Company family!</p><br/>");
+                sbBody.Append("<p>Welcome to the Sheessentials Beauty Product Company family!</p><br/>");
                 
                 if (isOrientation)
                 {
@@ -160,16 +150,10 @@ namespace ExWebAppSia.Models
                 sbBody.Append("</div>");
                 
                 sbBody.AppendFormat("<p>If you have any questions, please contact the HR department.</p>");
-                sbBody.Append("<p>Best regards,<br/>The SheEssentials HR Team</p>");
-                sbBody.Append("</div><div class='footer'><p>&copy; 2026 SheEssentials Beauty Product Company. All rights reserved.</p></div></div></body></html>");
+                sbBody.Append("<p>Best regards,<br/>The Sheessentials HR Team</p>");
+                sbBody.Append("</div><div class='footer'><p>&copy; 2026 Sheessentials Beauty Product Company. All rights reserved.</p></div></div></body></html>");
 
                 return await SendEmailAsync(toEmail, subject, sbBody.ToString());
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error sending hired email: {ex.Message}");
-                return false;
-            }
         }
         
 
@@ -178,9 +162,7 @@ namespace ExWebAppSia.Models
         /// </summary>
         public async Task<bool> SendRequirementRequestEmailAsync(string toEmail, string applicantName, DateTime submissionDeadline)
         {
-            try
-            {
-                string subject = "Action Required: Physical Requirements Submission - SheEssentials Beauty Product Company";
+            string subject = "Action Required: Physical Requirements Submission - Sheessentials Beauty Product Company";
                 
                 string body = $@"
 <!DOCTYPE html>
@@ -199,7 +181,7 @@ namespace ExWebAppSia.Models
     <div class='container'>
         <div class='header'>
             <h1 style='margin: 0; font-size: 28px;'>Requirement Submission</h1>
-            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials Beauty Product Company</p>
+            <p style='margin: 10px 0 0; opacity: 0.95;'>Sheessentials Beauty Product Company</p>
         </div>
         <div class='content'>
             <p>Dear <strong>{applicantName}</strong>,</p>
@@ -227,7 +209,7 @@ namespace ExWebAppSia.Models
             
             <p>Best regards,<br/>
             <strong>HR Department</strong><br/>
-            SheEssentials Beauty Product Company</p>
+            Sheessentials Beauty Product Company</p>
         </div>
         <div class='footer'>
             <p>This is an automated message. Please do not reply directly to this email.</p>
@@ -237,12 +219,6 @@ namespace ExWebAppSia.Models
 </html>";
 
                 return await SendEmailAsync(toEmail, subject, body, isHtml: true);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error sending requirement request email: {ex.Message}");
-                return false;
-            }
         }
 
         /// <summary>
@@ -250,9 +226,7 @@ namespace ExWebAppSia.Models
         /// </summary>
         public async Task<bool> SendApprovalEmailAsync(string toEmail, string applicantName)
         {
-            try
-            {
-                string subject = "Application Approved - SheEssentials Beauty Product Company";
+            string subject = "Application Approved - Sheessentials Beauty Product Company";
 
                 string body = $@"
 <!DOCTYPE html>
@@ -271,7 +245,7 @@ namespace ExWebAppSia.Models
     <div class='container'>
         <div class='header'>
             <h1 style='margin: 0; font-size: 28px;'>Application Approved</h1>
-            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials Beauty Product Company</p>
+            <p style='margin: 10px 0 0; opacity: 0.95;'>Sheessentials Beauty Product Company</p>
         </div>
         <div class='content'>
             <p>Dear <strong>{applicantName}</strong>,</p>
@@ -289,7 +263,7 @@ namespace ExWebAppSia.Models
             
             <p>Best regards,<br/>
             <strong>HR Department</strong><br/>
-            SheEssentials Beauty Product Company</p>
+            Sheessentials Beauty Product Company</p>
         </div>
         <div class='footer'>
             <p>This is an automated message. Please do not reply directly to this email.</p>
@@ -299,12 +273,6 @@ namespace ExWebAppSia.Models
 </html>";
 
                 return await SendEmailAsync(toEmail, subject, body, isHtml: true);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error sending approval email: {ex.Message}");
-                return false;
-            }
         }
 
         /// <summary>
@@ -312,9 +280,7 @@ namespace ExWebAppSia.Models
         /// </summary>
         public async Task<bool> SendRejectionEmailAsync(string toEmail, string applicantName, string reason = "")
         {
-            try
-            {
-                string subject = "Application Status Update - SheEssentials Beauty Product Company";
+            string subject = "Application Status Update - Sheessentials Beauty Product Company";
 
                 string body = $@"
 <!DOCTYPE html>
@@ -332,12 +298,12 @@ namespace ExWebAppSia.Models
     <div class='container'>
         <div class='header'>
             <h1 style='margin: 0; font-size: 28px;'>Application Status Update</h1>
-            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials Beauty Product Company</p>
+            <p style='margin: 10px 0 0; opacity: 0.95;'>Sheessentials Beauty Product Company</p>
         </div>
         <div class='content'>
             <p>Dear <strong>{applicantName}</strong>,</p>
             
-            <p>Thank you for your interest in joining SheEssentials Beauty Product Company.</p>
+            <p>Thank you for your interest in joining Sheessentials Beauty Product Company.</p>
             
             <p>After careful review of your application, we regret to inform you that we will not be moving forward with your candidacy at this time.</p>
             
@@ -352,7 +318,7 @@ namespace ExWebAppSia.Models
             
             <p>Best regards,<br/>
             <strong>HR Department</strong><br/>
-            SheEssentials Beauty Product Company</p>
+            Sheessentials Beauty Product Company</p>
         </div>
         <div class='footer'>
             <p>Thank you for your interest in our company.</p>
@@ -362,12 +328,6 @@ namespace ExWebAppSia.Models
 </html>";
 
                 return await SendEmailAsync(toEmail, subject, body, isHtml: true);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error sending rejection email: {ex.Message}");
-                return false;
-            }
         }
 
         /// <summary>
@@ -377,7 +337,7 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                string subject = $"Your Payslip for {payPeriod} - SheEssentials";
+                string subject = $"Your Payslip for {payPeriod} - Sheessentials";
 
                 string body = $@"
 <!DOCTYPE html>
@@ -398,7 +358,7 @@ namespace ExWebAppSia.Models
         <div class='header'>
             <div class='icon'>💰</div>
             <h1 style='margin: 0; font-size: 28px;'>Payslip Available</h1>
-            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials</p>
+            <p style='margin: 10px 0 0; opacity: 0.95;'>Sheessentials</p>
         </div>
         <div class='content'>
             <p>Dear <strong>{employeeName}</strong>,</p>
@@ -424,7 +384,7 @@ namespace ExWebAppSia.Models
             
             <p>Best regards,<br/>
             <strong>HR Department</strong><br/>
-            SheEssentials Beauty Product Company</p>
+            Sheessentials Beauty Product Company</p>
         </div>
         <div class='footer'>
             <p>This is an automated message. Please do not reply directly to this email.</p>
@@ -480,9 +440,8 @@ namespace ExWebAppSia.Models
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error sending email to {toEmail} using account {_smtpUsername}: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-                return false;
+                // Rethrow to let the UI display the specific error (Auth failure, timeout, etc.)
+                throw new Exception($"Email sending failed: {ex.Message}", ex);
             }
         }
 
@@ -533,16 +492,12 @@ namespace ExWebAppSia.Models
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error sending email with attachment: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
-                return false;
+                throw new Exception($"Email with attachment failed: {ex.Message}", ex);
             }
         }
         public async Task<bool> SendPasswordResetEmailAsync(string toEmail, string userName, string resetLink)
         {
-            try
-            {
-                string subject = "Password Reset Request - SheEssentials Beauty Product Company";
+            string subject = "Password Reset Request - Sheessentials Beauty Product Company";
 
                 string body = $@"
 <!DOCTYPE html>
@@ -562,7 +517,7 @@ namespace ExWebAppSia.Models
     <div class='container'>
         <div class='header'>
             <h1 style='margin: 0; font-size: 28px;'>Password Reset</h1>
-            <p style='margin: 10px 0 0; opacity: 0.95;'>SheEssentials Beauty Product Company</p>
+            <p style='margin: 10px 0 0; opacity: 0.95;'>Sheessentials Beauty Product Company</p>
         </div>
         <div class='content'>
             <p>Dear <strong>{userName}</strong>,</p>
@@ -582,7 +537,7 @@ namespace ExWebAppSia.Models
             
             <p>Best regards,<br/>
             <strong>HR Department</strong><br/>
-            SheEssentials Beauty Product Company</p>
+            Sheessentials Beauty Product Company</p>
         </div>
         <div class='footer'>
             <p>This is an automated message. Please do not reply directly to this email.</p>
@@ -592,12 +547,6 @@ namespace ExWebAppSia.Models
 </html>";
 
                 return await SendEmailAsync(toEmail, subject, body, isHtml: true);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error sending password reset email: {ex.Message}");
-                return false;
-            }
         }
 
         /// <summary>
@@ -605,9 +554,7 @@ namespace ExWebAppSia.Models
         /// </summary>
         public async Task<bool> SendAnnouncementEmailAsync(string toEmail, string employeeName, string announcementContent, string department = "General", string imagePath = null)
         {
-            try
-            {
-                string subject = $"📢 New Official Announcement: {department} - SheEssentials";
+            string subject = $"📢 New Official Announcement: {department} - Sheessentials";
 
                 string body = $@"
 <!DOCTYPE html>
@@ -628,7 +575,7 @@ namespace ExWebAppSia.Models
     <div class='container'>
         <div class='header'>
             <h1 style='margin: 0; font-size: 26px; letter-spacing: 1px;'>OFFICIAL ANNOUNCEMENT</h1>
-            <p style='margin: 10px 0 0; opacity: 0.9;'>SheEssentials Beauty Product Company</p>
+            <p style='margin: 10px 0 0; opacity: 0.9;'>Sheessentials Beauty Product Company</p>
         </div>
         <div class='content'>
             <p>Hello <strong>{employeeName}</strong>,</p>
@@ -651,10 +598,10 @@ namespace ExWebAppSia.Models
 
             <p style='margin-top: 40px;'>Best regards,<br/>
             <strong>HR Department</strong><br/>
-            SheEssentials Team</p>
+            Sheessentials Team</p>
         </div>
         <div class='footer'>
-            <p>This is an automated company notification. &copy; 2026 SheEssentials Beauty Product Company</p>
+            <p>This is an automated company notification. &copy; 2026 Sheessentials Beauty Product Company</p>
             <p>You are receiving this because you are an active employee in our system.</p>
         </div>
     </div>
@@ -662,19 +609,11 @@ namespace ExWebAppSia.Models
 </html>";
 
                 return await SendEmailAsync(toEmail, subject, body, isHtml: true);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error sending announcement email: {ex.Message}");
-                return false;
-            }
         }
 
         public async Task<bool> SendAccountStatusEmailAsync(string toEmail, string employeeName, string statusTitle = "Account Resigned")
         {
-            try
-            {
-                string subject = $"Update Regarding Your Account Status - SheEssentials";
+            string subject = $"Update Regarding Your Account Status - Sheessentials";
 
                 string body = $@"
 <!DOCTYPE html>
@@ -705,20 +644,14 @@ namespace ExWebAppSia.Models
             
             <p>Thank you for your cooperation and service.</p>
             
-            <p>Best regards,<br/><strong>HR Department</strong><br/>SheEssentials Beauty Product Company</p>
+            <p>Best regards,<br/><strong>HR Department</strong><br/>Sheessentials Beauty Product Company</p>
         </div>
-        <div class='footer'><p>&copy; 2026 SheEssentials Beauty Product Company</p></div>
+        <div class='footer'><p>&copy; 2026 Sheessentials Beauty Product Company</p></div>
     </div>
 </body>
 </html>";
 
                 return await SendEmailAsync(toEmail, subject, body, isHtml: true);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Error sending account status email: {ex.Message}");
-                return false;
-            }
         }
     }
 }

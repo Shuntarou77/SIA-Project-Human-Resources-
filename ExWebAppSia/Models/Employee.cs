@@ -53,6 +53,42 @@ namespace ExWebAppSia.Models
         [BsonElement("gender")]
         public string Gender { get; set; }
 
+        [BsonElement("civilStatus")]
+        public string CivilStatus { get; set; }
+
+        [BsonElement("educationLevel")]
+        public string EducationLevel { get; set; }
+
+        [BsonElement("school")]
+        public string School { get; set; }
+
+        [BsonElement("degree")]
+        public string Degree { get; set; }
+
+        [BsonElement("guardianName")]
+        public string GuardianName { get; set; }
+
+        [BsonElement("guardianRelationship")]
+        public string GuardianRelationship { get; set; }
+
+        [BsonElement("guardianContactNo")]
+        public string GuardianContactNo { get; set; }
+
+        [BsonElement("guardianEmail")]
+        public string GuardianEmail { get; set; }
+
+        [BsonElement("guardianHomeAddress")]
+        public string GuardianHomeAddress { get; set; }
+
+        [BsonElement("previousCompanyName")]
+        public string PreviousCompanyName { get; set; }
+
+        [BsonElement("previousPosition")]
+        public string PreviousPosition { get; set; }
+
+        [BsonElement("yearsOfExperience")]
+        public int YearsOfExperience { get; set; }
+
         [BsonElement("department")]
         public string Department { get; set; } // The position/department they were hired for
 
@@ -110,6 +146,12 @@ namespace ExWebAppSia.Models
         [BsonElement("resignationReason")]
         public string ResignationReason { get; set; }
 
+        [BsonElement("availabilityStatus")]
+        public string AvailabilityStatus { get; set; } = "Available"; // "Available", "Unavailable"
+
+        [BsonIgnore]
+        public bool IsUnavailable => AvailabilityStatus == "Unavailable";
+
         // Auto-calculate employment status based on HiredDate (6 months rule)
         [BsonIgnore]
         public string EmploymentStatus 
@@ -124,7 +166,20 @@ namespace ExWebAppSia.Models
 
         // Helper property for full name
         [BsonIgnore]
-        public string FullName => $"{LastName}, {FirstName}" + (!string.IsNullOrEmpty(MiddleName) ? $" {MiddleName}" : "");
+        public string FullName => $"{LastName}, {FirstName}{(string.IsNullOrEmpty(MiddleName) ? "" : " " + MiddleName)}";
+
+        [BsonIgnore]
+        public int? CalculatedAge
+        {
+            get
+            {
+                if (!BirthDate.HasValue) return Age;
+                var today = DateTime.Today;
+                var age = today.Year - BirthDate.Value.Year;
+                if (BirthDate.Value.Date > today.AddYears(-age)) age--;
+                return age;
+            }
+        }
     }
 }
 

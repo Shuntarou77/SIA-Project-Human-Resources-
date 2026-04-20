@@ -116,10 +116,9 @@
 
             .department-filter {
                 display: grid;
-                grid-template-columns: repeat(5, 1fr);
-                gap: 12px;
-                margin-bottom: 20px;
-                justify-content: start;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 20px;
+                margin-bottom: 25px;
             }
 
             .dept-card {
@@ -127,7 +126,7 @@
                 align-items: center;
                 background: linear-gradient(135deg, var(--accent-color) 0%, #FEF4F3 100%);
                 border-radius: 32px;
-                padding: 6px 14px 6px 8px;
+                padding: 12px 24px 12px 14px;
                 box-shadow: var(--card-shadow);
                 cursor: pointer;
                 transition: all 0.25s ease;
@@ -538,6 +537,16 @@
                 border: 1px solid #86efac;
             }
 
+            .status-on-leave {
+                background: #fef3c7;
+                color: #92400e;
+                padding: 4px 8px;
+                border-radius: 6px;
+                font-size: 11px;
+                font-weight: 600;
+                border: 1px solid #fcd34d;
+            }
+
             /* Bottom Section Container */
             .bottom-section-container {
                 width: 100%;
@@ -825,7 +834,7 @@
 
                         <!-- 10 Department Cards (2 rows x 5 columns) -->
                         <div class="department-filter">
-                            <div class="dept-card" data-dept="Research & Development">
+                            <div class="dept-card" data-dept="R&D">
                                 <div class="dept-stats">
                                     <span class="dept-count">
                                         <asp:Literal ID="litRDCount" runat="server" Text="0"></asp:Literal>
@@ -833,18 +842,7 @@
                                     <span class="dept-label">EMPLOYEES</span>
                                 </div>
                                 <div class="dept-info">
-                                    <div class="dept-name">Research & Development</div>
-                                </div>
-                            </div>
-                            <div class="dept-card" data-dept="Quality Control">
-                                <div class="dept-stats">
-                                    <span class="dept-count">
-                                        <asp:Literal ID="litQCCount" runat="server" Text="0"></asp:Literal>
-                                    </span>
-                                    <span class="dept-label">EMPLOYEES</span>
-                                </div>
-                                <div class="dept-info">
-                                    <div class="dept-name">Quality Control</div>
+                                    <div class="dept-name">R&D</div>
                                 </div>
                             </div>
                             <div class="dept-card" data-dept="Human Resources">
@@ -858,7 +856,7 @@
                                     <div class="dept-name">Human Resources</div>
                                 </div>
                             </div>
-                            <div class="dept-card" data-dept="Finance">
+                            <div class="dept-card" data-dept="Finance/Accounting">
                                 <div class="dept-stats">
                                     <span class="dept-count">
                                         <asp:Literal ID="litFinanceCount" runat="server" Text="0"></asp:Literal>
@@ -866,7 +864,7 @@
                                     <span class="dept-label">EMPLOYEES</span>
                                 </div>
                                 <div class="dept-info">
-                                    <div class="dept-name">Finance</div>
+                                    <div class="dept-name">Finance/Accounting</div>
                                 </div>
                             </div>
                             <div class="dept-card" data-dept="Marketing">
@@ -880,17 +878,6 @@
                                     <div class="dept-name">Marketing</div>
                                 </div>
                             </div>
-                            <div class="dept-card" data-dept="IT Support">
-                                <div class="dept-stats">
-                                    <span class="dept-count">
-                                        <asp:Literal ID="litITCount" runat="server" Text="0"></asp:Literal>
-                                    </span>
-                                    <span class="dept-label">EMPLOYEES</span>
-                                </div>
-                                <div class="dept-info">
-                                    <div class="dept-name">IT Support</div>
-                                </div>
-                            </div>
                             <div class="dept-card" data-dept="Operations">
                                 <div class="dept-stats">
                                     <span class="dept-count">
@@ -902,17 +889,6 @@
                                     <div class="dept-name">Operations</div>
                                 </div>
                             </div>
-                            <div class="dept-card" data-dept="Sales">
-                                <div class="dept-stats">
-                                    <span class="dept-count">
-                                        <asp:Literal ID="litSalesCount" runat="server" Text="0"></asp:Literal>
-                                    </span>
-                                    <span class="dept-label">EMPLOYEES</span>
-                                </div>
-                                <div class="dept-info">
-                                    <div class="dept-name">Sales</div>
-                                </div>
-                            </div>
                             <div class="dept-card" data-dept="Inventory">
                                 <div class="dept-stats">
                                     <span class="dept-count">
@@ -922,17 +898,6 @@
                                 </div>
                                 <div class="dept-info">
                                     <div class="dept-name">Inventory</div>
-                                </div>
-                            </div>
-                            <div class="dept-card" data-dept="Customer Service">
-                                <div class="dept-stats">
-                                    <span class="dept-count">
-                                        <asp:Literal ID="litCustomerServiceCount" runat="server" Text="0"></asp:Literal>
-                                    </span>
-                                    <span class="dept-label">EMPLOYEES</span>
-                                </div>
-                                <div class="dept-info">
-                                    <div class="dept-name">Customer Service</div>
                                 </div>
                             </div>
                         </div>
@@ -951,6 +916,7 @@
                                     style="height: 48px; border-radius: 12px; border: 1.5px solid #e5e7eb; min-width: 180px; font-size: 14px; padding: 0 16px; background: #fff; cursor: pointer;"
                                     onchange="applyFilter(currentSelectedDept)">
                                     <option value="Active">Active Employees</option>
+                                    <option value="On Leave">On Leave</option>
                                     <option value="Inactive">Resigned/Inactive</option>
                                     <option value="all">All Status</option>
                                 </select>
@@ -1164,6 +1130,12 @@
                             matchesStatus = true;
                         } else if (statusFilter === 'Pending') {
                             matchesStatus = rowResignStatus === 'Pending';
+                        } else if (statusFilter === 'Active') {
+                            matchesStatus = rowActive === 'Active';
+                        } else if (statusFilter === 'On Leave') {
+                            matchesStatus = rowActive === 'On Leave';
+                        } else if (statusFilter === 'Inactive') {
+                            matchesStatus = rowActive === 'Inactive' || rowActive === 'Resigned';
                         } else {
                             matchesStatus = rowActive === statusFilter;
                         }
@@ -1214,6 +1186,23 @@
                     const url = '<%= ResolveUrl("~/Handler/ExportDepartmentReport.ashx") %>?department=' + encoded + '&format=html';
                     window.open(url, '_blank');
                 };
+
+                window.toggleLeaveStatus = function(id) {
+                    if (!confirm('Are you sure you want to change this employee\'s leave status?')) return;
+                    
+                    PageMethods.ToggleEmployeeLeaveStatus(id, function(resultJson) {
+                        const result = JSON.parse(resultJson);
+                        if (result.success) {
+                            alert(result.message);
+                            location.reload();
+                        } else {
+                            alert(result.message);
+                        }
+                    }, function(err) {
+                        alert('Error: ' + err.get_message());
+                    });
+                };
+
 
                 window.downloadReportPdf = function () {
                     const activeCard = document.querySelector('.dept-card.active');
@@ -1284,7 +1273,7 @@
                 html += `<tr><td style='padding: 8px; font-weight: bold; width: 40%;'>Department:</td><td style='padding: 8px;'>${dept}</td></tr>`;
                 html += `<tr><td style='padding: 8px; font-weight: bold;'>Role:</td><td style='padding: 8px;'>${role}</td></tr>`;
                 html += `<tr><td style='padding: 8px; font-weight: bold;'>Contract Type:</td><td style='padding: 8px;'><span style='color: ${contract === "Regular" ? "green" : "orange"}; font-weight: bold;'>${contract}</span></td></tr>`;
-                html += `<tr><td style='padding: 8px; font-weight: bold;'>Base Salary:</td><td style='padding: 8px; font-weight: bold; color: #8B4755;'>₱${salary}</td></tr>`;
+                html += `<tr><td style='padding: 8px; font-weight: bold;'>Base Salary:</td><td style='padding: 8px; font-weight: bold; color: #8B4755;'>&#8369;${salary}</td></tr>`;
                 html += `<tr><td style='padding: 8px; font-weight: bold;'>Hired Date:</td><td style='padding: 8px;'>${hired}</td></tr>`;
                 html += `<tr><td style='padding: 8px; font-weight: bold;'>Status:</td><td style='padding: 8px;'>${active}</td></tr>`;
 
@@ -1335,34 +1324,66 @@
                             <div class='action-icon'><i class='fas fa-user-check'></i></div>
                             <h3 class='action-title'>Approve Resignation</h3>
                             <p class='action-description'>This employee has requested to resign. Review and approve to finalize.</p>
-                            <button type="button" class="action-button" style='background: #f59e0b;'>Approve Resignation</button>
-                        </div>`;
-                    } else {
-                        html += `<div class='action-card' onclick='resignEmployee("${id}")'>
-                            <div class='action-icon'><i class='fas fa-user-slash'></i></div>
-                            <h3 class='action-title'>Resigned</h3>
-                            <p class='action-description'>Mark this employee as resigned and deactivate their account.</p>
-                            <button type="button" class="action-button" style='background: #ef4444;'>Process Resignation</button>
-                        </div>`;
-                    }
+                
+                html += `<div class='action-card' onclick="openPayslipModal('${fname}', '${empId}')">`;
+                html += `<div class='action-icon'>💰</div>`;
+                html += `<h3 class='action-title'>View Payslip</h3>`;
+                html += `<p class='action-description'>View salary breakdown including gross salary, deductions, and net pay.</p>`;
+                html += `<button class='action-button'>View Details</button>`;
+                html += `</div>`;
 
-                    html += `<div class='action-card' onclick='openDeployModal("${id}", "${dept}")'>
-                        <div class='action-icon'><i class='fas fa-exchange-alt'></i></div>
-                        <h3 class='action-title'>Deploy to Department</h3>
-                        <p class='action-description'>Transfer this employee to a different department or team.</p>
-                        <button type="button" class="action-button" style='background: #3b82f6;'>Redeploy</button>
-                    </div>`;
-                } else {
-                    html += `<div class='action-card' onclick='rehireEmployee("${id}")'>
-                        <div class='action-icon'><i class='fas fa-user-plus'></i></div>
-                        <h3 class='action-title'>Rehired</h3>
-                        <p class='action-description'>Reactivate this employee's account for active duty.</p>
-                        <button type="button" class="action-button" style='background: #10b981;'>Process Rehire</button>
-                    </div>`;
+                html += `<div class='action-card' onclick="openLeaveHistoryModal('${id}')">`;
+                html += `<div class='action-icon'>📝</div>`;
+                html += `<h3 class='action-title'>Leave History</h3>`;
+                html += `<p class='action-description'>View history of sick leave, vacation, and personal matters.</p>`;
+                html += `<button class='action-button'>View History</button>`;
+                html += `</div>`;
+
+                html += `<div class='action-card' onclick="openConcernHistoryModal('${id}')">`;
+                html += `<div class='action-icon'>💬</div>`;
+                html += `<h3 class='action-title'>Concern History</h3>`;
+                html += `<p class='action-description'>View all workplace concerns, complaints, or suggestions.</p>`;
+                html += `<button class='action-button'>View History</button>`;
+                html += `</div>`;
+
+                if (active === "Active" || active === "On Leave") {
+                    html += `<div class='action-card' onclick="resignEmployee('${id}')">`;
+                    html += `<div class='action-icon'>👋</div>`;
+                    html += `<h3 class='action-title'>Resigned</h3>`;
+                    html += `<p class='action-description'>Mark this employee as resigned and deactivate account.</p>`;
+                    html += `<button class='action-button' style='background: #ef4444;'>Process Resignation</button>`;
+                    html += `</div>`;
+
+                    html += `<div class='action-card' onclick="openDeployModal('${id}', '${dept}')">`;
+                    html += `<div class='action-icon'>🔄</div>`;
+                    html += `<h3 class='action-title'>Deploy</h3>`;
+                    html += `<p class='action-description'>Transfer this employee to a different department.</p>`;
+                    html += `<button class='action-button' style='background: #3b82f6;'>Redeploy</button>`;
+                    html += `</div>`;
+
+                    // On Leave Toggle
+                    const isOnLeave = active === "On Leave";
+                    const leaveAction = isOnLeave ? "End Leave" : "Mark On Leave";
+                    const leaveDesc = isOnLeave ? "Mark as returned and available for work." : "Set status to On Leave for temporary replacement.";
+                    const leaveIcon = isOnLeave ? "☀️" : "🌙";
+                    const leaveBtnColor = isOnLeave ? "#10b981" : "#f59e0b";
+                    
+                    html += `<div class='action-card' onclick="toggleLeaveStatus('${id}')">`;
+                    html += `<div class='action-icon'>${leaveIcon}</div>`;
+                    html += `<h3 class='action-title'>${leaveAction}</h3>`;
+                    html += `<p class='action-description'>${leaveDesc}</p>`;
+                    html += `<button class='action-button' style='background: ${leaveBtnColor};'>${leaveAction}</button>`;
+                    html += `</div>`;
+                } else if (active === "Resigned" || active === "Inactive") {
+                    html += `<div class='action-card' onclick="rehireEmployee('${id}')">`;
+                    html += `<div class='action-icon'>🤝</div>`;
+                    html += `<h3 class='action-title'>Rehired</h3>`;
+                    html += `<p class='action-description'>Reactivate this employee's account for active duty.</p>`;
+                    html += `<button class='action-button' style='background: #10b981;'>Process Rehire</button>`;
+                    html += `</div>`;
                 }
 
                 html += `</div>`;
-
                 content.innerHTML = html;
                 modal.style.display = 'block';
 
@@ -2119,16 +2140,12 @@
                     <div class="form-group">
                         <label class="form-label">Select Department</label>
                         <select id="ddlNewDept" class="form-select">
-                            <option value="Research & Development">Research & Development</option>
-                            <option value="Quality Control">Quality Control</option>
                             <option value="Human Resources">Human Resources</option>
-                            <option value="Finance">Finance</option>
-                            <option value="Marketing">Marketing</option>
-                            <option value="IT Support">IT Support</option>
                             <option value="Operations">Operations</option>
-                            <option value="Sales">Sales</option>
+                            <option value="Marketing">Marketing</option>
+                            <option value="Finance/Accounting">Finance/Accounting</option>
                             <option value="Inventory">Inventory</option>
-                            <option value="Customer Service">Customer Service</option>
+                            <option value="R&D">R&D</option>
                         </select>
                     </div>
                 </div>

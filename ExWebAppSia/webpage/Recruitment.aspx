@@ -1919,7 +1919,7 @@
                                         Available Slots</div>
                                     <p
                                         style="font-size: 13px; color: var(--text-secondary); margin-top: 8px; line-height: 1.4;">
-                                        Remaining capacity out of 50 total company hiring slots.
+                                        Remaining capacity out of 30 total company hiring slots.
                                     </p>
                                 </div>
                                 <div style="flex: 1;">
@@ -1928,7 +1928,7 @@
                                         Currently Hiring For:
                                     </div>
                                     <div
-                                        style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; font-size: 14px; color: var(--text-primary); font-weight: 500;">
+                                        style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; font-size: 16px; color: var(--text-primary); font-weight: 500;">
                                         <asp:Literal ID="litAvailablePositionsList" runat="server"></asp:Literal>
                                     </div>
                                 </div>

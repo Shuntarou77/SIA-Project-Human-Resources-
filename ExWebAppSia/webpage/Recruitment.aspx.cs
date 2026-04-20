@@ -8,6 +8,8 @@ using System.Web.UI;
 using System.Web.UI.HtmlControls;
 using System.Web.UI.WebControls;
 using ExWebAppSia.Models;
+using MongoDB.Driver;
+using MongoDB.Bson;
 
 namespace ExWebAppSia.webpage
 {
@@ -89,7 +91,7 @@ namespace ExWebAppSia.webpage
 
                 // 0. Restriction: Role Need Check (Cannot hire if role is not active or already occupied)
                 var roleInfo = await _roleSalaryService.GetSalaryByRoleAsync(selectedRole);
-                if (roleInfo == null || !roleInfo.IsActive)
+                if (roleInfo == null)
                 {
                     ShowMessage($"Cannot add applicant. The role '{selectedRole}' is not currently marked for hiring.", false);
                     return;
@@ -478,27 +480,45 @@ namespace ExWebAppSia.webpage
                 if (litDeclinedCount != null) litDeclinedCount.Text = declinedCount.ToString();
                 if (litRehiringCount != null) litRehiringCount.Text = rehiringCount.ToString();
 
-                // Calculate available positions: 50 slots minus (Current Employees + Applicants in pipeline)
-                int totalCapacity = 50;
+                // Calculate available positions: 30 slots minus (Current Employees + Applicants in pipeline)
+                int totalCapacity = 30;
                 int totalOccupied = currentEmployeeCount;
                 if (litAvailablePositions != null)
                 {
                     litAvailablePositions.Text = Math.Max(0, totalCapacity - totalOccupied).ToString();
                 }
 
+                // --- NEW: Contractual Replacement logic ---
+                int onLeaveCount = 0;
+                try {
+                    var leaveCol = MongoDBHelper.GetLeavesCollection();
+                    var todayDate = DateTime.UtcNow.AddHours(8).Date;
+                    // Find all approved leaves that overlap with today
+                    var filter = Builders<Leave>.Filter.And(
+                        Builders<Leave>.Filter.Eq(l => l.Status, "Approved"),
+                        Builders<Leave>.Filter.Eq(l => l.IsActive, true)
+                    );
+                    var cursor = await leaveCol.FindAsync(filter);
+                    var leavesToday = await cursor.ToListAsync();
+                    onLeaveCount = leavesToday.Count(l => todayDate >= l.StartDate.Date && todayDate <= l.EndDate.Date);
+                } catch { }
+
                 if (litAvailablePositionsList != null)
                 {
                     // --- Step 1: Build the set of roles currently held by ACTIVE employees ---
-                    // This is the authoritative source of truth. Never modify this set using
-                    // resigned employee data, as a resigned employee may have previously held
-                    // the same role now held by a different active employee.
                     var occupiedRoles = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                    var roleHeadcounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+
                     if (employeesTask.Result != null)
                     {
                         foreach (var emp in employeesTask.Result)
                         {
-                            if (!string.IsNullOrEmpty(emp.Role))
-                                occupiedRoles.Add(emp.Role.Trim());
+                            if (!string.IsNullOrEmpty(emp.Role)) {
+                                string r = emp.Role.Trim();
+                                occupiedRoles.Add(r);
+                                if (!roleHeadcounts.ContainsKey(r)) roleHeadcounts[r] = 0;
+                                roleHeadcounts[r]++;
+                            }
                         }
                     }
 
@@ -526,9 +546,7 @@ namespace ExWebAppSia.webpage
                     // Source B: Roles freed by resignation that aren't already in Source A
                     //           (handles cases where RoleSalary.IsActive may be false for a role,
                     //           or the role isn't in RoleSalary at all due to legacy data).
-                    var activeRoleSalaries = (roleSalariesTask.Result ?? new List<RoleSalary>())
-                                            .Where(r => r.IsActive == true)
-                                            .ToList();
+                    var activeRoleSalaries = (roleSalariesTask.Result ?? new List<RoleSalary>());
 
                     // Roles available from RoleSalary (not occupied)
                     var roleSalaryAvailable = new HashSet<string>(
@@ -545,13 +563,26 @@ namespace ExWebAppSia.webpage
                     var sbPos = new StringBuilder();
                     int visibleCount = 0;
 
+                    // Display Contractual Replacement if needed
+                    if (onLeaveCount > 0)
+                    {
+                        sbPos.AppendFormat("<div class='pos-item' style='display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; padding: 6px 12px; background: #fff7ed; border-radius: 8px; border: 1px solid #fed7aa; margin-bottom: 12px; filter: drop-shadow(0 2px 4px rgba(249, 115, 22, 0.1));' onclick=\"filterByPosition('Contractual')\">" +
+                            "<svg style='width:16px; height:16px; color:#f97316;' fill='currentColor' viewBox='0 0 20 20'><path d='M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM5.884 6.607a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zm2.12 8.485a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm7.071-7.071a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-1.414 8.485a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM9 11a1 1 0 102 0V9a1 1 0 10-2 0v2z' /></svg>" +
+                            "<div style='flex:1;'><span style='font-weight:700; color:#c2410c;'>Contractual Replacement</span> <span style='font-size:11px; color:#f97316; font-weight:600;'>({0} SLOTS)</span></div>" +
+                            "</div>", onLeaveCount);
+                        visibleCount++;
+                    }
+
                     // Display RoleSalary-sourced available positions
                     foreach (var rs in activeRoleSalaries)
                     {
                         string trimmedPos = rs.RoleName.Trim();
+                        int hc = roleHeadcounts.ContainsKey(trimmedPos) ? roleHeadcounts[trimmedPos] : 0;
+                        string hcDisplay = hc > 0 ? $"<span style='font-size: 11px; color: #6B4F4E; font-weight: 500; margin-left: auto;'>HC: {hc}</span>" : "";
+
                         if (!occupiedRoles.Contains(trimmedPos))
                         {
-                            sbPos.AppendFormat("<div class='pos-item' style='display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; padding: 4px 0;' onclick=\"filterByPosition('{0}')\" onmouseover=\"this.style.color='#3b82f6'\" onmouseout=\"this.style.color=''\" ><svg style='width:14px; height:14px; color:#3b82f6;' fill='currentColor' viewBox='0 0 20 20'><path fill-rule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' clip-rule='evenodd'></path></svg>{0}</div>", Server.HtmlEncode(rs.RoleName));
+                            sbPos.AppendFormat("<div class='pos-item' style='display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.2s; padding: 8px 0;' onclick=\"filterByPosition('{0}')\" onmouseover=\"this.style.color='#3b82f6'\" onmouseout=\"this.style.color=''\" ><svg style='width:18px; height:18px; color:#3b82f6;' fill='currentColor' viewBox='0 0 20 20'><path fill-rule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' clip-rule='evenodd'></path></svg>{0} {1}</div>", Server.HtmlEncode(rs.RoleName), hcDisplay);
                             visibleCount++;
                         }
                     }
@@ -1067,7 +1098,7 @@ namespace ExWebAppSia.webpage
                 if (applicant.RecruitmentType != "Regularization")
                 {
                     var roleInfo = await _roleSalaryService.GetSalaryByRoleAsync(applicant.Role);
-                    if (roleInfo == null || !roleInfo.IsActive)
+                    if (roleInfo == null)
                     {
                         ShowMessage($"Cannot hire applicant. The role '{applicant.Role}' is no longer marked for active hiring.", false);
                         return;
@@ -1097,7 +1128,11 @@ namespace ExWebAppSia.webpage
                         if (updateSuccess || true) 
                         {
                             await _applicantService.UpdateApplicantStatusAsync(applicantId, "Hired");
-                            await _emailService.SendHiredEmailAsync(empToUpdate.Email, empToUpdate.FullName, empToUpdate.Department, empToUpdate.Role, empToUpdate.Email, empToUpdate.EmployeeId, true, false);
+                            try {
+                                await _emailService.SendHiredEmailAsync(empToUpdate.Email, empToUpdate.FullName, empToUpdate.Department, empToUpdate.Role, empToUpdate.Email, empToUpdate.EmployeeId, true, false);
+                            } catch (Exception emailEx) {
+                                ShowMessage("Employee regularized, but notification email failed: " + (emailEx.InnerException != null ? emailEx.InnerException.Message : emailEx.Message), false);
+                            }
                             await LoadApplicantsData();
                             LogActivity("Regularization Created", $"Promoted {empToUpdate.FullName} ({empToUpdate.EmployeeId}) to regular employee status");
                             ShowMessage($"{empToUpdate.FullName} has been regularized successfully!", true);
@@ -1119,7 +1154,11 @@ namespace ExWebAppSia.webpage
                         applicant.MiddleName, applicant.AppliedPosition, applicant.Role, applicant.HasSSS, applicant.HasPhilHealth, applicant.HasPagIbig);
                     
                     // Send Orientation Email
-                    await _emailService.SendHiredEmailAsync(applicant.Email, applicant.FullName, applicant.AppliedPosition, applicant.Role, applicant.Email, tempEmployeeId, false, true);
+                    try {
+                        await _emailService.SendHiredEmailAsync(applicant.Email, applicant.FullName, applicant.AppliedPosition, applicant.Role, applicant.Email, tempEmployeeId, false, true);
+                    } catch (Exception emailEx) {
+                        ShowMessage("Moved to Onboarding, but orientation email failed: " + (emailEx.InnerException != null ? emailEx.InnerException.Message : emailEx.Message), false);
+                    }
                     
                     await LoadApplicantsData();
                     LogActivity("Moved To Onboarding", $"Moved applicant {applicant.FirstName} {applicant.LastName} into the mandatory orientation funnel.");
@@ -1175,7 +1214,11 @@ namespace ExWebAppSia.webpage
                     await _userService.EnsureEmployeeAccountAsync(created.Email, created.EmployeeId, created.FirstName, created.LastName,
                         created.MiddleName, created.Department, created.Role, created.HasSSS, created.HasPhilHealth, created.HasPagIbig);
                     await _applicantService.UpdateApplicantStatusAsync(applicantId, "Hired");
-                    await _emailService.SendHiredEmailAsync(created.Email, created.FullName, created.Department, created.Role, created.Email, created.EmployeeId, false, false);
+                    try {
+                        await _emailService.SendHiredEmailAsync(created.Email, created.FullName, created.Department, created.Role, created.Email, created.EmployeeId, false, false);
+                    } catch (Exception emailEx) {
+                        ShowMessage("Hired successfuly, but welcome email failed: " + (emailEx.InnerException != null ? emailEx.InnerException.Message : emailEx.Message), false);
+                    }
                     await LoadApplicantsData();
                     LogActivity("Hired Applicant", $"Officially hired applicant: {created.FirstName} {created.LastName} into {created.Department} ({created.Role})");
                     ShowMessage("Onboarding finalized! Employee profile created and official welcome email sent.", true);
@@ -1184,7 +1227,8 @@ namespace ExWebAppSia.webpage
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error: {ex.Message}");
+                string errorMsg = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                ShowMessage("Hiring Error: " + errorMsg, false);
             }
         }
 
@@ -1218,7 +1262,7 @@ namespace ExWebAppSia.webpage
                 if (applicant.RecruitmentType != "Regularization")
                 {
                     var roleInfo = await _roleSalaryService.GetSalaryByRoleAsync(applicant.Role);
-                    if (roleInfo == null || !roleInfo.IsActive)
+                    if (roleInfo == null)
                     {
                         ShowMessage($"Cannot approve applicant. The role '{applicant.Role}' is not currently marked for active hiring.", false);
                         return;
@@ -1240,13 +1284,21 @@ namespace ExWebAppSia.webpage
                 {
                     if (applicant != null && !string.IsNullOrEmpty(applicant.Email))
                     {
-                        await _emailService.SendApprovalEmailAsync(applicant.Email, applicant.FullName);
+                        try {
+                            await _emailService.SendApprovalEmailAsync(applicant.Email, applicant.FullName);
+                        } catch (Exception emailEx) {
+                            ShowMessage("Applicant approved, but notification email failed: " + (emailEx.InnerException != null ? emailEx.InnerException.Message : emailEx.Message), false);
+                        }
                     }
                     await LoadApplicantsData();
                     ShowMessage("Applicant approved successfully and notification email sent.", true);
                 }
             }
-            catch (Exception ex) { ShowMessage("Error: " + ex.Message, false); }
+            catch (Exception ex) 
+            { 
+                string errorMsg = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                ShowMessage("Approval Error: " + errorMsg, false); 
+            }
         }
 
         protected async void btnDeclineApplicant_Click(object sender, EventArgs e)
@@ -1264,7 +1316,11 @@ namespace ExWebAppSia.webpage
                 {
                     if (applicant != null && !string.IsNullOrEmpty(applicant.Email))
                     {
-                        await _emailService.SendRejectionEmailAsync(applicant.Email, applicant.FullName, reason);
+                        try {
+                            await _emailService.SendRejectionEmailAsync(applicant.Email, applicant.FullName, reason);
+                        } catch (Exception emailEx) {
+                            ShowMessage("Applicant declined, but notification email failed: " + (emailEx.InnerException != null ? emailEx.InnerException.Message : emailEx.Message), false);
+                        }
                     }
                     await LoadApplicantsData();
                     ShowMessage("Applicant declined and notification email sent.", true);
@@ -1273,7 +1329,11 @@ namespace ExWebAppSia.webpage
                     hdnDeclineReason.Value = "";
                 }
             }
-            catch (Exception ex) { ShowMessage("Error: " + ex.Message, false); }
+            catch (Exception ex) 
+            { 
+                string errorMsg = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                ShowMessage("Decline Error: " + errorMsg, false); 
+            }
         }
 
         protected async void btnScheduleInterview_Click(object sender, EventArgs e)
@@ -1329,10 +1389,14 @@ namespace ExWebAppSia.webpage
                         successCount++;
                         if (applicant != null && !string.IsNullOrEmpty(applicant.Email))
                         {
-                            bool emailSent = await _emailService.SendInterviewInvitationEmailAsync(
-                                applicant.Email, applicant.FullName, fullInterviewDateTime, location, interviewer, notes
-                            );
-                            if (emailSent) emailCount++;
+                            try {
+                                bool emailSent = await _emailService.SendInterviewInvitationEmailAsync(
+                                    applicant.Email, applicant.FullName, fullInterviewDateTime, location, interviewer, notes
+                                );
+                                if (emailSent) emailCount++;
+                            } catch (Exception emailEx) {
+                                ShowMessage("Scheduled, but invitation email failed for some: " + (emailEx.InnerException != null ? emailEx.InnerException.Message : emailEx.Message), false);
+                            }
                         }
                     }
                 }
@@ -1393,12 +1457,14 @@ namespace ExWebAppSia.webpage
                 }
                 else
                 {
-                    ShowMessage("Failed to send emails. Please check your SMTP configuration.", false);
+                    ShowMessage("No emails were sent. Please ensure applicants have valid email addresses.", false);
                 }
             }
             catch (Exception ex)
             {
-                ShowMessage("Error: " + ex.Message, false);
+                // Capture the specific SMTP error (e.g. Authentication failed, port blocked)
+                string errorMsg = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                ShowMessage("Email Error: " + errorMsg, false);
             }
         }
         protected void btnNotHireApplicant_Click(object sender, EventArgs e) 

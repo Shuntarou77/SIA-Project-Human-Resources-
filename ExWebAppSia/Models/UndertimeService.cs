@@ -208,5 +208,23 @@ namespace ExWebAppSia.Models
                 return false;
             }
         }
+        public async Task<List<UndertimeRequest>> GetAllRequestsAsync()
+        {
+            try
+            {
+                return await _requests.Find(r => r.IsActive).ToListAsync();
+            }
+            catch { return new List<UndertimeRequest>(); }
+        }
+
+        public async Task<List<UndertimeRequest>> GetRequestsByDateAsync(DateTime date)
+        {
+            try
+            {
+                var target = date.Date;
+                return await _requests.Find(r => r.Date == target && r.IsActive).ToListAsync();
+            }
+            catch { return new List<UndertimeRequest>(); }
+        }
     }
 }

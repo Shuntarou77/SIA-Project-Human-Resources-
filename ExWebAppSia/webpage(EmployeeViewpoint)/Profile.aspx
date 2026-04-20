@@ -767,6 +767,18 @@
                             </span>
                         </div>
                         <div class="info-row">
+                            <span class="info-label">📍 Dept</span>
+                            <span class="info-value">
+                                <%= GetEmployeeDepartment() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">💼 Role</span>
+                            <span class="info-value">
+                                <%= GetEmployeeRole() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
                             <span class="info-label">🎂 Birthdate</span>
                             <span class="info-value">
                                 <%= GetEmployeeBirthdate() %>
@@ -785,13 +797,13 @@
                             </span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">🗓️ Probationary Start</span>
+                            <span class="info-label">🗓️ Hired Date</span>
                             <span class="info-value">
                                 <%= GetHiredDate() %>
                             </span>
                         </div>
                         <div class="info-row">
-                            <span class="info-label">📅 Regularization Start</span>
+                            <span class="info-label">📅 Regularization</span>
                             <span class="info-value">
                                 <%= GetRegularizationDate() %>
                             </span>
@@ -871,7 +883,7 @@
                                 <div class="stat-value" style="color: var(--warning-color);">
                                     <%= GetRemainingAbsences() %>
                                 </div>
-                                <div class="stat-label">Remaining</div>
+                                <div class="stat-label">Absence Allowance</div>
                             </div>
                             <div class="stat-box">
                                 <div class="stat-value" style="color: var(--success-color);">
@@ -886,28 +898,28 @@
 
             <!-- Action Cards -->
             <div class="actions-grid">
-                <div class="action-card">
+                <div class="action-card" onclick="document.querySelector('#payslipModal').style.display='block';">
                     <div class="action-icon">💰</div>
                     <h3 class="action-title">View Payslip</h3>
                     <p class="action-description">View your salary breakdown including gross salary, deductions, and net pay.</p>
                     <button type="button" class="action-button" onclick="openPayslipModal(event); return false;">View Details</button>
                 </div>
 
-                <div class="action-card">
-                    <div class="action-icon">📝</div>
+                <div class="action-card" onclick="document.querySelector('#leaveModal').style.display='block';">
+                    <div class="action-icon">📄</div>
                     <h3 class="action-title">File Leave of Absence</h3>
                     <p class="action-description">Submit your leave request for sick leave, vacation, or personal matters.</p>
                     <button type="button" class="action-button" onclick="openLeaveModal(event); return false;">File Leave</button>
                 </div>
 
-                <div class="action-card">
+                <div class="action-card" onclick="document.getElementById('concernModal').style.display='block';">
                     <div class="action-icon">💬</div>
                     <h3 class="action-title">Report Employee Concern</h3>
                     <p class="action-description">Submit any workplace concerns, complaints, or suggestions to HR.</p>
                     <button type="button" class="action-button" onclick="document.getElementById('concernModal').style.display='block'; return false;">Submit Concern</button>
                 </div>
 
-                <div class="action-card" style="border-color: #fca5a5;">
+                <div class="action-card" style="border-color: #fca5a5;" onclick="requestResignation();">
                     <div class="action-icon" style="background: linear-gradient(135deg, #ef4444, #fca5a5);">👋</div>
                     <h3 class="action-title">Request Resignation</h3>
                     <p class="action-description" id="resignationDesc">Officially submit your intent to resign. This will require HR approval before processing.</p>
@@ -1000,7 +1012,7 @@
             <div class="custom-modal-v2-content">
                 <div class="custom-modal-v2-header">
                     <span class="close" onclick="closeModal('leaveModal')">&times;</span>
-                    <h2 class="custom-modal-v2-title">📝 File Leave of Absence</h2>
+                    <h2 class="custom-modal-v2-title">📄 File Leave of Absence</h2>
                 </div>
                 <div class="custom-modal-v2-body">
                     <asp:Label ID="lblLeaveMessage" runat="server" style="display: none;"></asp:Label>
@@ -1049,7 +1061,7 @@
             <div class="custom-modal-v2-content" style="max-width: 450px;">
                 <div class="custom-modal-v2-header" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
                     <span class="close" onclick="closeModal('overtimeModal')">&times;</span>
-                    <h2 class="custom-modal-v2-title">⏰ Request Overtime</h2>
+                    <h2 class="custom-modal-v2-title">⏱️ Request Overtime</h2>
                 </div>
                 <div class="custom-modal-v2-body" style="padding: 30px;">
                     <div style="text-align: center; margin-bottom: 20px;">

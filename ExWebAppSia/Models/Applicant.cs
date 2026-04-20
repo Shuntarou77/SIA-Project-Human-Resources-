@@ -64,6 +64,9 @@ namespace ExWebAppSia.Models
         [BsonElement("gender")]
         public string Gender { get; set; }
 
+        [BsonElement("civilStatus")]
+        public string CivilStatus { get; set; }
+
         [BsonElement("email")]
         public string Email { get; set; }
 

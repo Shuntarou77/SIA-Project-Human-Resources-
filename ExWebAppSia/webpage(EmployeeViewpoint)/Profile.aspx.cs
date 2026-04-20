@@ -123,6 +123,12 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
             return employee?.Role ?? "N/A";
         }
 
+        protected string GetEmployeePosition()
+        {
+            var employee = CurrentEmployee;
+            return employee?.Position ?? "N/A";
+        }
+
         protected string GetEmployeeAddress()
         {
             var employee = CurrentEmployee;
@@ -157,8 +163,7 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
         protected string GetEmployeeAge()
         {
             var employee = CurrentEmployee;
-            if (employee == null || !employee.Age.HasValue) return "N/A";
-            return employee.Age.Value.ToString();
+            return employee?.CalculatedAge?.ToString() ?? "N/A";
         }
 
         protected string GetEmployeeSex()
@@ -269,7 +274,10 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 _employeeAttendanceRecords = await _attendanceService.GetEmployeeAttendanceAsync(employee.EmployeeId);
                 
                 // Calculate statistics
-                CalculateAttendanceStatistics();
+                var leaveService = new LeaveService();
+                var leaves = await leaveService.GetLeavesByEmployeeIdAsync(employee.EmployeeId);
+                var approvedLeaves = leaves?.Where(l => l.Status == "Approved").ToList() ?? new List<Leave>();
+                CalculateAttendanceStatistics(approvedLeaves);
                 
                 // Add Overtime and Undertime Async
                 await LoadOvertimeAndUndertimeStatsAsync(employee.EmployeeId);
@@ -282,7 +290,7 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
             }
         }
 
-        private void CalculateAttendanceStatistics()
+        private void CalculateAttendanceStatistics(List<Leave> approvedLeaves)
         {
             if (_employeeAttendanceRecords == null || _employeeAttendanceRecords.Count == 0)
             {
@@ -309,19 +317,34 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
             var currentMonthPresent = currentMonthPresentDays.Count;
 
             // Count past weekdays only (exclude weekends and future days)
-            var pastWeekdays = Enumerable.Range(0, (today - currentMonth).Days + 1)
+            int pastWeekdays = Enumerable.Range(0, (today - currentMonth).Days + 1)
                 .Select(i => currentMonth.AddDays(i))
                 .Where(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
                 .Count();
-            var currentMonthAbsent = Math.Max(0, pastWeekdays - currentMonthPresent);
+
+            // Subtract approved leave days from pastWeekdays to get target working days
+            int leaveDaysInMonth = 0;
+            foreach (var leave in approvedLeaves)
+            {
+                for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
+                {
+                    if (d >= currentMonth && d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                    {
+                        leaveDaysInMonth++;
+                    }
+                }
+            }
+
+            int targetWorkingDays = Math.Max(1, pastWeekdays - leaveDaysInMonth);
+            var currentMonthAbsent = Math.Max(0, pastWeekdays - currentMonthPresent - leaveDaysInMonth);
 
             // Calculate late count - use first time-in per day
             var currentMonthLate = currentMonthRecords
                 .GroupBy(x => x.LocalTime.Date)
                 .Count(g => g.OrderBy(x => x.LocalTime).First().LocalTime.Hour >= 9);
 
-            var currentMonthAttendancePercent = pastWeekdays > 0 
-                ? (int)Math.Round((double)currentMonthPresent / pastWeekdays * 100) 
+            var currentMonthAttendancePercent = targetWorkingDays > 0 
+                ? (int)Math.Round((double)currentMonthPresent / targetWorkingDays * 100) 
                 : 0;
 
             // Yearly stats
@@ -339,7 +362,19 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 .Select(i => yearStart.AddDays(i))
                 .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
             
-            var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent);
+            int yearlyLeaveDays = 0;
+            foreach (var leave in approvedLeaves)
+            {
+                for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
+                {
+                    if (d.Year == currentYear && d >= yearStart && d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                    {
+                        yearlyLeaveDays++;
+                    }
+                }
+            }
+            
+            var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent - yearlyLeaveDays);
             var remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
 
             _attendanceStats = new Dictionary<string, object>

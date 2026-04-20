@@ -495,14 +495,18 @@
                         <span class="date-text" id="dateDisplay">
                             <%= GetDateDisplay() %>
                         </span>
-                        <div class="nav-button" onclick="changeDate(-1)">‹</div>
+                        <div class="nav-button" onclick="changeDate(-1)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                        </div>
                         <input type="date" id="datePicker" style="display: none;" onchange="selectDate(this.value)" />
                         <svg class="calendar-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
                             onclick="document.getElementById('datePicker').showPicker()" style="cursor: pointer;">
                             <path
                                 d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" />
                         </svg>
-                        <div class="nav-button" onclick="changeDate(1)">›</div>
+                        <div class="nav-button" onclick="changeDate(1)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                        </div>
                     </div>
 
                     <div class="stats-container">
@@ -576,6 +580,7 @@
                                     <th>Time-Out</th>
                                     <th>Late</th>
                                     <th>Undertime</th>
+                                    <th>Absence Allowance</th>
                                 </tr>
                             </thead>
                             <tbody id="attendanceTableBody" runat="server">
@@ -604,11 +609,14 @@
                                             <td>
                                                 <%# GetUndertimeDisplay((string)Eval("Id")) %>
                                             </td>
+                                            <td>
+                                                <%# GetAbsenceAllowance((string)Eval("EmployeeId")) %>
+                                            </td>
                                         </tr>
                                     </ItemTemplate>
                                 </asp:Repeater>
                                 <tr id="noRecordsRow" runat="server" class="table-row" style="display: none;">
-                                    <td colspan="6" style="text-align: center; padding: 20px; color: #999;">
+                                    <td colspan="8" style="text-align: center; padding: 20px; color: #999;">
                                         No attendance records found for this date.
                                     </td>
                                 </tr>

@@ -103,11 +103,12 @@ namespace ExWebAppSia.webpage
         protected string GetEmployeeName() => CurrentEmployee?.FullName ?? "N/A";
         protected string GetEmployeeId() => CurrentEmployee?.EmployeeId ?? "N/A";
         protected string GetEmployeeRole() => CurrentEmployee?.Role ?? "N/A";
+        protected string GetEmployeePosition() => CurrentEmployee?.Position ?? "N/A";
         protected string GetEmployeeEmail() => CurrentEmployee?.Email ?? "N/A";
         protected string GetEmployeeContact() => CurrentEmployee?.ContactNo ?? "N/A";
         protected string GetEmployeeDepartment() => CurrentEmployee?.Department ?? "N/A";
         protected string GetEmployeeBirthdate() => CurrentEmployee?.BirthDate?.ToLocalTime().ToString("MMM dd, yyyy") ?? "N/A";
-        protected string GetEmployeeAge() => CurrentEmployee?.Age?.ToString() ?? "N/A";
+        protected string GetEmployeeAge() => CurrentEmployee?.CalculatedAge?.ToString() ?? "N/A";
         protected string GetEmployeeSex() => CurrentEmployee?.Gender ?? "N/A";
         protected string GetEmployeeStatus() => CurrentEmployee?.EmploymentStatus ?? "Regular";
         protected string GetEmployeeSalary() => CurrentEmployee != null ? $"₱{CurrentEmployee.BaseSalary:N2}" : "₱0.00";
@@ -146,6 +147,20 @@ namespace ExWebAppSia.webpage
         protected string GetSSSNumber() => FormatGovNumber(CurrentEmployee?.SSSNumber, "SSS");
         protected string GetPhilHealthNumber() => FormatGovNumber(CurrentEmployee?.PhilHealthNumber, "PhilHealth");
         protected string GetPagIbigNumber() => FormatGovNumber(CurrentEmployee?.PagIbigNumber, "Pag-IBIG");
+
+        protected string GetEmployeeEducationLevel() => CurrentEmployee?.EducationLevel ?? "N/A";
+        protected string GetEmployeeSchool() => CurrentEmployee?.School ?? "N/A";
+        protected string GetEmployeeDegree() => CurrentEmployee?.Degree ?? "N/A";
+        protected string GetEmergencyContactName() => CurrentEmployee?.GuardianName ?? "N/A";
+        protected string GetEmergencyContactRelationship() => CurrentEmployee?.GuardianRelationship ?? "N/A";
+        protected string GetEmergencyContactNo() => CurrentEmployee?.GuardianContactNo ?? "N/A";
+        protected string GetEmergencyContactAddress() => CurrentEmployee?.GuardianHomeAddress ?? "N/A";
+        protected string GetEmployeeCivilStatus() => CurrentEmployee?.CivilStatus ?? "Single";
+        protected string GetEmployeeAddress() => CurrentEmployee?.Address ?? "N/A";
+
+        protected string GetPreviousCompany() => CurrentEmployee?.PreviousCompanyName ?? "N/A";
+        protected string GetPreviousPosition() => CurrentEmployee?.PreviousPosition ?? "N/A";
+        protected string GetYearsOfExperience() => CurrentEmployee?.YearsOfExperience.ToString() ?? "0";
 
         private async Task LoadAttendanceStatusAsync()
         {

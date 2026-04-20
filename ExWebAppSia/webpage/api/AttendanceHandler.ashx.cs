@@ -101,9 +101,19 @@ namespace ExWebAppSia.webpage.api
                                 System.Diagnostics.Debug.WriteLine($"EmployeeName: {employeeName}");
                                 System.Diagnostics.Debug.WriteLine($"Department: {department}");
 
-                                // NEW: Restriction - Newly hired employees cannot time in on their hiring date
-                                var employee = Task.Run(() => _employeeService.GetByEmployeeIdAsync(employeeId)).GetAwaiter().GetResult();
-                                if (employee != null && employee.HiredDate.Date == DateTime.UtcNow.Date)
+                                // NEW: 16-minute late restriction
+                                var nowLocal = DateTime.UtcNow.AddHours(8);
+                                // Fetch employee once for all checks
+                                var empInfo = Task.Run(() => _employeeService.GetByEmployeeIdAsync(employeeId)).GetAwaiter().GetResult();
+
+                                if (nowLocal.TimeOfDay >= new TimeSpan(8, 16, 0) && (empInfo == null || (empInfo.Role != "President" && empInfo.Role != "CEO")))
+                                {
+                                    result = false;
+                                    message = "Time in is restricted after 8:16 AM. You are late by 16 minutes or more and cannot time in for today according to company policy. Please contact HR.";
+                                    System.Diagnostics.Debug.WriteLine($"Blocked Late TimeIn for {employeeId}: {nowLocal:HH:mm:ss}");
+                                }
+                                else if (empInfo != null && empInfo.HiredDate.Date == DateTime.UtcNow.Date
+                                    && empInfo.Role != "President" && empInfo.Role != "CEO")
                                 {
                                     result = false;
                                     message = "New employees are restricted from timing in on their first day of hiring. You may begin clocking in starting tomorrow. Welcome to the team!";

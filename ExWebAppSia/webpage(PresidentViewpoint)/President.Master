@@ -1,0 +1,275 @@
+<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="President.Master.cs" Inherits="ExWebAppSia.webpage_PresidentViewpoint_.President" %>
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <title>President Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Bootstrap CSS for modal -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    
+    <!-- Custom CSS -->
+    <link href="<%= ResolveUrl("~/webpage/css/modern-theme.css") %>" rel="stylesheet" type="text/css" />
+    <link href="<%= ResolveUrl("~/webpage/custom-css/mainsidebar.css") %>" rel="stylesheet" type="text/css" />
+
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+
+    <asp:ContentPlaceHolder ID="head" runat="server">
+    </asp:ContentPlaceHolder>
+
+    <style>
+        /* Fix logo background to be white and match HR side */
+        .sidebar-header {
+            padding: 32px 24px;
+            border-bottom: 1px solid #F0EEEE;
+            background: white !important;
+        }
+        
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 20px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 16px rgba(163, 106, 102, 0.12);
+        }
+        
+        .logo-icon {
+            height: 48px;
+            width: auto;
+            filter: drop-shadow(0 2px 8px rgba(163, 106, 102, 0.15));
+        }
+
+        /* President Badge */
+        .president-badge {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            color: #4A3534;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            display: inline-block;
+            margin-top: 8px;
+            box-shadow: 0 2px 4px rgba(255, 165, 0, 0.2);
+        }
+
+        /* Monitoring Section Styles */
+        .monitoring-section {
+            border-top: 1px solid #F0EEEE;
+            margin-top: 16px;
+            padding-top: 16px;
+        }
+
+        .nav-link.monitoring i {
+            color: #A44F56;
+        }
+    </style>
+</head>
+<body class="dashboard-body">
+    <form id="form1" runat="server">
+    <asp:ScriptManager ID="ScriptManager1" runat="server" EnablePageMethods="true" />
+    <div class="dashboard-wrapper">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <img src="<%= ResolveUrl("~/images/shessentials-logo.png") %>" alt="Essentials Logo" class="logo-icon" />
+                </div>
+                <div class="text-center">
+                    <span class="president-badge">Executive View</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <!-- MAIN Section -->
+                <div class="nav-section">
+                    <div class="nav-section-label">MAIN</div>
+                    <ul class="nav-list">
+                        <li class="nav-item">
+                            <a runat="server" href="~/webpage(PresidentViewpoint)/Dashboard.aspx" class="nav-link">
+                                <i class="fas fa-chart-line"></i>
+                                <span class="nav-text">Dashboard</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- MANAGEMENT Section -->
+                <div class="nav-section">
+                    <div class="nav-section-label">MANAGEMENT</div>
+                    <ul class="nav-list">
+                        <li class="nav-item">
+                            <a runat="server" href="~/webpage(PresidentViewpoint)/Account.aspx" class="nav-link">
+                                <i class="fas fa-user"></i>
+                                <span class="nav-text">Account</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- MONITORING Section (President Exclusive) -->
+                <div class="nav-section monitoring-section">
+                    <div class="nav-section-label">MONITORING</div>
+                    <ul class="nav-list">
+                        <li class="nav-item">
+                            <a runat="server" href="~/webpage(PresidentViewpoint)/EmployeeList.aspx" class="nav-link monitoring">
+                                <i class="fas fa-users"></i>
+                                <span class="nav-text">Employee List</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a runat="server" href="~/webpage(PresidentViewpoint)/AttendanceOverview.aspx" class="nav-link monitoring">
+                                <i class="fas fa-calendar-check"></i>
+                                <span class="nav-text">Attendance summary</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a runat="server" href="~/webpage(PresidentViewpoint)/RecruitmentStatus.aspx" class="nav-link monitoring">
+                                <i class="fas fa-user-tie"></i>
+                                <span class="nav-text">Hiring Pipeline</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a runat="server" href="~/webpage(PresidentViewpoint)/Approvals.aspx" class="nav-link monitoring">
+                                <i class="fas fa-check-double"></i>
+                                <span class="nav-text">Approvals</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a runat="server" href="~/webpage(PresidentViewpoint)/OrgChart.aspx" class="nav-link monitoring">
+                                <i class="fas fa-sitemap"></i>
+                                <span class="nav-text">Org Chart</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a runat="server" href="~/webpage(PresidentViewpoint)/Announcement.aspx" class="nav-link monitoring">
+                                <i class="fas fa-broadcast-tower"></i>
+                                <span class="nav-text">Company Announcements</span>
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+
+            </nav>
+        </aside>
+
+            <!-- Main Content Area -->
+            <div class="main-content">
+                 <!-- Top Header -->
+                <header class="top-header">
+                <div class="header-left">
+                    <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle">
+                        <i class="fas fa-bars"></i>
+                    </button>
+                    <!-- Search Bar -->
+                    <div class="search-container">
+                        <div class="search-bar">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" class="search-input" id="globalSearch" placeholder="Search for employees, records..." />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="header-right">
+                    <div class="header-actions">
+                        <!-- User Menu with Dropdown -->
+                        <div class="user-menu">
+                            <button class="user-menu-btn" id="userMenuBtn">
+                                <div class="user-avatar-small">
+                                    <i class="fas fa-user-tie"></i>
+                                </div>
+                                <div class="user-info-text d-none d-md-block ms-2 text-start">
+                                    <div class="user-name" style="font-size: 14px; font-weight: 700; color: #4A3534;">President</div>
+                                    <div class="user-role" style="font-size: 11px; color: #A44F56;">Executive</div>
+                                </div>
+                                <i class="fas fa-chevron-down ms-2"></i>
+                            </button>
+
+                            <div class="dropdown-menu user-dropdown" id="userDropdown">
+                                <button class="dropdown-item" type="button" id="logoutTriggerBtn">
+                                    <i class="fas fa-sign-out-alt"></i>
+                                    Sign Out
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+                <asp:ContentPlaceHolder ID="ContentPlaceHolder1" runat="server">
+                </asp:ContentPlaceHolder>
+        </div>
+
+        <!-- Logout Confirmation Modal -->
+        <div class="modal fade" id="logoutModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered" style="max-width: 400px;">
+                <div class="modal-content" style="border-radius: 20px; border: none; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);">
+                    <div class="modal-header" style="background: #A44F56; height: 60px; border: none; position: relative;">
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" style="position: absolute; right: 20px; top: 20px; z-index: 10;"></button>
+                    </div>
+                    <div class="modal-body" style="padding: 40px 30px; text-align: center;">
+                        <div style="width: 80px; height: 80px; background: #FFF5F5; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: -80px auto 20px; position: relative; border: 4px solid white; box-shadow: 0 10px 20px rgba(164, 79, 86, 0.15);">
+                            <i class="fas fa-sign-out-alt" style="font-size: 32px; color: #A44F56;"></i>
+                        </div>
+                        <h3 style="font-weight: 800; color: #1A202C; margin-bottom: 10px; font-size: 24px;">Sign Out</h3>
+                        <p style="color: #718096; font-size: 16px; margin-bottom: 30px;">Are you sure you want to exit the President Dashboard?</p>
+                        
+                        <div style="display: flex; gap: 15px;">
+                            <button type="button" class="btn" data-bs-dismiss="modal" style="flex: 1; padding: 12px; border-radius: 12px; background: #EDF2F7; color: #4A5568; font-weight: 700; border: none; transition: all 0.2s;">Cancel</button>
+                            <button type="button" class="btn" id="confirmLogoutBtn" style="flex: 1; padding: 12px; border-radius: 12px; background: #A44F56; color: white; font-weight: 700; border: none; box-shadow: 0 4px 12px rgba(164, 79, 86, 0.3); transition: all 0.2s;">
+                                <span class="btn-text">Sign Out</span>
+                                <span class="btn-loading" style="display: none;">
+                                    <i class="fas fa-spinner fa-spin"></i>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </form>
+
+    <!-- Bootstrap JS for modal functionality -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Custom JS for User Dropdown -->
+    <script src="<%= ResolveUrl("~/custom-js/mainsidebar.js") %>"></script>
+
+    <script type="text/javascript">
+        // Ensure logout modal works correctly
+        document.addEventListener('DOMContentLoaded', function() {
+            const logoutTrigger = document.getElementById('logoutTriggerBtn');
+            const confirmLogout = document.getElementById('confirmLogoutBtn');
+            
+            if (logoutTrigger) {
+                logoutTrigger.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const modal = new bootstrap.Modal(document.getElementById('logoutModal'));
+                    modal.show();
+                });
+            }
+
+            if (confirmLogout) {
+                confirmLogout.addEventListener('click', function() {
+                    const btn = this;
+                    btn.querySelector('.btn-text').style.display = 'none';
+                    btn.querySelector('.btn-loading').style.display = 'inline-block';
+                    btn.disabled = true;
+                    
+                    // Simple redirection after a short delay to simulate logging out
+                    setTimeout(() => {
+                        window.location.href = '<%= ResolveUrl("~/LoginFolder/Login.aspx") %>';
+                    }, 500);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

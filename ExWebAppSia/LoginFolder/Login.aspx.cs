@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.UI;
@@ -118,38 +118,113 @@ namespace ExWebAppSia.LoginFolder
                     Session["UserId"] = user.Id;
                     Session["IsLoggedIn"] = true;
 
-                    // Load employee data if role is Employee
-                    if (user.Role == "Employee")
+                    // Load employee data for ALL roles if an EmployeeId or Email link exists
+                    try
                     {
-                        try
+                        Employee employee = null;
+                        if (!string.IsNullOrEmpty(user.EmployeeId))
                         {
-                            // Load employee data by email (username is the email)
-                            var employee = await EmployeeServiceInstance.GetEmployeeByEmailAsync(user.Username);
-                            if (employee != null)
+                            employee = await EmployeeServiceInstance.GetEmployeeByIdAsync(user.EmployeeId);
+                        }
+                        
+                        // Fallback to email if not found by ID
+                        if (employee == null)
+                        {
+                            employee = await EmployeeServiceInstance.GetEmployeeByEmailAsync(user.Username);
+                        }
+
+                        if (employee != null)
+                        {
+                            Session["Employee"] = employee;
+                        }
+
+                        if (employee != null)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Employee data loaded into session: {employee.EmployeeId} - {employee.FullName}");
+                        }
+                        else if (user.Role == "Employee" || user.Role == "President")
+                        {
+                            // Strictly required for these roles
+                            System.Diagnostics.Debug.WriteLine($"Error: Required employee data missing for {user.Role}");
+                            ShowError("Employee record not found. Please contact HR.");
+                            return;
+                        }
+
+                        // Load specialized Manager data if applicable
+                        if (user.Role == "Manager")
+                        {
+                            var managerService = new ManagerService();
+                            Manager manager = null;
+
+                            // 1. Try finding by ManagerId if it exists in the User record
+                            if (!string.IsNullOrEmpty(user.ManagerId))
                             {
-                                Session["Employee"] = employee;
-                                System.Diagnostics.Debug.WriteLine($"Employee data loaded: {employee.EmployeeId} - {employee.FullName}");
+                                manager = await managerService.GetManagerByManagerIdAsync(user.ManagerId);
+                            }
+
+                            // 2. Fallback to Email search (most common)
+                            if (manager == null && !string.IsNullOrEmpty(user.Email))
+                            {
+                                manager = await managerService.GetManagerByEmailAsync(user.Email);
+                            }
+
+                            // 3. Last resort: try searching by Username (if username is an email)
+                            if (manager == null && user.Username.Contains("@"))
+                            {
+                                manager = await managerService.GetManagerByEmailAsync(user.Username);
+                            }
+
+                            if (manager != null)
+                            {
+                                Session["Manager"] = manager;
+                                System.Diagnostics.Debug.WriteLine($"Manager session initialized for: {manager.FullName} (Dept: {manager.Department})");
+                                
+                                // Also ensure they have an Employee session object if they don't yet
+                                if (Session["Employee"] == null)
+                                {
+                                    // Try to load as employee using their email
+                                    var employeeData = await EmployeeServiceInstance.GetEmployeeByEmailAsync(manager.Email);
+                                    if (employeeData != null)
+                                    {
+                                        Session["Employee"] = employeeData;
+                                    }
+                                    else
+                                    {
+                                        // Fallback: Create a temporary Employee object from Manager data
+                                        // so the EmployeeViewpoint pages don't crash and show their info correctly
+                                        Session["Employee"] = new Employee
+                                        {
+                                            EmployeeId = manager.ManagerId,
+                                            FirstName = manager.FirstName,
+                                            LastName = manager.LastName,
+                                            MiddleName = manager.MiddleName,
+                                            Email = manager.Email,
+                                            Department = manager.Department,
+                                            Role = manager.Role,
+                                            ContactNo = manager.ContactNo,
+                                            Address = manager.Address,
+                                            HiredDate = manager.HiredDate,
+                                            ContractType = manager.ContractType,
+                                            IsActive = manager.IsActive
+                                        };
+                                        System.Diagnostics.Debug.WriteLine($"Created temporary Employee session for Manager: {manager.ManagerId}");
+                                    }
+                                }
                             }
                             else
                             {
-                                System.Diagnostics.Debug.WriteLine($"Error: No employee data in session, redirecting to login");
-                                System.Diagnostics.Debug.WriteLine($"Could not find employee with email: {user.Username}");
-                                ShowError("Employee record not found. Please contact HR.");
-                                return;
+                                System.Diagnostics.Debug.WriteLine($"Warning: User has role 'Manager' but no record found in Manager collection for {user.Username}");
                             }
                         }
-                        catch (Exception empEx)
+                    }
+                    catch (Exception empEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error loading employee data: {empEx.Message}");
+                        if (user.Role == "Employee" || user.Role == "President")
                         {
-                            System.Diagnostics.Debug.WriteLine($"Error loading employee data: {empEx.Message}");
                             ShowError("Error loading employee information. Please try again.");
                             return;
                         }
-                    }
-                    // Specific Admin types (HR Admin, Marketing Admin, etc.)
-                    else if (user.Role.Contains("Admin") || user.Role == "HR")
-                    {
-                        // Standard admin session setup
-                        System.Diagnostics.Debug.WriteLine($"Admin-type user: {user.Role}");
                     }
 
                     // Debug: Verify session values
@@ -176,7 +251,12 @@ namespace ExWebAppSia.LoginFolder
                     }
 
                     // Redirect based on role
-                    if (user.Role == "Admin" || user.Role.Contains("Admin") || user.Role == "HR")
+                    if (user.Role == "Super Admin")
+                    {
+                        Response.Redirect("~/webpage(SuperAdminViewpoint)/Dashboard.aspx", false);
+                        Context.ApplicationInstance.CompleteRequest();
+                    }
+                    else if (user.Role == "Admin" || user.Role.Contains("Admin") || user.Role == "HR")
                     {
                         Response.Redirect("~/webpage/Dashboard.aspx", false);
                         Context.ApplicationInstance.CompleteRequest();
@@ -190,6 +270,32 @@ namespace ExWebAppSia.LoginFolder
                         }
                         else
                         {
+                            Response.Redirect("~/webpage(EmployeeViewpoint)/Dashboard.aspx", false);
+                        }
+                        Context.ApplicationInstance.CompleteRequest();
+                    }
+                    else if (user.Role == "President")
+                    {
+                        Response.Redirect("~/webpage(PresidentViewpoint)/Dashboard.aspx", false);
+                        Context.ApplicationInstance.CompleteRequest();
+                    }
+                    else if (user.Role == "Manager")
+                    {
+                        var manager = Session["Manager"] as Manager;
+                        var employee = Session["Employee"] as Employee;
+                        
+                        // Check if they belong to Human Resources (e.g., Payroll Manager)
+                        bool isHRManager = (manager != null && manager.Department == "Human Resources") || 
+                                           (employee != null && employee.Department == "Human Resources");
+                                           
+                        if (isHRManager)
+                        {
+                            // HR Managers (including Payroll Manager) get the HR Staff / Admin interface
+                            Response.Redirect("~/webpage/Dashboard.aspx", false);
+                        }
+                        else
+                        {
+                            // Other Managers use the same interface as employees
                             Response.Redirect("~/webpage(EmployeeViewpoint)/Dashboard.aspx", false);
                         }
                         Context.ApplicationInstance.CompleteRequest();
@@ -231,10 +337,11 @@ namespace ExWebAppSia.LoginFolder
         private bool TryHandleDefaultLogin(string username, string password)
         {
             var testAccounts = new[]
-        {
-          new { Username = "admin2",   Password = "admin234",  Role = "Admin",    Redirect = "~/webpage/Dashboard.aspx" },
-          new { Username = "employee",   Password = "emp123",  Role = "Employee",    Redirect = "~/webpage(EmployeeViewpoint)/Dashboard.aspx" }
-};
+            {
+                new { Username = "admin2",   Password = "admin234",  Role = "Admin",    Redirect = "~/webpage/Dashboard.aspx" },
+                new { Username = "employee",   Password = "emp123",  Role = "Employee",    Redirect = "~/webpage(EmployeeViewpoint)/Dashboard.aspx" },
+                new { Username = "superadmin",   Password = "superadmin123",  Role = "Super Admin",    Redirect = "~/webpage(SuperAdminViewpoint)/Dashboard.aspx" }
+            };
 
             foreach (var acct in testAccounts)
           {

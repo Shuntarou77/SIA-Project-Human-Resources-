@@ -171,7 +171,7 @@ namespace ExWebAppSia.Models
             }
         }
 
-        // Get manager by ID
+        // Get manager by ID (MongoDB _id)
         public async Task<Manager> GetManagerByIdAsync(string id)
         {
             try
@@ -181,6 +181,21 @@ namespace ExWebAppSia.Models
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error getting manager by ID: {ex.Message}");
+                return null;
+            }
+        }
+
+        // Get manager by ManagerId (e.g., MN-2211)
+        public async Task<Manager> GetManagerByManagerIdAsync(string managerId)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(managerId)) return null;
+                return await _managers.Find(m => m.IsActive && m.ManagerId == managerId).FirstOrDefaultAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting manager by manager ID: {ex.Message}");
                 return null;
             }
         }

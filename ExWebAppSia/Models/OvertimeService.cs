@@ -50,6 +50,19 @@ namespace ExWebAppSia.Models
             }
         }
 
+        public async Task<bool> SubmitRequestAsync(OvertimeRequest request)
+        {
+            try
+            {
+                await _overtime.InsertOneAsync(request);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
         // Admin approves an overtime request and sets the day type/rate
         public async Task<bool> ApproveAsync(string overtimeRequestId, string overtimeType = "Regular", decimal? customHourlyRate = null)
         {
@@ -221,6 +234,25 @@ namespace ExWebAppSia.Models
                 default:
                     return 1.25m;
             }
+        }
+
+        public async Task<List<OvertimeRequest>> GetAllAsync()
+        {
+            try
+            {
+                return await _overtime.Find(o => o.IsActive).ToListAsync();
+            }
+            catch { return new List<OvertimeRequest>(); }
+        }
+
+        public async Task<List<OvertimeRequest>> GetByDateAsync(DateTime date)
+        {
+            try
+            {
+                var target = date.Date;
+                return await _overtime.Find(o => o.Date == target && o.IsActive).ToListAsync();
+            }
+            catch { return new List<OvertimeRequest>(); }
         }
 
         private bool IsNightShiftTime(DateTime time)

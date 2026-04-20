@@ -1,0 +1,1 @@
+<%@ WebHandler Language="C#" CodeBehind="Announcements.ashx.cs" Class="ExWebAppSia.webpage_SuperAdminViewpoint_.api.Announcements" %>

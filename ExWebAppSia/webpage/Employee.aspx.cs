@@ -20,6 +20,8 @@ namespace ExWebAppSia.webpage
         private readonly EmployeeConcernService _concernService = new EmployeeConcernService();
         private readonly ManagerService _managerService = new ManagerService();
         private const int MaxConcernsToDisplay = 10;
+        private const int TOTAL_ALLOWED_ABSENCES_PER_YEAR = 15;
+        private const int TOTAL_WORKING_DAYS_PER_YEAR = 260;
 
         protected string CurrentAdminId
         {
@@ -58,14 +60,30 @@ namespace ExWebAppSia.webpage
                 var managersTask = _managerService.GetAllManagersAsync();
 
                 // Wait for all data tasks to complete
-                await Task.WhenAll(employeesTask, resignedTask, concernsTask, managersTask).ConfigureAwait(false);
+                await Task.WhenAll(employeesTask, resignedTask, concernsTask, managersTask);
 
                 var activeEmployees = employeesTask.Result ?? new List<Employee>();
                 var resignedEmployees = resignedTask.Result ?? new List<Employee>();
                 // Ensure resigned employees are marked inactive for the filter
                 resignedEmployees.ForEach(e => { e.IsActive = false; });
                 // Merge: active first, then resigned
-                var employees = activeEmployees.Concat(resignedEmployees).ToList();
+                var allEmployees = activeEmployees.Concat(resignedEmployees).ToList();
+
+                // --- NEW: Leave Detection Logic ---
+                var leaveCol = MongoDBHelper.GetLeavesCollection();
+                var todayDate = DateTime.UtcNow.AddHours(8).Date;
+                var filter = Builders<Leave>.Filter.And(
+                    Builders<Leave>.Filter.Eq(l => l.Status, "Approved"),
+                    Builders<Leave>.Filter.Lte(l => l.StartDate, todayDate),
+                    Builders<Leave>.Filter.Gte(l => l.EndDate, todayDate)
+                );
+                var leavesToday = await leaveCol.Find(filter).ToListAsync();
+                var onLeaveIds = new HashSet<string>(activeEmployees.Where(e => e.AvailabilityStatus == "On Leave").Select(e => e.EmployeeId));
+                foreach (var l in leavesToday) if (l.EmployeeId != null) onLeaveIds.Add(l.EmployeeId);
+                
+                // Filter out Executive department from management list and counts as requested
+                var employees = allEmployees.Where(e => e.Department != "Executive").ToList();
+
                 var concerns = concernsTask.Result ?? new List<EmployeeConcern>();
                 var managers = managersTask.Result ?? new List<Manager>();
 
@@ -76,14 +94,14 @@ namespace ExWebAppSia.webpage
                     .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
 
                 UpdateDepartmentCounts(departmentCounts);
-                PopulateEmployeeTable(employees);
+                PopulateEmployeeTable(employees, onLeaveIds);
                 PopulateEmployeeConcerns(concerns, employees);
 
                 // Speed optimization: Store ALL concerns in a hidden field for instant client-side history lookup
                 hdnConcernsJson.Value = JsonConvert.SerializeObject(concerns);
 
                 // Ensure maintenance tasks finish
-                await scrubTask.ConfigureAwait(false);
+                await scrubTask;
             }
             catch (Exception ex)
             {
@@ -94,16 +112,12 @@ namespace ExWebAppSia.webpage
         private void UpdateDepartmentCounts(Dictionary<string, int> counts)
         {
             // Update the literal controls for each department
-            if (litRDCount != null) litRDCount.Text = GetCount(counts, "Research & Development").ToString();
-            if (litQCCount != null) litQCCount.Text = GetCount(counts, "Quality Control").ToString();
+            if (litRDCount != null) litRDCount.Text = GetCount(counts, "R&D").ToString();
             if (litHRCount != null) litHRCount.Text = GetCount(counts, "Human Resources").ToString();
-            if (litFinanceCount != null) litFinanceCount.Text = GetCount(counts, "Finance").ToString();
+            if (litFinanceCount != null) litFinanceCount.Text = GetCount(counts, "Finance/Accounting").ToString();
             if (litMarketingCount != null) litMarketingCount.Text = GetCount(counts, "Marketing").ToString();
-            if (litITCount != null) litITCount.Text = GetCount(counts, "IT Support").ToString();
             if (litOperationsCount != null) litOperationsCount.Text = GetCount(counts, "Operations").ToString();
-            if (litSalesCount != null) litSalesCount.Text = GetCount(counts, "Sales").ToString();
             if (litInventoryCount != null) litInventoryCount.Text = GetCount(counts, "Inventory").ToString();
-            if (litCustomerServiceCount != null) litCustomerServiceCount.Text = GetCount(counts, "Customer Service").ToString();
         }
 
         private int GetCount(Dictionary<string, int> counts, string key)
@@ -151,7 +165,7 @@ namespace ExWebAppSia.webpage
         }
         */
 
-        private void PopulateEmployeeTable(List<Employee> employees)
+        private void PopulateEmployeeTable(List<Employee> employees, HashSet<string> onLeaveIds)
         {
             if (employeeTableBody == null) return;
 
@@ -186,13 +200,20 @@ namespace ExWebAppSia.webpage
                 
                 string salary = employee.BaseSalary.ToString("N2");
                 
+                onLeaveIds = onLeaveIds ?? new HashSet<string>();
+                bool isOnLeave = employee.IsActive && (employee.AvailabilityStatus == "On Leave" || onLeaveIds.Contains(employee.EmployeeId));
+                
+                string sText = employee.IsActive ? "Active" : "Resigned";
+                if (employee.ResignationStatus == "Pending") sText = "Pending Resignation";
+                if (isOnLeave) sText = "On Leave";
+
                 sb.AppendFormat("<tr class='employee-row' onclick=\"viewEmployeeDetails(this)\" style='cursor: pointer;' " +
                                 "data-id='{0}' data-emp-id='{1}' data-fname='{2}' data-mname='{3}' data-lname='{4}' " +
                                 "data-email='{5}' data-contact='{6}' data-address='{7}' data-dept='{8}' data-role='{9}' " +
                                 "data-hired='{10}' data-active='{11}' data-sss='{12}' data-ph='{13}' data-pi='{14}' data-salary='{15}' data-contract='{16}' " +
                                 "data-sss-num='{17}' data-ph-num='{18}' data-pi-num='{19}' data-resignation-status='{20}'>",
                     id, empId, fname, mname, lname, email, contact, address, dept, role, 
-                    hired, active, 
+                    hired, sText, 
                     employee.HasSSS.ToString().ToLower(), 
                     employee.HasPhilHealth.ToString().ToLower(), 
                     employee.HasPagIbig.ToString().ToLower(),
@@ -208,11 +229,9 @@ namespace ExWebAppSia.webpage
                 sb.AppendFormat("<td>{0}</td>", Server.HtmlEncode(employee.Department ?? ""));
                 sb.AppendFormat("<td>{0}</td>", Server.HtmlEncode(employee.Role ?? ""));
                 
-                string sText = employee.IsActive ? "Active" : "Resigned";
-                if (employee.ResignationStatus == "Pending") sText = "Pending Resignation";
-                
                 string sClass = sText == "Active" ? "status-active-emp" : 
-                               sText == "Pending Resignation" ? "status-pending-res" : "status-inactive";
+                               sText == "Pending Resignation" ? "status-pending-res" : 
+                               sText == "On Leave" ? "status-on-leave" : "status-inactive";
                 
                 sb.AppendFormat("<td><span class='{0}'>{1}</span></td>", sClass, sText);
                 sb.Append("</tr>");
@@ -316,6 +335,7 @@ namespace ExWebAppSia.webpage
             try
             {
                 var employeeService = new EmployeeService();
+                var attendanceService = new AttendanceService();
                 var employee = employeeService.GetEmployeeByIdAsync(id).ConfigureAwait(false).GetAwaiter().GetResult();
 
                 if (employee == null) return "Employee not found.";
@@ -331,6 +351,7 @@ namespace ExWebAppSia.webpage
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>First Name:</td><td style='padding: 8px;'>{0}</td></tr>", HttpUtility.HtmlEncode(employee.FirstName ?? ""));
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Middle Name:</td><td style='padding: 8px;'>{0}</td></tr>", HttpUtility.HtmlEncode(employee.MiddleName ?? ""));
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Last Name:</td><td style='padding: 8px;'>{0}</td></tr>", HttpUtility.HtmlEncode(employee.LastName ?? ""));
+                sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Age:</td><td style='padding: 8px;'>{0}</td></tr>", employee.CalculatedAge?.ToString() ?? "N/A");
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Email Address:</td><td style='padding: 8px;'>{0}</td></tr>", HttpUtility.HtmlEncode(employee.Email ?? ""));
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Contact No.:</td><td style='padding: 8px;'>{0}</td></tr>", HttpUtility.HtmlEncode(employee.ContactNo ?? ""));
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Address:</td><td style='padding: 8px;'>{0}</td></tr>", HttpUtility.HtmlEncode(employee.Address ?? ""));
@@ -342,7 +363,25 @@ namespace ExWebAppSia.webpage
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold; width: 40%;'>Department:</td><td style='padding: 8px;'>{0}</td></tr>", HttpUtility.HtmlEncode(employee.Department ?? ""));
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Role:</td><td style='padding: 8px;'>{0}</td></tr>", HttpUtility.HtmlEncode(employee.Role ?? ""));
                 sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Hired Date:</td><td style='padding: 8px;'>{0}</td></tr>", employee.HiredDate.ToLocalTime().ToString("MMM dd, yyyy"));
-                sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Status:</td><td style='padding: 8px;'>{0}</td></tr>", employee.IsActive ? "Active" : "Inactive");
+                
+                // Status with Leave detection
+                var leaveCol = MongoDBHelper.GetLeavesCollection();
+                var todayDate = DateTime.UtcNow.AddHours(8).Date;
+                var onLeaveFilter = Builders<Leave>.Filter.And(
+                    Builders<Leave>.Filter.Eq(l => l.EmployeeId, employee.EmployeeId),
+                    Builders<Leave>.Filter.Eq(l => l.Status, "Approved"),
+                    Builders<Leave>.Filter.Lte(l => l.StartDate, todayDate),
+                    Builders<Leave>.Filter.Gte(l => l.EndDate, todayDate)
+                );
+                bool hasActiveLeave = leaveCol.Find(onLeaveFilter).Any();
+                bool isManuallyOnLeave = employee.AvailabilityStatus == "On Leave";
+                bool isOnLeave = employee.IsActive && (isManuallyOnLeave || hasActiveLeave);
+                
+                string statusText = employee.IsActive ? "Active" : "Inactive";
+                if (isOnLeave) statusText = "On Leave";
+                string statusColor = isOnLeave ? "#f59e0b" : (employee.IsActive ? "#22c55e" : "#94a3b8");
+
+                sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Status:</td><td style='padding: 8px;'><span style='color: {0}; font-weight: bold;'>{1}</span></td></tr>", statusColor, statusText);
                 
                 // Gov Contributions
                 string checkIcon = "<i class='fas fa-check-circle' style='color: #22c55e; margin-right: 4px;'></i>";
@@ -353,6 +392,53 @@ namespace ExWebAppSia.webpage
                 sb.AppendFormat("<span style='margin-right: 15px;'>{0} PhilHealth</span>", employee.HasPhilHealth ? checkIcon : xIcon);
                 sb.AppendFormat("<span>{0} Pag-IBIG</span>", employee.HasPagIbig ? checkIcon : xIcon);
                 sb.Append("</td></tr>");
+
+                // Absence Allowance (Remaining Days)
+                var attendanceRecords = attendanceService.GetEmployeeAttendanceAsync(employee.EmployeeId).GetAwaiter().GetResult();
+                var leaveService = new LeaveService();
+                var employeeLeaves = leaveService.GetLeavesByEmployeeIdAsync(employee.EmployeeId).GetAwaiter().GetResult();
+                var approvedLeaves = employeeLeaves?.Where(l => l.Status == "Approved").ToList() ?? new List<Leave>();
+
+                var now = DateTime.Now;
+                var currentYear = now.Year;
+                var today = now.Date;
+                var hiredDate = employee.HiredDate.ToLocalTime().Date;
+                var yearStart = new DateTime(currentYear, 1, 1);
+                var yearlyStatsStart = hiredDate > yearStart ? hiredDate : yearStart;
+
+                var yearlyRecords = attendanceRecords?
+                    .Where(a => a.TimeIn.HasValue)
+                    .Select(a => a.TimeIn.Value.ToLocalTime())
+                    .Where(t => t.Year == currentYear)
+                    .ToList() ?? new List<DateTime>();
+
+                var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count();
+
+                int pastYearWeekdays = 0;
+                if (yearlyStatsStart <= today)
+                {
+                    pastYearWeekdays = Enumerable.Range(0, (today - yearlyStatsStart).Days + 1)
+                        .Select(i => yearlyStatsStart.AddDays(i))
+                        .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
+                }
+
+                int yearlyLeaveDays = 0;
+                foreach (var leave in approvedLeaves)
+                {
+                    for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
+                    {
+                        if (d.Year == currentYear && d >= yearlyStatsStart && d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                        {
+                            yearlyLeaveDays++;
+                        }
+                    }
+                }
+                
+                var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent - yearlyLeaveDays);
+                var remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
+
+                sb.AppendFormat("<tr><td style='padding: 8px; font-weight: bold;'>Absence Allowance:</td><td style='padding: 8px;'><span style='color: #8B4755; font-weight: bold;'>{0} Days Remaining</span> <span style='color: #64748b; font-size: 11px;'>(Out of {1} allowed/year)</span></td></tr>", 
+                    remainingAbsences, TOTAL_ALLOWED_ABSENCES_PER_YEAR);
                 
                 sb.Append("</table>");
                 sb.Append("</div>");
@@ -395,6 +481,19 @@ namespace ExWebAppSia.webpage
                     sb.Append("<h3 class='action-title'>Deploy to Department</h3>");
                     sb.Append("<p class='action-description'>Transfer this employee to a different department or team.</p>");
                     sb.Append("<button class='action-button' style='background: #3b82f6;'>Redeploy</button>");
+                    sb.Append("</div>");
+
+                    // Card: Toggle Leave Status
+                    string leaveAction = isManuallyOnLeave ? "End Leave" : "Mark On Leave";
+                    string leaveDesc = isManuallyOnLeave ? "Mark this employee as returned and available for work." : "Manually set this employee's status to On Leave for temporary vacancy.";
+                    string leaveIcon = isManuallyOnLeave ? "☀️" : "🌙";
+                    string leaveBtnColor = isManuallyOnLeave ? "#10b981" : "#f59e0b";
+
+                    sb.AppendFormat("<div class='action-card' onclick='toggleLeaveStatus(\"{0}\")'>", HttpUtility.HtmlEncode(employee.Id));
+                    sb.AppendFormat("<div class='action-icon'>{0}</div>", leaveIcon);
+                    sb.AppendFormat("<h3 class='action-title'>{0}</h3>", leaveAction);
+                    sb.AppendFormat("<p class='action-description'>{0}</p>", leaveDesc);
+                    sb.AppendFormat("<button class='action-button' style='background: {0};'>{1}</button>", leaveBtnColor, leaveAction);
                     sb.Append("</div>");
                 }
                 else
@@ -587,6 +686,31 @@ namespace ExWebAppSia.webpage
 
                 string msg = (ex.Message ?? "Unknown error").Replace("\"", "'");
                 return "{\"success\":false,\"message\":\"" + msg + "\"}";
+            }
+        }
+
+        [System.Web.Services.WebMethod]
+        public static string ToggleEmployeeLeaveStatus(string id)
+        {
+            try
+            {
+                var employeeService = new EmployeeService();
+                var employee = Task.Run(() => employeeService.GetEmployeeByIdAsync(id)).GetAwaiter().GetResult();
+                if (employee == null) return "{\"success\":false,\"message\":\"Employee not found.\"}";
+
+                string newStatus = employee.AvailabilityStatus == "On Leave" ? "Available" : "On Leave";
+                var update = Builders<Employee>.Filter.Eq(e => e.Id, id);
+                var updateDef = Builders<Employee>.Update.Set(e => e.AvailabilityStatus, newStatus);
+                
+                var collection = MongoDBHelper.GetEmployeesCollection();
+                collection.UpdateOne(update, updateDef);
+                
+                LogActivity("Updated Status", $"Changed {employee.FullName} status to {newStatus}");
+                return "{\"success\":true,\"message\":\"Employee marked as " + newStatus + ".\"}";
+            }
+            catch (Exception ex)
+            {
+                return "{\"success\":false,\"message\":\"" + ex.Message.Replace("\"", "'") + "\"}";
             }
         }
 

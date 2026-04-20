@@ -57,5 +57,11 @@ namespace ExWebAppSia.Models
 
         [BsonElement("isActive")]
         public bool IsActive { get; set; } = true;
+
+        [BsonElement("requestedHours")]
+        public decimal RequestedHours { get; set; } // Number of OT hours requested by the employee
+
+        [BsonElement("baseSalary")]
+        public decimal BaseSalary { get; set; } // Employee's base salary at the time of the request
     }
 }

@@ -148,7 +148,7 @@
                 <!-- Top Header -->
                 <header class="top-header">
                     <div class="header-left">
-                        <button class="mobile-menu-toggle" id="mobileMenuToggle">
+                        <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle">
                             <i class="fas fa-bars"></i>
                         </button>
                         <!-- Search Bar -->
@@ -180,7 +180,7 @@
 
                                 <div class="dropdown-menu user-dropdown" id="userDropdown">
                                     <!-- Updated logout button to trigger modal -->
-                                    <button class="dropdown-item" id="logoutTriggerBtn">
+                                    <button type="button" class="dropdown-item" id="logoutTriggerBtn">
                                         <i class="fas fa-sign-out-alt"></i>
                                         Sign Out
                                     </button>

@@ -48,6 +48,20 @@ namespace ExWebAppSia.Models
             catch { return false; }
         }
 
+        public async Task<bool> SubmitResignationRequestAsync(string employeeId, string reason, DateTime proposedDate)
+        {
+            try
+            {
+                var update = Builders<Employee>.Update
+                    .Set(e => e.ResignationStatus, "Pending")
+                    .Set(e => e.ResignationReason, reason)
+                    .Set(e => e.ResignationDate, proposedDate);
+                var result = await _employees.UpdateOneAsync(e => e.EmployeeId == employeeId, update);
+                return result.ModifiedCount > 0;
+            }
+            catch { return false; }
+        }
+
         private void GenerateGovNumbers(Employee emp)
         {
             Random rand = new Random();
@@ -86,10 +100,7 @@ namespace ExWebAppSia.Models
         {
             if (_employees == null) return 0;
 
-            // Target date: 6 months ago from now
             var thresholdDate = DateTime.UtcNow.AddMonths(-6);
-            
-            // Find employees who are currently "Probationary" but hired 6+ months ago
             var filter = Builders<Employee>.Filter.And(
                 Builders<Employee>.Filter.Eq(e => e.IsActive, true),
                 Builders<Employee>.Filter.Eq(e => e.ContractType, "Probationary"),
@@ -97,27 +108,21 @@ namespace ExWebAppSia.Models
             );
 
             var eligibleEmployees = await _employees.Find(filter).ToListAsync();
-            int updatedCount = 0;
+            if (!eligibleEmployees.Any()) return 0;
 
+            var models = new List<WriteModel<Employee>>();
             foreach (var emp in eligibleEmployees)
             {
                 var update = Builders<Employee>.Update.Set(e => e.ContractType, "Regular");
-                
-                // If the role exists in our standardized salary table, update the base salary
                 if (!string.IsNullOrEmpty(emp.Role) && _regularSalaries.ContainsKey(emp.Role))
                 {
                     update = update.Set(e => e.BaseSalary, _regularSalaries[emp.Role]);
                 }
-
-                var result = await _employees.UpdateOneAsync(e => e.Id == emp.Id, update);
-                if (result.ModifiedCount > 0)
-                {
-                    updatedCount++;
-                    System.Diagnostics.Debug.WriteLine($"[Automation] Regularized {emp.FullName}: Role={emp.Role}, Hired={emp.HiredDate:MMM dd, yyyy}");
-                }
+                models.Add(new UpdateOneModel<Employee>(Builders<Employee>.Filter.Eq(e => e.Id, emp.Id), update));
             }
 
-            return updatedCount;
+            var result = await _employees.BulkWriteAsync(models);
+            return (int)result.ModifiedCount;
         }
 
         /// <summary>
@@ -179,32 +184,31 @@ namespace ExWebAppSia.Models
             var employeesToFix = await _employees.Find(filter).ToListAsync();
             if (!employeesToFix.Any()) return 0;
 
-            int updatedCount = 0;
             var femaleNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { 
                 "Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica", "Sarah", 
                 "Karen", "Nancy", "Lisa", "Betty", "Margaret", "Sandra", "Ashley", "Kimberly", "Emily", 
                 "Donna", "Michelle", "Dorothy", "Carol", "Amanda", "Melissa", "Deborah", "Princess", "Maria", "Maria Raye" 
             };
 
-            foreach (var emp in employeesToFix)
+            var models = new List<WriteModel<Employee>>();
+            for (int i = 0; i < employeesToFix.Count; i++)
             {
-                // Try to guess by first name (very primitive but effective for seed data)
+                var emp = employeesToFix[i];
                 string gender = "Male";
                 var firstName = emp.FirstName?.Split(' ')[0] ?? "";
-                if (femaleNames.Contains(firstName))
-                {
-                    gender = "Female";
-                }
-                else if (updatedCount % 2 != 0) // Alternating fallback for others to keep ratio balanced
+                if (femaleNames.Contains(firstName) || i % 2 != 0) 
                 {
                     gender = "Female";
                 }
 
-                var update = Builders<Employee>.Update.Set(e => e.Gender, gender);
-                var result = await _employees.UpdateOneAsync(e => e.Id == emp.Id, update);
-                if (result.ModifiedCount > 0) updatedCount++;
+                models.Add(new UpdateOneModel<Employee>(
+                    Builders<Employee>.Filter.Eq(e => e.Id, emp.Id), 
+                    Builders<Employee>.Update.Set(e => e.Gender, gender)
+                ));
             }
-            return updatedCount;
+
+            var result = await _employees.BulkWriteAsync(models);
+            return (int)result.ModifiedCount;
         }
 
         /// <summary>
@@ -227,8 +231,9 @@ namespace ExWebAppSia.Models
             );
 
             var employeesToFix = await _employees.Find(filter).ToListAsync();
-            int updatedCount = 0;
+            if (!employeesToFix.Any()) return 0;
 
+            var models = new List<WriteModel<Employee>>();
             foreach (var emp in employeesToFix)
             {
                 GenerateGovNumbers(emp);
@@ -240,13 +245,11 @@ namespace ExWebAppSia.Models
                     .Set(e => e.HasPhilHealth, true)
                     .Set(e => e.HasPagIbig, true);
 
-                var result = await _employees.UpdateOneAsync(e => e.Id == emp.Id, update);
-                if (result.ModifiedCount > 0)
-                {
-                    updatedCount++;
-                }
+                models.Add(new UpdateOneModel<Employee>(Builders<Employee>.Filter.Eq(e => e.Id, emp.Id), update));
             }
-            return updatedCount;
+
+            var result = await _employees.BulkWriteAsync(models);
+            return (int)result.ModifiedCount;
         }
 
         /// <summary>
@@ -1188,6 +1191,117 @@ namespace ExWebAppSia.Models
         {
             try { return await _users.Find(u => u.EmployeeId == employeeId && u.Role == "Employee").FirstOrDefaultAsync(); }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Error getting user by employee ID: {ex.Message}"); return null; }
+        }
+        // Get organizational chart data
+        public async Task<object> GetOrgChartDataAsync()
+        {
+            try
+            {
+                var allEmployees = await GetAllEmployeesAsync();
+                var president = allEmployees.FirstOrDefault(e => e.Role == "President" || e.Department == "Executive");
+                var superAdmin = allEmployees.FirstOrDefault(e => e.EmployeeId == "SHE-001");
+
+                if (president == null && superAdmin != null) president = superAdmin; // Fallback
+
+                // Build Hierarchy
+                var root = new OrgNode { 
+                    id = president?.EmployeeId ?? "ROOT", 
+                    name = president?.FullName ?? "The President", 
+                    title = president?.Role ?? "President",
+                    className = "president-node"
+                };
+
+                var superAdminNode = new OrgNode { 
+                    id = superAdmin?.EmployeeId ?? "SA-001", 
+                    name = superAdmin?.FullName ?? "Super Admin", 
+                    title = "Super Admin / HR Manager",
+                    className = "superadmin-node"
+                };
+
+                if (president != null && president.EmployeeId != superAdmin?.EmployeeId)
+                {
+                    root.children.Add(superAdminNode);
+                }
+                else
+                {
+                    // If president is superadmin or president missing, use superadmin as root
+                    root = superAdminNode;
+                }
+
+                var coreDepartments = new[] { "Human Resources", "Finance/Accounting", "Inventory", "Marketing", "Operations", "R&D" };
+
+                // Get normal employees excluding President and SuperAdmin
+                var normalEmployees = allEmployees
+                    .Where(e => e.EmployeeId != superAdmin?.EmployeeId && e.EmployeeId != president?.EmployeeId && e.Department != "Executive")
+                    .ToList();
+
+                // Build exactly 6 macro-department nodes
+                foreach (var macroDept in coreDepartments)
+                {
+                    // Map employees to this macro department
+                    var deptEmps = normalEmployees.Where(e => 
+                    {
+                        var role = (e.Role ?? "").ToLower();
+                        var dept = (e.Department ?? "").ToLower();
+                        var combined = role + " " + dept;
+
+                        string mapped = "Operations"; // default
+                        
+                        if (combined.Contains("payroll") || combined.Contains("hr ") || combined.StartsWith("hr") || combined.Contains("human resource") || combined.Contains("recruitment") || combined.Contains("training")) 
+                            mapped = "Human Resources";
+                        else if (combined.Contains("qc ") || combined.StartsWith("qc") || combined.Contains("quality") || combined.Contains("it ") || combined.StartsWith("it") || combined.Contains("network") || combined.Contains("system admin") || combined.Contains("operation") || combined.Contains("production")) 
+                            mapped = "Operations";
+                        else if (combined.Contains("sales") || combined.Contains("business dev") || combined.Contains("account exec") || combined.Contains("customer") || combined.Contains("call center") || combined.Contains("marketing") || combined.Contains("brand") || combined.Contains("content")) 
+                            mapped = "Marketing";
+                        else if (combined.Contains("finance") || combined.Contains("accountant") || combined.Contains("accounting")) 
+                            mapped = "Finance/Accounting";
+                        else if (combined.Contains("inventory") || combined.Contains("warehouse") || combined.Contains("storekeeper") || combined.Contains("logistic") || combined.Contains("supply")) 
+                            mapped = "Inventory";
+                        else if (combined.Contains("r&d") || combined.Contains("research") || combined.Contains("lab") || combined.Contains("product dev") || combined.Contains("scientist")) 
+                            mapped = "R&D";
+
+                        return mapped == macroDept;
+                    }).ToList();
+
+                    // Create the exactly 6 department nodes for the 3rd row
+                    var deptNode = new OrgNode { 
+                        id = "dept-" + macroDept.Replace(" ", "").Replace("/", ""), 
+                        name = macroDept, 
+                        title = "Department", 
+                        className = "manager-node" 
+                    };
+
+                    // Add all employees in this department under this deptNode
+                    foreach (var emp in deptEmps)
+                    {
+                        bool isManager = emp.Role.ToLower().Contains("manager") || emp.Role.ToLower().Contains("supervisor") || emp.Role.ToLower().Contains("lead");
+                        deptNode.children.Add(new OrgNode {
+                            id = emp.EmployeeId,
+                            name = emp.FullName,
+                            title = emp.Role,
+                            className = isManager ? "manager-node" : "employee-node"
+                        });
+                    }
+                    
+                    superAdminNode.children.Add(deptNode);
+                }
+
+                return root;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error building org chart: {ex.Message}");
+                return null;
+            }
+        }
+
+        public class OrgNode
+        {
+            public string id { get; set; }
+            public string name { get; set; }
+            public string title { get; set; }
+            public string className { get; set; }
+            public List<OrgNode> children { get; set; } = new List<OrgNode>();
         }
     }
 }

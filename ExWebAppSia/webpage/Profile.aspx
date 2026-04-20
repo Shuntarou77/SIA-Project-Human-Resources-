@@ -1,5 +1,5 @@
 <%@ Page Title="HR Profile" Language="C#" MasterPageFile="~/webpage/HR.Master" AutoEventWireup="true" Async="true"
-    CodeFile="Profile.aspx.cs" Inherits="ExWebAppSia.webpage.HRProfile" %>
+    CodeBehind="Profile.aspx.cs" Inherits="ExWebAppSia.webpage.HRProfile" %>
     <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
         <style>
             @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
@@ -595,6 +595,12 @@
                             </span>
                         </div>
                         <div class="info-row">
+                            <span class="info-label">💼 Role</span>
+                            <span class="info-value">
+                                <%: GetEmployeeRole() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
                             <span class="info-label">🎂 Birthday</span>
                             <span class="info-value">
                                 <%: GetEmployeeBirthdate() %>
@@ -613,6 +619,19 @@
                             </span>
                         </div>
                         <div class="info-row">
+                            <span class="info-label">💍 Civil Status</span>
+                            <span class="info-value">
+                                <%: GetEmployeeCivilStatus() %>
+                            </span>
+                        </div>
+                        <div class="info-row">
+                            <span class="info-label">🏠 Home Address</span>
+                            <span class="info-value">
+                                <%: GetEmployeeAddress() %>
+                            </span>
+                        </div>
+
+                        <div class="info-row" style="margin-top: 20px;">
                             <span class="info-label">🗓️ Hired Date</span>
                             <span class="info-value">
                                 <%= GetHiredDate() %>
@@ -698,7 +717,7 @@
                                     <div class="stat-value" style="color: var(--warning-color);">
                                         <%= GetRemainingAbsences() %>
                                     </div>
-                                    <div class="stat-label">Remaining Absents</div>
+                                    <div class="stat-label">Absence Allowance</div>
                                 </div>
                                 <div class="stat-box">
                                     <div class="stat-value" style="color: var(--success-color);">
@@ -768,13 +787,6 @@
                                 Concern</button>
                         </div>
 
-                        <div class="action-card" onclick="openUndertimeRequestModal()">
-                            <div class="action-icon">🕒</div>
-                            <h3 class="action-title">Request Undertime</h3>
-                            <p class="action-description">Request to leave early for personal or medical reasons.</p>
-                            <button id="btnUndertimeCard" type="button" class="action-button"
-                                onclick="openUndertimeRequestModal()">Submit Request</button>
-                        </div>
 
                         <div class="action-card" onclick="openResignationRequestModal()">
                             <div class="action-icon">👋</div>

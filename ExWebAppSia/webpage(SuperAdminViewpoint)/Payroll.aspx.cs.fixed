@@ -1,0 +1,154 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.UI;
+using System.Web.UI.WebControls;
+using System.Web.Services;
+using System.Threading.Tasks;
+using ExWebAppSia.Models;
+using System.Web.Script.Serialization;
+
+namespace ExWebAppSia.webpage_SuperAdminViewpoint_
+{
+    public partial class WebForm6 : System.Web.UI.Page
+    {
+        // Service instances
+     private static PayrollConfigurationService _configService = new PayrollConfigurationService();
+        private static PayrollProcessingService _processingService = new PayrollProcessingService();
+        private static PayRunService _payRunService = new PayRunService();
+     private static PayslipService _payslipService = new PayslipService();
+        private static FinanceIntegrationService _financeService = new FinanceIntegrationService();
+        private static PayrollReportService _reportService = new PayrollReportService();
+        private static EmployeeService _employeeService = new EmployeeService();
+        private static PayScheduleService _scheduleService = new PayScheduleService();
+  private static PayrollDisbursementService _disbursementService = new PayrollDisbursementService();
+
+        protected void Page_Load(object sender, EventArgs e)
+        {
+  if (!IsPostBack)
+   {
+    // Check user authentication
+    if (Session["Username"] == null)
+     {
+          Response.Redirect("~/LoginFolder/Login.aspx");
+     return;
+           }
+
+          // Initialize page data - Use RegisterAsyncTask for async operations
+             RegisterAsyncTask(new PageAsyncTask(InitializePayrollPeriodAsync));
+         }
+        }
+
+   /// <summary>
+        /// Initialize payroll period dropdown with current pay schedule
+        /// </summary>
+   private async Task InitializePayrollPeriodAsync()
+        {
+          try
+   {
+             var schedule = await _scheduleService.GetActiveScheduleAsync();
+   if (schedule != null)
+                {
+  ddlPayrollType.SelectedValue = schedule.ScheduleType.ToLower();
+
+              var (startDate, endDate, payDate) = await _scheduleService.GetCurrentPayPeriodAsync();
+   txtStartDate.Text = startDate.ToString("yyyy-MM-dd");
+        txtEndDate.Text = endDate.ToString("yyyy-MM-dd");
+           txtCutoffDate.Text = endDate.ToString("yyyy-MM-dd");
+        }
+    }
+            catch (Exception ex)
+    {
+          System.Diagnostics.Debug.WriteLine($"Error initializing payroll period: {ex.Message}");
+            }
+     }
+
+        // ========== FUNCTION 6.2: PAYROLL PROCESSING WEB METHODS ==========
+
+        /// <summary>
+        /// Get all employees for selection
+        /// </summary>
+        [WebMethod]
+        public static string GetEmployeesForPayroll()
+  {
+    try
+         {
+ System.Diagnostics.Debug.WriteLine("?? GetEmployeesForPayroll called");
+     System.Diagnostics.Debug.WriteLine($"?? Thread ID: {System.Threading.Thread.CurrentThread.ManagedThreadId}");
+
+      System.Diagnostics.Debug.WriteLine("?? Creating EmployeeService...");
+      // Fetch from Users collection where Role = "Employee"
+     var userService = new EmployeeService();
+
+    System.Diagnostics.Debug.WriteLine("?? Calling GetAllEmployeesAsync...");
+    // Use .Result to make it synchronous for WebMethod
+            var employees = userService.GetAllEmployeesAsync().Result;
+
+    System.Diagnostics.Debug.WriteLine($"? Fetched {employees?.Count ?? 0} employees from database");
+
+    // Check for null
+       if (employees == null)
+       {
+            System.Diagnostics.Debug.WriteLine("?? GetAllEmployeesAsync returned null!");
+         var serializer = new JavaScriptSerializer();
+   return serializer.Serialize(new { success = false, message = "No employees found in database" });
+  }
+
+System.Diagnostics.Debug.WriteLine($"?? Filtering {employees.Count} employees...");
+
+       // Filter only active employees and map to result
+     var result = employees
+             .Where(e => e != null && e.IsActive)
+         .Select(e => new
+     {
+         employeeId = e.Id ?? "", // MongoDB _id
+    employeeNumber = e.EmployeeId ?? "N/A", // Display ID like "23-2211"
+              fullName = e.FullName ?? "N/A",
+      department = e.Department ?? "N/A",
+        role = e.Role ?? "Employee", // Job role/title from Employee
+  employmentType = e.ContractType ?? "Regular" // Contract type
+        }).ToList();
+
+     System.Diagnostics.Debug.WriteLine($"? Filtered to {result.Count} active employees");
+
+     System.Diagnostics.Debug.WriteLine("?? Creating JavaScriptSerializer...");
+       var serializer2 = new JavaScriptSerializer();
+// Increase max JSON length to handle large datasets
+     serializer2.MaxJsonLength = Int32.MaxValue;
+
+       System.Diagnostics.Debug.WriteLine("?? Serializing to JSON...");
+   var json = serializer2.Serialize(new { success = true, data = result });
+
+ System.Diagnostics.Debug.WriteLine($"? JSON output length: {json.Length} chars");
+     System.Diagnostics.Debug.WriteLine($"? JSON preview: {json.Substring(0, Math.Min(200, json.Length))}...");
+
+        System.Diagnostics.Debug.WriteLine("? Returning JSON to client");
+        return json;
+            }
+ catch (System.Threading.Tasks.TaskCanceledException ex)
+            {
+ System.Diagnostics.Debug.WriteLine($"?? TIMEOUT in GetEmployeesForPayroll: {ex.Message}");
+ var serializer = new JavaScriptSerializer();
+           return serializer.Serialize(new { success = false, message = "Request timed out. Database may be slow or unavailable." });
+            }
+            catch (Exception ex)
+        {
+           System.Diagnostics.Debug.WriteLine($"? Error in GetEmployeesForPayroll: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"? Error Type: {ex.GetType().FullName}");
+        System.Diagnostics.Debug.WriteLine($"? Stack trace: {ex.StackTrace}");
+
+    // Check for inner exception
+       if (ex.InnerException != null)
+       {
+ System.Diagnostics.Debug.WriteLine($"? Inner Exception: {ex.InnerException.Message}");
+ }
+
+       var serializer = new JavaScriptSerializer();
+        return serializer.Serialize(new { success = false, message = $"Error: {ex.Message}" });
+       }
+        }
+
+        // ... Rest of methods stay the same ...
+    }
+}

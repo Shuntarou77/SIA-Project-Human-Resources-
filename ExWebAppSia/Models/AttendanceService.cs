@@ -9,6 +9,8 @@ namespace ExWebAppSia.Models
     public class AttendanceService
     {
         private readonly IMongoCollection<Attendance> _attendance;
+        public const int TOTAL_ALLOWED_ABSENCES_PER_YEAR = 15;
+        public static readonly DateTime TRACKING_START_DATE = new DateTime(2026, 3, 19);
 
         public AttendanceService()
         {
@@ -517,6 +519,71 @@ namespace ExWebAppSia.Models
             {
                 System.Diagnostics.Debug.WriteLine($"Error creating attendance: {ex.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Calculates the remaining absence allowance for an employee for the current year.
+        /// </summary>
+        public async Task<int> GetRemainingAbsencesAsync(string employeeId, DateTime hiredDate)
+        {
+            try
+            {
+                var now = DateTime.UtcNow.AddHours(8); // PH Time
+                var today = now.Date;
+                var currentYear = now.Year;
+                var hiredDateLocal = hiredDate.ToLocalTime().Date;
+                var yearStart = new DateTime(currentYear, 1, 1);
+                var statsStart = hiredDateLocal > yearStart ? hiredDateLocal : yearStart;
+                
+                // Don't count absences before the system tracking started (March 19, 2026)
+                if (statsStart < TRACKING_START_DATE) statsStart = TRACKING_START_DATE;
+
+                // 1. Get yearly attendance (Present days)
+                var yearlyRecords = await _attendance
+                    .Find(a => a.EmployeeId == employeeId && a.IsActive && a.TimeIn != null && a.Date.Year == currentYear)
+                    .ToListAsync();
+
+                var yearlyPresent = yearlyRecords.Select(r => r.Date).Distinct().Count();
+
+                // 2. Get approved leaves
+                var leaveService = new LeaveService();
+                var leaves = await leaveService.GetLeavesByEmployeeIdAsync(employeeId);
+                var approvedLeaves = leaves.Where(l => l.Status == "Approved" && l.StartDate.Year == currentYear).ToList();
+
+                // 3. Calculate past weekdays
+                int pastYearWeekdays = 0;
+                if (statsStart <= today)
+                {
+                    pastYearWeekdays = Enumerable.Range(0, (today - statsStart).Days + 1)
+                        .Select(i => statsStart.AddDays(i))
+                        .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Sunday); // Include Saturdays as working days
+                }
+
+                // 4. Calculate leave days
+                int yearlyLeaveDays = 0;
+                foreach (var leave in approvedLeaves)
+                {
+                    // Ensure dates are compared in the same timezone
+                    var lStart = leave.StartDate.ToLocalTime().Date;
+                    var lEnd = leave.EndDate.ToLocalTime().Date;
+
+                    for (var d = lStart; d <= lEnd; d = d.AddDays(1))
+                    {
+                        if (d.Year == currentYear && d >= statsStart && d <= today && d.DayOfWeek != DayOfWeek.Sunday)
+                        {
+                            yearlyLeaveDays++;
+                        }
+                    }
+                }
+
+                var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent - yearlyLeaveDays);
+                return Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error calculating remaining absences: {ex.Message}");
+                return TOTAL_ALLOWED_ABSENCES_PER_YEAR;
             }
         }
     }

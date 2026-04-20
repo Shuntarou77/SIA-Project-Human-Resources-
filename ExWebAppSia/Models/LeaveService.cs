@@ -29,9 +29,13 @@ namespace ExWebAppSia.Models
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error creating leave: {ex.Message}");
                 return false;
             }
+        }
+
+        public async Task<bool> SubmitLeaveRequestAsync(Leave leave)
+        {
+            return await CreateLeaveAsync(leave);
         }
 
         // Get leave by ID
@@ -39,7 +43,9 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                return await _leaves.Find(l => l.Id == id).FirstOrDefaultAsync().ConfigureAwait(false);
+                var filter = Builders<Leave>.Filter.Eq(l => l.Id, id);
+                var cursor = await _leaves.FindAsync(filter).ConfigureAwait(false);
+                return await cursor.FirstOrDefaultAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -53,9 +59,18 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                return await _leaves.Find(l => l.IsActive && l.EmployeeId == employeeId)
-                    .SortByDescending(l => l.SubmittedDate)
-                    .ToListAsync().ConfigureAwait(false);
+                var filter = Builders<Leave>.Filter.And(
+                    Builders<Leave>.Filter.Eq(l => l.IsActive, true),
+                    Builders<Leave>.Filter.Eq(l => l.EmployeeId, employeeId)
+                );
+                
+                var options = new FindOptions<Leave>
+                {
+                    Sort = Builders<Leave>.Sort.Descending(l => l.SubmittedDate)
+                };
+
+                var cursor = await _leaves.FindAsync(filter, options).ConfigureAwait(false);
+                return await cursor.ToListAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -69,9 +84,14 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                return await _leaves.Find(l => l.IsActive)
-                    .SortByDescending(l => l.SubmittedDate)
-                    .ToListAsync().ConfigureAwait(false);
+                var filter = Builders<Leave>.Filter.Eq(l => l.IsActive, true);
+                var options = new FindOptions<Leave>
+                {
+                    Sort = Builders<Leave>.Sort.Descending(l => l.SubmittedDate)
+                };
+
+                var cursor = await _leaves.FindAsync(filter, options).ConfigureAwait(false);
+                return await cursor.ToListAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -85,12 +105,14 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                var startDate = date.Date;
-                var endDate = startDate.AddDays(1);
+                var filter = Builders<Leave>.Filter.And(
+                    Builders<Leave>.Filter.Eq(l => l.IsActive, true),
+                    Builders<Leave>.Filter.Lte(l => l.StartDate, date),
+                    Builders<Leave>.Filter.Gte(l => l.EndDate, date)
+                );
 
-                return await _leaves.Find(l => l.IsActive &&
-                       l.StartDate <= date && l.EndDate >= date)
-                    .ToListAsync().ConfigureAwait(false);
+                var cursor = await _leaves.FindAsync(filter).ConfigureAwait(false);
+                return await cursor.ToListAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -136,46 +158,48 @@ namespace ExWebAppSia.Models
         /// <summary>
         /// Get leaves by employee and date range (for payroll processing)
         /// </summary>
-        public async Task<List<Leave>> GetLeavesByEmployeeAndDateRangeAsync(
-     string employeeId, DateTime startDate, DateTime endDate)
+        public async Task<List<Leave>> GetLeavesByEmployeeAndDateRangeAsync(string employeeId, DateTime startDate, DateTime endDate)
         {
             try
-         {
-    var filterBuilder = Builders<Leave>.Filter;
-        
- // Find leaves that overlap with the date range
-          var filter = filterBuilder.And(
-       filterBuilder.Eq(l => l.EmployeeId, employeeId),
-         filterBuilder.Eq(l => l.IsActive, true),
-                    filterBuilder.Or(
-         // Leave starts within the range
-            filterBuilder.And(
- filterBuilder.Gte(l => l.StartDate, startDate),
-        filterBuilder.Lte(l => l.StartDate, endDate)
-              ),
-   // Leave ends within the range
-           filterBuilder.And(
-              filterBuilder.Gte(l => l.EndDate, startDate),
-    filterBuilder.Lte(l => l.EndDate, endDate)
-         ),
-    // Leave spans the entire range
-            filterBuilder.And(
- filterBuilder.Lte(l => l.StartDate, startDate),
-      filterBuilder.Gte(l => l.EndDate, endDate)
-          )
-          )
-      );
+            {
+                var filterBuilder = Builders<Leave>.Filter;
 
-   return await _leaves.Find(filter)
-  .SortBy(l => l.StartDate)
-    .ToListAsync().ConfigureAwait(false);
-         }
-     catch (Exception ex)
-     {
-     System.Diagnostics.Debug.WriteLine($"Error getting leaves by employee and date range: {ex.Message}");
-         return new List<Leave>();
+                // Find leaves that overlap with the date range
+                var filter = filterBuilder.And(
+                    filterBuilder.Eq(l => l.EmployeeId, employeeId),
+                    filterBuilder.Eq(l => l.IsActive, true),
+                    filterBuilder.Or(
+                        // Leave starts within the range
+                        filterBuilder.And(
+                            filterBuilder.Gte(l => l.StartDate, startDate),
+                            filterBuilder.Lte(l => l.StartDate, endDate)
+                        ),
+                        // Leave ends within the range
+                        filterBuilder.And(
+                            filterBuilder.Gte(l => l.EndDate, startDate),
+                            filterBuilder.Lte(l => l.EndDate, endDate)
+                        ),
+                        // Leave spans the entire range
+                        filterBuilder.And(
+                            filterBuilder.Lte(l => l.StartDate, startDate),
+                            filterBuilder.Gte(l => l.EndDate, endDate)
+                        )
+                    )
+                );
+
+                var options = new FindOptions<Leave>
+                {
+                    Sort = Builders<Leave>.Sort.Ascending(l => l.StartDate)
+                };
+
+                var cursor = await _leaves.FindAsync(filter, options).ConfigureAwait(false);
+                return await cursor.ToListAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting leaves by employee and date range: {ex.Message}");
+                return new List<Leave>();
             }
         }
     }
 }
-

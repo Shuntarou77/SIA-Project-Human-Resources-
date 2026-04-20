@@ -266,7 +266,7 @@ namespace ExWebAppSia.Models
                         var pdfBytes = pdfService.GeneratePdfFromHtml(htmlContent);
 
                         // Create filename
-                        var fileName = $"SheEssentials_Payslip_{payrollItem.EmployeeId}_{payRun.PayPeriodStart:yyyyMMdd}-{payRun.PayPeriodEnd:yyyyMMdd}.pdf";
+                        var fileName = $"Sheessentials_Payslip_{payrollItem.EmployeeId}_{payRun.PayPeriodStart:yyyyMMdd}-{payRun.PayPeriodEnd:yyyyMMdd}.pdf";
 
                         // Send email
                         var emailSent = await emailService.SendPayslipEmailAsync(

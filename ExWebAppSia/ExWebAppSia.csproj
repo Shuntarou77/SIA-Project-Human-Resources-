@@ -207,6 +207,10 @@
     <Content Include="mongocrypt.dll" />
     <Content Include="PasswordHashGenerator.aspx" />
     <Content Include="Uploads\Announcements\Images\26d6b129-5566-4e30-8b93-82a0b9774f42.png" />
+    <Content Include="appSettings.config" />
+    <Content Include="connectionStrings.config" />
+    <Content Include="images\shessentials-logo.png" />
+    <Content Include="custom-js\mainsidebar.js" />
     <Content Include="Web.config" />
     <Content Include="webpage%28EmployeeViewpoint%29\Dashboard.aspx" />
     <Content Include="webpage%28EmployeeViewpoint%29\Profile.aspx" />
@@ -216,6 +220,23 @@
     <Content Include="webpage%28ManagerViewpoint\Dashboard.aspx" />
     <Content Include="webpage%28ManagerViewpoint\Employee.aspx" />
     <Content Include="webpage%28ManagerViewpoint\Profile.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\Account.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\Announcement.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\Approvals.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\Attendance.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\AttendanceOverview.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\Concerns.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\css\modern-theme.css" />
+    <Content Include="webpage%28PresidentViewpoint%29\Dashboard.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\EmployeeList.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\js\svg-icons.js" />
+    <Content Include="webpage%28PresidentViewpoint%29\LeaveRequest.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\OrgChart.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\OvertimeRequest.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\Payslips.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\RecruitmentStatus.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\Resignation.aspx" />
+    <Content Include="webpage%28PresidentViewpoint%29\UndertimeRequest.aspx" />
     <Content Include="webpage\css\modern-theme.css" />
     <Content Include="webpage\custom-css\mainsidebar.css" />
     <Content Include="webpage\Dashboard.aspx" />
@@ -231,8 +252,10 @@
     <Content Include="webpage\scripts\payroll-employees.js" />
     <Content Include="webpage\scripts\payroll-integration.js" />
     <Content Include="webpage\scripts\payroll-submission.js" />
-    <Content Include="webpage\scripts\payroll-tabs.js" />
     <Content Include="webpage\UserManagement.aspx" />
+    <Content Include="webpage\Profile.aspx" />
+    <Content Include="webpage\ActivityLog.aspx" />
+    <Content Include="Handler\DatabaseResetHandler.ashx" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Global.asax.cs">
@@ -242,6 +265,9 @@
     <Compile Include="Handler\EmployeeHandler.cs" />
     <Compile Include="Handler\GeneratePayrollHandler.ashx.cs">
       <DependentUpon>GeneratePayrollHandler.ashx</DependentUpon>
+    </Compile>
+    <Compile Include="Handler\DatabaseResetHandler.ashx.cs">
+      <DependentUpon>DatabaseResetHandler.ashx</DependentUpon>
     </Compile>
     <Compile Include="LoginFolder\Login.aspx.cs">
       <DependentUpon>Login.aspx</DependentUpon>
@@ -316,6 +342,7 @@
     <Compile Include="Models\UndertimeRequest.cs" />
     <Compile Include="Models\User.cs" />
     <Compile Include="Models\UserService.cs" />
+    <Compile Include="Models\FullDatabaseSeeder.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="webpage%28EmployeeViewpoint%29\EmployeeHR.Master.cs">
       <DependentUpon>EmployeeHR.Master</DependentUpon>
@@ -386,6 +413,70 @@
     </Compile>
     <Compile Include="webpage%28ManagerViewpoint\Profile.aspx.designer.cs">
       <DependentUpon>Profile.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\Account.aspx.cs">
+      <DependentUpon>Account.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\Announcement.aspx.cs">
+      <DependentUpon>Announcement.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\Approvals.aspx.cs">
+      <DependentUpon>Approvals.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\Attendance.aspx.cs">
+      <DependentUpon>Attendance.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\AttendanceOverview.aspx.cs">
+      <DependentUpon>AttendanceOverview.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\Concerns.aspx.cs">
+      <DependentUpon>Concerns.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\Dashboard.aspx.cs">
+      <DependentUpon>Dashboard.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\EmployeeList.aspx.cs">
+      <DependentUpon>EmployeeList.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\LeaveRequest.aspx.cs">
+      <DependentUpon>LeaveRequest.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\OrgChart.aspx.cs">
+      <DependentUpon>OrgChart.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\OvertimeRequest.aspx.cs">
+      <DependentUpon>OvertimeRequest.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\Payslips.aspx.cs">
+      <DependentUpon>Payslips.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\President.Master.cs">
+      <DependentUpon>President.Master</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\RecruitmentStatus.aspx.cs">
+      <DependentUpon>RecruitmentStatus.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\Resignation.aspx.cs">
+      <DependentUpon>Resignation.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28PresidentViewpoint%29\UndertimeRequest.aspx.cs">
+      <DependentUpon>UndertimeRequest.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="webpage\api\Announcements.ashx.cs">
       <DependentUpon>Announcements.ashx</DependentUpon>
@@ -463,10 +554,130 @@
     <Compile Include="webpage\UserManagement.aspx.designer.cs">
       <DependentUpon>UserManagement.aspx</DependentUpon>
     </Compile>
+    <Compile Include="webpage\Profile.aspx.cs">
+      <DependentUpon>Profile.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage\Profile.aspx.designer.cs">
+      <DependentUpon>Profile.aspx</DependentUpon>
+    </Compile>
+    <!-- SuperAdminViewpoint -->
+    <Compile Include="webpage%28SuperAdminViewpoint%29\SuperAdmin.Master.cs">
+      <DependentUpon>SuperAdmin.Master</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\SuperAdmin.Master.designer.cs">
+      <DependentUpon>SuperAdmin.Master</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Dashboard.aspx.cs">
+      <DependentUpon>Dashboard.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Dashboard.aspx.designer.cs">
+      <DependentUpon>Dashboard.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Profile.aspx.cs">
+      <DependentUpon>Profile.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Profile.aspx.designer.cs">
+      <DependentUpon>Profile.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Employee.aspx.cs">
+      <DependentUpon>Employee.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Employee.aspx.designer.cs">
+      <DependentUpon>Employee.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Attendance.aspx.cs">
+      <DependentUpon>Attendance.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Attendance.aspx.designer.cs">
+      <DependentUpon>Attendance.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Announcement.aspx.cs">
+      <DependentUpon>Announcement.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Announcement.aspx.designer.cs">
+      <DependentUpon>Announcement.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Recruitment.aspx.cs">
+      <DependentUpon>Recruitment.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Recruitment.aspx.designer.cs">
+      <DependentUpon>Recruitment.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Approvals.aspx.cs">
+      <DependentUpon>Approvals.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Approvals.aspx.designer.cs">
+      <DependentUpon>Approvals.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Reports.aspx.cs">
+      <DependentUpon>Reports.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Reports.aspx.designer.cs">
+      <DependentUpon>Reports.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\ActivityLog.aspx.cs">
+      <DependentUpon>ActivityLog.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\ActivityLog.aspx.designer.cs">
+      <DependentUpon>ActivityLog.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Payroll.aspx.cs">
+      <DependentUpon>Payroll.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\Payroll.aspx.designer.cs">
+      <DependentUpon>Payroll.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\EmployeeReport.aspx.cs">
+      <DependentUpon>EmployeeReport.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\EmployeeReport.aspx.designer.cs">
+      <DependentUpon>EmployeeReport.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\UserManagement.aspx.cs">
+      <DependentUpon>UserManagement.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\UserManagement.aspx.designer.cs">
+      <DependentUpon>UserManagement.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\api\AttendanceHandler.ashx.cs">
+      <DependentUpon>AttendanceHandler.ashx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\api\Announcements.ashx.cs">
+      <DependentUpon>Announcements.ashx</DependentUpon>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Content Include="libmongocrypt.so" />
     <Content Include="libmongocrypt.dylib" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\SuperAdmin.Master" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\Dashboard.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\Profile.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\Employee.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\Attendance.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\Announcement.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\Recruitment.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\Approvals.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\Reports.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\ActivityLog.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\Payroll.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\EmployeeReport.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\UserManagement.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\api\Announcements.ashx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\api\AttendanceHandler.ashx" />
     <Content Include="Documentation\MODULE_6_COMPLETE_IMPLEMENTATION_PLAN.md" />
     <Content Include="Documentation\MODULE_6_GAP_ANALYSIS.md" />
     <Content Include="Documentation\MODULE_6_QUICK_START_GUIDE.md" />
@@ -479,6 +690,8 @@
     <Content Include="Handler\GetPayslipContentHandler.ashx" />
     <Content Include="Handler\GetPayslipsHandler.ashx" />
     <None Include="packages.config" />
+    <None Include="Properties\PublishProfiles\shuntarou77-001-site1 - FTP.pubxml" />
+    <None Include="Properties\PublishProfiles\shuntarou77-001-site1 - Web Deploy.pubxml" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>
@@ -493,6 +706,7 @@
     <Content Include="webpage\Recruitment.aspx.cs.backup" />
     <Content Include="webpage\Payroll.aspx.cs.fixed" />
     <Content Include="webpage\Payroll.aspx.cs.fixed2" />
+    <Content Include="webpage%28PresidentViewpoint%29\President.Master" />
   </ItemGroup>
   <ItemGroup>
     <Analyzer Include="..\packages\AWSSDK.SecurityToken.3.7.100.14\analyzers\dotnet\cs\AWSSDK.SecurityToken.CodeAnalysis.dll" />
