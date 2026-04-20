@@ -1,0 +1,12 @@
+<appSettings>
+  <add key="MongoDBDatabase" value="YOUR_DATABASE_NAME" />
+  <!-- Email Configuration -->
+  <add key="SmtpHost" value="smtp.gmail.com" />
+  <add key="SmtpPort" value="587" />
+  <add key="SmtpUsername" value="YOUR_EMAIL@gmail.com" />
+  <add key="SmtpPassword" value="YOUR_APP_PASSWORD" />
+  <add key="FromEmail" value="YOUR_EMAIL@gmail.com" />
+  <add key="FromName" value="Sheessentials" />
+  <add key="HREmail" value="YOUR_EMAIL@gmail.com" />
+  <add key="EnableSsl" value="true" />
+</appSettings>
