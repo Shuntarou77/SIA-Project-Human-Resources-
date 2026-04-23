@@ -11,7 +11,7 @@ namespace ExWebAppSia.Models
         [BsonRepresentation(BsonType.ObjectId)]
         public string Id { get; set; }
 
-        // Additional fields from job_applicant collection
+        // Additional fields from Applicants collection
         [BsonElement("appointmentStatus")]
         public string AppointmentStatus { get; set; }
 

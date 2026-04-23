@@ -25,6 +25,23 @@ namespace ExWebAppSia.Models
                 leave.IsActive = true;
 
                 await _leaves.InsertOneAsync(leave).ConfigureAwait(false);
+
+                // Notification for Admin/HR
+                try
+                {
+                    var notifService = new NotificationService();
+                    await notifService.CreateNotificationAsync(new Notification
+                    {
+                        RecipientId = "ADMIN",
+                        Title = "New Leave Request",
+                        Message = $"{leave.EmployeeName} has submitted a {leave.LeaveType} leave request.",
+                        Type = "NewRequest",
+                        Link = "~/webpage(SuperAdminViewpoint)/Approvals.aspx",
+                        RelatedId = leave.Id
+                    });
+                }
+                catch { }
+
                 return true;
             }
             catch (Exception ex)

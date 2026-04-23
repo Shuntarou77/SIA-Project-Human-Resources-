@@ -253,6 +253,9 @@
     <Content Include="webpage\Profile.aspx" />
     <Content Include="webpage\ActivityLog.aspx" />
     <Content Include="Handler\DatabaseResetHandler.ashx" />
+    <Content Include="Handler\NotificationHandler.ashx" />
+    <Content Include="webpage\css\notifications.css" />
+    <Content Include="custom-js\notifications.js" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Global.asax.cs">
@@ -340,6 +343,11 @@
     <Compile Include="Models\User.cs" />
     <Compile Include="Models\UserService.cs" />
     <Compile Include="Models\FullDatabaseSeeder.cs" />
+    <Compile Include="Models\Notification.cs" />
+    <Compile Include="Models\NotificationService.cs" />
+    <Compile Include="Handler\NotificationHandler.ashx.cs">
+      <DependentUpon>NotificationHandler.ashx</DependentUpon>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="webpage%28EmployeeViewpoint%29\EmployeeHR.Master.cs">
       <DependentUpon>EmployeeHR.Master</DependentUpon>

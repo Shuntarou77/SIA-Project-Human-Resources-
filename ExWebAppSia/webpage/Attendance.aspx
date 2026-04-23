@@ -787,12 +787,16 @@
                                             </td>
                                             <td style="font-style: italic; color: #444;">"<%= req.Reason %>"</td>
                                             <td>
-                                                <div style="display: flex; gap: 8px;">
-                                                    <button type="button" onclick="approveUndertime('<%= req.Id %>')"
-                                                        style="background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">Approve</button>
-                                                    <button type="button" onclick="rejectUndertime('<%= req.Id %>')"
-                                                        style="background: white; color: #666; border: 1.5px solid #ddd; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">Reject</button>
-                                                </div>
+                                                <% if (req.EmployeeId != CurrentAdminId) { %>
+                                                    <div style="display: flex; gap: 8px;">
+                                                        <button type="button" onclick="approveUndertime('<%= req.Id %>')"
+                                                            style="background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">Approve</button>
+                                                        <button type="button" onclick="rejectUndertime('<%= req.Id %>')"
+                                                            style="background: white; color: #666; border: 1.5px solid #ddd; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">Reject</button>
+                                                    </div>
+                                                <% } else { %>
+                                                    <span style="font-size: 12px; font-weight: 600; color: #9ca3af; font-style: italic;">Your Request</span>
+                                                <% } %>
                                             </td>
                                         </tr>
                                         <% } %>

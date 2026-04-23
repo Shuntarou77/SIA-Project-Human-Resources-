@@ -242,10 +242,14 @@ namespace ExWebAppSia.webpage
             var today = now.Date;
             var hiredDate = employee.HiredDate.ToLocalTime().Date;
             
+            // System tracking started on March 19, 2026
+            var trackingStartDate = AttendanceService.TRACKING_START_DATE;
+
             // 1. Current Month Stats
             var currentMonthStart = new DateTime(now.Year, now.Month, 1);
-            // Don't count days before hired date
+            // Don't count days before hired date or before tracking started
             var monthlyStatsStart = hiredDate > currentMonthStart ? hiredDate : currentMonthStart;
+            if (monthlyStatsStart < trackingStartDate) monthlyStatsStart = trackingStartDate;
 
             var currentMonthRecords = _employeeAttendanceRecords
                 .Where(a => a.TimeIn.HasValue)
@@ -255,70 +259,53 @@ namespace ExWebAppSia.webpage
 
             var currentMonthPresent = currentMonthRecords.Select(x => x.LocalTime.Date).Distinct().Count();
             
-            // Calculate weekdays passed since stats start
-            int pastWeekdays = 0;
-            if (monthlyStatsStart <= today)
+            // Calculate finalized working days passed BEFORE today
+            var yesterday = today.AddDays(-1);
+            int pastWorkingDays = 0;
+            if (monthlyStatsStart <= yesterday)
             {
-                pastWeekdays = Enumerable.Range(0, (today - monthlyStatsStart).Days + 1)
+                pastWorkingDays = Enumerable.Range(0, (yesterday - monthlyStatsStart).Days + 1)
                     .Select(i => monthlyStatsStart.AddDays(i))
-                    .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
+                    .Count(d => d.DayOfWeek != DayOfWeek.Sunday); // Include Saturdays as workdays
             }
 
-            // Subract approved leave days from pastWeekdays to reduce absents
-            int leaveDaysInMonth = 0;
+            // Subtract approved leave days from pastWorkingDays to reduce absents (only for past days)
+            int leaveDaysUntilYesterday = 0;
             foreach (var leave in approvedLeaves)
             {
                 for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
                 {
-                    if (d >= monthlyStatsStart && d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                    if (d >= monthlyStatsStart && d < today && d.DayOfWeek != DayOfWeek.Sunday)
                     {
-                        leaveDaysInMonth++;
+                        leaveDaysUntilYesterday++;
                     }
                 }
             }
 
-            // Absent = Past Weekdays - Present - Leave
-            var currentMonthAbsent = Math.Max(0, pastWeekdays - currentMonthPresent - leaveDaysInMonth);
-            var currentMonthLate = currentMonthRecords.GroupBy(x => x.LocalTime.Date).Count(g => g.OrderBy(x => x.LocalTime).First().LocalTime.Hour >= 9);
+            // Also exclude days already present in the past from the finalized working days
+            var presentUntilYesterday = currentMonthRecords.Select(x => x.LocalTime.Date).Distinct().Count(d => d < today);
+
+            // Absent = Past Working Days (Finalized) - Present (Finalized) - Leave (Finalized)
+            var currentMonthAbsent = Math.Max(0, pastWorkingDays - presentUntilYesterday - leaveDaysUntilYesterday);
             
-            // Attendance Rate based on expected working days (total weekdays minus leaves)
-            int expectedWorkingDays = Math.Max(1, pastWeekdays - leaveDaysInMonth);
+            // Late calculation: Shift starts at 8:00 AM, Late after 8:15 AM
+            var currentMonthLate = currentMonthRecords.GroupBy(x => x.LocalTime.Date).Count(g => {
+                var firstIn = g.OrderBy(x => x.LocalTime).First().LocalTime;
+                return firstIn.Hour > 8 || (firstIn.Hour == 8 && firstIn.Minute > 15);
+            });
+            
+            // Attendance Rate based on expected working days (total working days passed so far minus leaves)
+            int workingDaysIncludingToday = Enumerable.Range(0, (today - monthlyStatsStart).Days + 1)
+                    .Select(i => monthlyStatsStart.AddDays(i))
+                    .Count(d => d.DayOfWeek != DayOfWeek.Sunday);
+            
+            int expectedWorkingDays = Math.Max(1, workingDaysIncludingToday);
             var currentMonthAttendancePercent = (int)Math.Round((double)currentMonthPresent / expectedWorkingDays * 100);
 
-            // 2. Yearly stats
-            var currentYear = now.Year;
-            var yearlyRecords = _employeeAttendanceRecords
-                .Where(a => a.TimeIn.HasValue)
-                .Select(a => a.TimeIn.Value.ToLocalTime())
-                .Where(t => t.Year == currentYear)
-                .ToList();
-
-            var yearStart = new DateTime(currentYear, 1, 1);
-            var yearlyStatsStart = hiredDate > yearStart ? hiredDate : yearStart;
-            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count();
-            
-            int pastYearWeekdays = 0;
-            if (yearlyStatsStart <= today)
-            {
-                pastYearWeekdays = Enumerable.Range(0, (today - yearlyStatsStart).Days + 1)
-                    .Select(i => yearlyStatsStart.AddDays(i))
-                    .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
-            }
-
-            int yearlyLeaveDays = 0;
-            foreach (var leave in approvedLeaves)
-            {
-                for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
-                {
-                    if (d.Year == currentYear && d >= yearlyStatsStart && d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
-                    {
-                        yearlyLeaveDays++;
-                    }
-                }
-            }
-            
-            var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent - yearlyLeaveDays);
-            var remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
+            // 2. Yearly stats — delegated to the centralized service for consistency across all dashboards
+            //    The service uses "yesterday" as the finalized cutoff so today's in-progress day
+            //    is never counted as an absence.
+            int remainingAbsences = await _attendanceService.GetRemainingAbsencesAsync(employee.EmployeeId, employee.HiredDate);
 
             _attendanceStats = new Dictionary<string, object>
             {
@@ -474,15 +461,8 @@ namespace ExWebAppSia.webpage
                 txtConcernSubject.Text = "";
                 txtConcernDescription.Text = "";
 
-                lblConcernMessage.Text = "✓ Your concern has been submitted successfully!";
-                lblConcernMessage.Style["display"] = "block";
-                lblConcernMessage.Style["color"] = "#155724";
-                lblConcernMessage.Style["backgroundColor"] = "#d4edda";
-                lblConcernMessage.Style["padding"] = "10px";
-                lblConcernMessage.Style["borderRadius"] = "5px";
-                
-                ClientScript.RegisterStartupScript(this.GetType(), "closeConcernModal", 
-                    "setTimeout(function() { closeModal('concernModal'); }, 3000);", true);
+                ClientScript.RegisterStartupScript(this.GetType(), "showSuccessConcern", 
+                    "closeModal('concernModal'); openSuccessModal('Your concern has been submitted successfully! HR will review it and get back to you.'); setTimeout(function() { window.location.reload(); }, 3500);", true);
             }
             catch (Exception ex)
             {
@@ -535,15 +515,8 @@ namespace ExWebAppSia.webpage
                 txtEndDate.Text = "";
                 txtLeaveReason.Text = "";
 
-                lblLeaveMessage.Text = "✓ Your leave request has been submitted successfully!";
-                lblLeaveMessage.Style["display"] = "block";
-                lblLeaveMessage.Style["color"] = "#155724";
-                lblLeaveMessage.Style["backgroundColor"] = "#d4edda";
-                lblLeaveMessage.Style["padding"] = "10px";
-                lblLeaveMessage.Style["borderRadius"] = "5px";
-                
-                ClientScript.RegisterStartupScript(this.GetType(), "closeLeaveModal", 
-                    "setTimeout(function() { closeModal('leaveModal'); }, 3000);", true);
+                ClientScript.RegisterStartupScript(this.GetType(), "showSuccessLeave", 
+                    "closeModal('leaveModal'); openSuccessModal('Your leave request has been submitted successfully! One of our HR personnel will review it shortly.'); setTimeout(function() { window.location.reload(); }, 3500);", true);
             }
             catch (Exception ex)
             {

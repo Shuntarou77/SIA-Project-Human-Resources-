@@ -128,6 +128,28 @@ namespace ExWebAppSia.webpage.api
 
 			_col.InsertOne(doc);
 
+            // Create notification for ALL users
+            try
+            {
+                var notifService = new NotificationService();
+                string notifMsg = content.Length > 60 ? content.Substring(0, 57) + "..." : content;
+                System.Threading.Tasks.Task.Run(async () =>
+                {
+                    await notifService.CreateNotificationAsync(new Notification
+                    {
+                        RecipientId = "ALL",
+                        Title = "New Announcement",
+                        Message = notifMsg,
+                        Type = "Announcement",
+                        Link = "~/webpage(EmployeeViewpoint)/Announcement.aspx"
+                    });
+                });
+            }
+            catch (Exception notifEx)
+            {
+                System.Diagnostics.Debug.WriteLine("[Announcements] Notification error: " + notifEx.Message);
+            }
+
             try
             {
                 var username = ctx.Session["Username"] as string ?? "Unknown HR";

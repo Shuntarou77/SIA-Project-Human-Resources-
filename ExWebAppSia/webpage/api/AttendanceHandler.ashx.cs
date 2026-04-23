@@ -365,8 +365,18 @@ namespace ExWebAppSia.webpage.api
                         }
                         else
                         {
-                            result = Task.Run(async () => await _overtimeService.ApproveAsync(overtimeRequestId).ConfigureAwait(false)).GetAwaiter().GetResult();
-                            message = result ? "Overtime approved successfully" : "Failed to approve overtime";
+                            // Self-approval check
+                            var otToApprove = Task.Run(async () => await _overtimeService.GetByIdAsync(overtimeRequestId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            if (otToApprove != null && otToApprove.EmployeeId == sessionEmployeeId)
+                            {
+                                result = false;
+                                message = "You cannot approve your own overtime request.";
+                            }
+                            else
+                            {
+                                result = Task.Run(async () => await _overtimeService.ApproveAsync(overtimeRequestId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                message = result ? "Overtime approved successfully" : "Failed to approve overtime";
+                            }
                         }
                         break;
 
@@ -378,8 +388,18 @@ namespace ExWebAppSia.webpage.api
                         }
                         else
                         {
-                            result = Task.Run(async () => await _overtimeService.RejectAsync(rejOvertimeId).ConfigureAwait(false)).GetAwaiter().GetResult();
-                            message = result ? "Overtime rejected successfully" : "Failed to reject overtime";
+                            // Self-approval check
+                            var otToReject = Task.Run(async () => await _overtimeService.GetByIdAsync(rejOvertimeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            if (otToReject != null && otToReject.EmployeeId == sessionEmployeeId)
+                            {
+                                result = false;
+                                message = "You cannot reject your own overtime request.";
+                            }
+                            else
+                            {
+                                result = Task.Run(async () => await _overtimeService.RejectAsync(rejOvertimeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                message = result ? "Overtime rejected successfully" : "Failed to reject overtime";
+                            }
                         }
                         break;
 
@@ -392,8 +412,18 @@ namespace ExWebAppSia.webpage.api
                         else
                         {
                             var utService = new UndertimeService();
-                            result = Task.Run(async () => await utService.ApproveRequestAsync(utReqId).ConfigureAwait(false)).GetAwaiter().GetResult();
-                            message = result ? "Undertime approved successfully" : "Failed to approve undertime";
+                            // Self-approval check
+                            var utToApprove = Task.Run(async () => await utService.GetRequestByIdAsync(utReqId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            if (utToApprove != null && utToApprove.EmployeeId == sessionEmployeeId)
+                            {
+                                result = false;
+                                message = "You cannot approve your own undertime request.";
+                            }
+                            else
+                            {
+                                result = Task.Run(async () => await utService.ApproveRequestAsync(utReqId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                message = result ? "Undertime approved successfully" : "Failed to approve undertime";
+                            }
                         }
                         break;
 
@@ -406,8 +436,18 @@ namespace ExWebAppSia.webpage.api
                         else
                         {
                             var utService = new UndertimeService();
-                            result = Task.Run(async () => await utService.RejectRequestAsync(rejUtId).ConfigureAwait(false)).GetAwaiter().GetResult();
-                            message = result ? "Undertime rejected successfully" : "Failed to reject undertime";
+                            // Self-approval check
+                            var utToReject = Task.Run(async () => await utService.GetRequestByIdAsync(rejUtId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            if (utToReject != null && utToReject.EmployeeId == sessionEmployeeId)
+                            {
+                                result = false;
+                                message = "You cannot reject your own undertime request.";
+                            }
+                            else
+                            {
+                                result = Task.Run(async () => await utService.RejectRequestAsync(rejUtId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                message = result ? "Undertime rejected successfully" : "Failed to reject undertime";
+                            }
                         }
                         break;
                     

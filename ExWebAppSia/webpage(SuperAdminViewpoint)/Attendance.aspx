@@ -482,10 +482,10 @@
                     style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 2px solid #f1f5f9; padding-bottom: 2px;">
                     <button type="button" onclick="switchTab('attendance-tab')" class="tab-btn active"
                         id="tab-attendance">Attendance Logs</button>
-                    <button type="button" onclick="switchTab('overtime-tab')" class="tab-btn" id="tab-overtime" style="display: none;">Overtime
+                    <button type="button" onclick="switchTab('overtime-tab')" class="tab-btn" id="tab-overtime">Overtime
                         Requests</button>
                     <button type="button" onclick="switchTab('undertime-tab')" class="tab-btn"
-                        id="tab-undertime" style="display: none;">Undertime Records</button>
+                        id="tab-undertime">Undertime Records</button>
                 </div>
 
                 <!-- Attendance Tab Content -->
@@ -787,12 +787,16 @@
                                             </td>
                                             <td style="font-style: italic; color: #444;">"<%= req.Reason %>"</td>
                                             <td>
-                                                <div style="display: flex; gap: 8px;">
-                                                    <button type="button" onclick="approveUndertime('<%= req.Id %>')"
-                                                        style="background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">Approve</button>
-                                                    <button type="button" onclick="rejectUndertime('<%= req.Id %>')"
-                                                        style="background: white; color: #666; border: 1.5px solid #ddd; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">Reject</button>
-                                                </div>
+                                                <% if (req.EmployeeId != CurrentAdminId) { %>
+                                                    <div style="display: flex; gap: 8px;">
+                                                        <button type="button" onclick="approveUndertime('<%= req.Id %>')"
+                                                            style="background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">Approve</button>
+                                                        <button type="button" onclick="rejectUndertime('<%= req.Id %>')"
+                                                            style="background: white; color: #666; border: 1.5px solid #ddd; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">Reject</button>
+                                                    </div>
+                                                <% } else { %>
+                                                    <span style="font-size: 12px; font-weight: 600; color: #9ca3af; font-style: italic;">Your Request</span>
+                                                <% } %>
                                             </td>
                                         </tr>
                                         <% } %>

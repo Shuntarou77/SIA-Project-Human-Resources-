@@ -363,25 +363,32 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 ? (int)Math.Round((double)currentMonthPresent / targetWorkingDays * 100) 
                 : 0;
 
-            // Yearly stats
+            // Yearly stats — only count FINALIZED past days (before today)
+            var yesterday = today.AddDays(-1);
             var yearlyRecords = _employeeAttendanceRecords
                 .Where(a => a.TimeIn.HasValue)
                 .Select(a => a.TimeIn.Value.ToLocalTime())
                 .Where(t => t.Year == currentYear && t.Date >= effectiveStart)
                 .ToList();
 
-            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count();
+            // Only count present days BEFORE today (finalized)
+            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count(d => d < today);
             
-            var pastYearWeekdays = Enumerable.Range(0, (today - effectiveStart).Days + 1)
-                .Select(i => effectiveStart.AddDays(i))
-                .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Sunday); // Consistently include Saturdays
+            // Only count working days (Mon-Sat) up to YESTERDAY (finalized)
+            int pastYearWeekdays = 0;
+            if (effectiveStart <= yesterday)
+            {
+                pastYearWeekdays = Enumerable.Range(0, (yesterday - effectiveStart).Days + 1)
+                    .Select(i => effectiveStart.AddDays(i))
+                    .Count(d => d.DayOfWeek != DayOfWeek.Sunday);
+            }
             
             int yearlyLeaveDays = 0;
             foreach (var leave in approvedLeaves)
             {
                 for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
                 {
-                    if (d.Year == currentYear && d >= effectiveStart && d <= today && d.DayOfWeek != DayOfWeek.Sunday)
+                    if (d.Year == currentYear && d >= effectiveStart && d < today && d.DayOfWeek != DayOfWeek.Sunday)
                     {
                         yearlyLeaveDays++;
                     }

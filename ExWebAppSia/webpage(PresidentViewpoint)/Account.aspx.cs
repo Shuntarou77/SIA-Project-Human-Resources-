@@ -360,18 +360,25 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                 .Where(t => t.Year == currentYear && t.Date >= effectiveStart)
                 .ToList();
 
-            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count();
+            var yesterday = today.AddDays(-1);
+            // Only count FINALIZED present days (before today)
+            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count(d => d < today);
             
-            var pastYearWeekdays = Enumerable.Range(0, (today - effectiveStart).Days + 1)
-                .Select(i => effectiveStart.AddDays(i))
-                .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Sunday); // Consistently include Saturdays
+            // Only count FINALIZED working days (Mon-Sat, up to yesterday)
+            int pastYearWeekdays = 0;
+            if (effectiveStart <= yesterday)
+            {
+                pastYearWeekdays = Enumerable.Range(0, (yesterday - effectiveStart).Days + 1)
+                    .Select(i => effectiveStart.AddDays(i))
+                    .Count(d => d.DayOfWeek != DayOfWeek.Sunday);
+            }
             
             int yearlyLeaveDays = 0;
             foreach (var leave in approvedLeaves)
             {
                 for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
                 {
-                    if (d.Year == currentYear && d >= effectiveStart && d <= today && d.DayOfWeek != DayOfWeek.Sunday)
+                    if (d.Year == currentYear && d >= effectiveStart && d < today && d.DayOfWeek != DayOfWeek.Sunday)
                     {
                         yearlyLeaveDays++;
                     }

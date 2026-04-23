@@ -1,4 +1,4 @@
-﻿using MongoDB.Driver;
+using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -25,6 +25,22 @@ namespace ExWebAppSia.Models
                 IsActive = true
             };
             await _ann.InsertOneAsync(doc);
+
+            // Create notification for everyone
+            try
+            {
+                var notifService = new NotificationService();
+                await notifService.CreateNotificationAsync(new Notification
+                {
+                    RecipientId = "ALL",
+                    Title = "New Announcement",
+                    Message = content.Length > 50 ? content.Substring(0, 47) + "..." : content,
+                    Type = "Announcement",
+                    Link = "~/webpage(EmployeeViewpoint)/Announcement.aspx"
+                });
+            }
+            catch { }
+
             return doc;
         }
 
@@ -38,6 +54,22 @@ namespace ExWebAppSia.Models
                 }
                 announcement.IsActive = true;
                 await _ann.InsertOneAsync(announcement);
+
+                // Create notification for everyone
+                try
+                {
+                    var notifService = new NotificationService();
+                    await notifService.CreateNotificationAsync(new Notification
+                    {
+                        RecipientId = "ALL",
+                        Title = "New Announcement",
+                        Message = announcement.Content.Length > 50 ? announcement.Content.Substring(0, 47) + "..." : announcement.Content,
+                        Type = "Announcement",
+                        Link = "~/webpage(EmployeeViewpoint)/Announcement.aspx"
+                    });
+                }
+                catch { }
+
                 return true;
             }
             catch (Exception ex)

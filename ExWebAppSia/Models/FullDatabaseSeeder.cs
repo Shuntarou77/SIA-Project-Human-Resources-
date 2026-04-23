@@ -17,7 +17,7 @@ namespace ExWebAppSia.Models
             // Clear collections
             await db.DropCollectionAsync("Employees");
             await db.DropCollectionAsync("Users");
-            await db.DropCollectionAsync("job_applicant");
+            await db.DropCollectionAsync("Applicants");
             await db.DropCollectionAsync("Managers");
             await db.DropCollectionAsync("ResignedEmployees");
 

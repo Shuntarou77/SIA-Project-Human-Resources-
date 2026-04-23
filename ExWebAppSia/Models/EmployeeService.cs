@@ -906,25 +906,33 @@ namespace ExWebAppSia.Models
         {
             try
             {
-                var year = DateTime.Now.ToString("yy");
-                var lastUser = await _users
-                    .Find(u => u.Role == "Employee" && u.EmployeeId != null && u.EmployeeId.StartsWith(year + "-"))
-                    .SortByDescending(u => u.EmployeeId)
-                    .FirstOrDefaultAsync()
-                    .ConfigureAwait(false);
-                int nextNumber = 2211;
-                if (lastUser != null && !string.IsNullOrEmpty(lastUser.EmployeeId))
+                // Find all active and resigned employees to determine the highest existing number
+                var allEmployees = await _employees.Find(_ => true).ToListAsync().ConfigureAwait(false);
+                var resignedList = _resignedEmployees != null ? await _resignedEmployees.Find(_ => true).ToListAsync().ConfigureAwait(false) : new List<Employee>();
+                
+                int maxNumber = 0;
+                var combinedList = allEmployees.Concat(resignedList);
+
+                foreach (var emp in combinedList)
                 {
-                    var parts = lastUser.EmployeeId.Split('-');
-                    if (parts.Length == 2 && int.TryParse(parts[1], out int lastNumber))
-                        nextNumber = lastNumber + 1;
+                    if (!string.IsNullOrEmpty(emp.EmployeeId) && emp.EmployeeId.StartsWith("SHE-"))
+                    {
+                        var parts = emp.EmployeeId.Split('-');
+                        if (parts.Length == 2 && int.TryParse(parts[1], out int number))
+                        {
+                            if (number > maxNumber) maxNumber = number;
+                        }
+                    }
                 }
-                return $"{year}-{nextNumber}";
+
+                int nextNumber = maxNumber + 1;
+                return $"SHE-{nextNumber:D3}"; // Formats as SHE-001, SHE-002, etc.
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error generating employee ID: {ex.Message}");
-                return $"{DateTime.Now:yy}-2211";
+                // Fallback to a random number if lookup fails
+                return $"SHE-{new Random().Next(100, 999)}";
             }
         }
 

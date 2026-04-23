@@ -125,11 +125,20 @@ namespace ExWebAppSia.LoginFolder
                         if (employee != null)
                         {
                             Session["Employee"] = employee;
-                        }
 
-                        if (employee != null)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"Employee data loaded into session: {employee.EmployeeId} - {employee.FullName}");
+                            // ── HR DEPARTMENT OVERRIDE ──────────────────────────────────────
+                            // If this employee belongs to Human Resources, treat them as an
+                            // Admin (HR) for routing purposes. This covers both "Employee"
+                            // and the deprecated "Manager" role stored in legacy User documents.
+                            if ((user.Role == "Employee" || user.Role == "Manager") &&
+                                string.Equals(employee.Department?.Trim(), "Human Resources", StringComparison.OrdinalIgnoreCase))
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[Login] HR dept employee detected ({employee.FullName}, was role: '{user.Role}'). Overriding → 'HR' for redirect.");
+                                user.Role = "HR";
+                                Session["Role"] = "HR";
+                            }
+
+                            System.Diagnostics.Debug.WriteLine($"Employee data loaded: {employee.EmployeeId} - {employee.FullName}, Dept: {employee.Department}");
                         }
                         else if (user.Role == "Employee" || user.Role == "President")
                         {
@@ -180,7 +189,7 @@ namespace ExWebAppSia.LoginFolder
                         Response.Redirect("~/webpage(SuperAdminViewpoint)/Dashboard.aspx", false);
                         Context.ApplicationInstance.CompleteRequest();
                     }
-                    else if (user.Role == "Admin" || user.Role.Contains("Admin") || user.Role == "HR")
+                    else if (user.Role == "Admin" || user.Role.Contains("Admin") || user.Role == "HR" || user.Role == "Human Resources")
                     {
                         Response.Redirect("~/webpage/Dashboard.aspx", false);
                         Context.ApplicationInstance.CompleteRequest();
@@ -188,12 +197,30 @@ namespace ExWebAppSia.LoginFolder
                     else if (user.Role == "Employee")
                     {
                         var employee = Session["Employee"] as Employee;
-                        if (employee != null && employee.Department == "Human Resources")
+
+                        // Check HR department from Employee record OR from User record as fallback
+                        bool isHrDepartment = false;
+
+                        if (employee != null)
                         {
+                            isHrDepartment = string.Equals(employee.Department?.Trim(), "Human Resources", StringComparison.OrdinalIgnoreCase);
+                            System.Diagnostics.Debug.WriteLine($"[Login] Employee found in session: {employee.FullName}, Dept: '{employee.Department}', IsHR: {isHrDepartment}");
+                        }
+                        else
+                        {
+                            // Fallback: check the User document's own Department field
+                            isHrDepartment = string.Equals(user.Department?.Trim(), "Human Resources", StringComparison.OrdinalIgnoreCase);
+                            System.Diagnostics.Debug.WriteLine($"[Login] WARNING: Session Employee is NULL. Falling back to User.Department: '{user.Department}', IsHR: {isHrDepartment}");
+                        }
+
+                        if (isHrDepartment)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[Login] HR department detected — redirecting to Admin view.");
                             Response.Redirect("~/webpage/Dashboard.aspx", false);
                         }
                         else
                         {
+                            System.Diagnostics.Debug.WriteLine($"[Login] Non-HR employee — redirecting to Employee view.");
                             Response.Redirect("~/webpage(EmployeeViewpoint)/Dashboard.aspx", false);
                         }
                         Context.ApplicationInstance.CompleteRequest();
@@ -205,6 +232,13 @@ namespace ExWebAppSia.LoginFolder
                     }
                     else if (user.Role == "Manager")
                     {
+                        Response.Redirect("~/webpage(EmployeeViewpoint)/Dashboard.aspx", false);
+                        Context.ApplicationInstance.CompleteRequest();
+                    }
+                    else
+                    {
+                        // Fallback: unknown role defaults to employee view
+                        System.Diagnostics.Debug.WriteLine($"Unknown role '{user.Role}' — defaulting to Employee viewpoint.");
                         Response.Redirect("~/webpage(EmployeeViewpoint)/Dashboard.aspx", false);
                         Context.ApplicationInstance.CompleteRequest();
                     }

@@ -1320,17 +1320,18 @@
                 // Add Resign/Rehire/Deploy Cards
                 if (active === "Active") {
                     if (resStatus === "Pending") {
-                        html += `<div class='action-card' onclick='resignEmployee("${id}")'>
+                        html += `
+                        <div class='action-card' onclick='resignEmployee("${id}")'>
                             <div class='action-icon'><i class='fas fa-user-check'></i></div>
                             <h3 class='action-title'>Approve Resignation</h3>
                             <p class='action-description'>This employee has requested to resign. Review and approve to finalize.</p>
-                
-                html += `<div class='action-card' onclick="openPayslipModal('${fname}', '${empId}')">`;
-                html += `<div class='action-icon'>💰</div>`;
-                html += `<h3 class='action-title'>View Payslip</h3>`;
-                html += `<p class='action-description'>View salary breakdown including gross salary, deductions, and net pay.</p>`;
-                html += `<button class='action-button'>View Details</button>`;
-                html += `</div>`;
+                            <button type="button" class="action-button" style="background: #10b981;">Approve Now</button>
+                        </div>`;
+                    }
+                }
+
+                // Add more action cards below if needed...
+
 
                 html += `<div class='action-card' onclick="openLeaveHistoryModal('${id}')">`;
                 html += `<div class='action-icon'>📝</div>`;
@@ -1808,11 +1809,7 @@
 
             // ========== LEAVE REQUEST FUNCTIONS ==========
 
-            // Load pending leave requests on page load
-            document.addEventListener('DOMContentLoaded', function () {
-                loadPendingLeaveRequests();
-                loadPendingResignations();
-            });
+
 
             function switchRequestTab(tabId) {
                 // Remove active class from all tabs
@@ -1842,12 +1839,14 @@
                     }
 
                     tbody.innerHTML = result.data.map(function (c) {
-                        var initials = getInitials(c.employeeName);
+                        var employeeName = c.employeeName || 'Unknown Employee';
+                        var initials = getInitials(employeeName);
                         var priorityClass = c.priorityLevel === 'Urgent' ? 'status-declined' : 
                                            c.priorityLevel === 'High' ? 'status-pending-res' : 'status-pending';
                         
+                        var escapedName = employeeName.replace(/'/g, "\\'");
                         return '<tr>' +
-                            '<td><span class="avatar-initial">' + initials + '</span> ' + c.employeeName + '</td>' +
+                            '<td><span class="avatar-initial">' + initials + '</span> ' + employeeName + '</td>' +
                             '<td>' + (c.employeeId || '—') + '</td>' +
                             '<td>' + c.concernType + '</td>' +
                             '<td>' + (c.subject || '—') + '</td>' +
@@ -1855,7 +1854,7 @@
                             '<td>' + c.submittedDate + '</td>' +
                             '<td><span class="leave-status ' + priorityClass + '">' + c.priorityLevel + '</span></td>' +
                             '<td>' +
-                                '<button type="button" class="btn-outline" onclick="resolveConcern(\'' + c.id + '\', \'' + c.employeeName.replace(/'/g, "\\'") + '\', this)">' +
+                                '<button type="button" class="btn-outline" onclick="resolveConcern(\'' + c.id + '\', \'' + escapedName + '\', this)">' +
                                     '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>Mark Resolved' +
                                 '</button>' +
                             '</td>' +
@@ -1898,19 +1897,21 @@
                     }
 
                     tbody.innerHTML = result.data.map(function (emp) {
-                        var initials = getInitials(emp.name);
+                        var employeeName = emp.name || 'Unknown Employee';
+                        var initials = getInitials(employeeName);
+                        var escapedName = employeeName.replace(/'/g, "\\'");
                         return '<tr>' +
-                            '<td><span class="avatar-initial">' + initials + '</span> ' + emp.name + '</td>' +
+                            '<td><span class="avatar-initial">' + initials + '</span> ' + employeeName + '</td>' +
                             '<td>' + emp.empId + '</td>' +
                             '<td>' + emp.department + '</td>' +
                             '<td>' + emp.role + '</td>' +
                             '<td>' + emp.dateReq + '</td>' +
                             '<td><span class="leave-status status-pending-res">Pending</span></td>' +
                             '<td>' +
-                                '<button type="button" class="btn-outline" style="margin-right: 6px;" onclick="approveResignation(\'' + emp.id + '\', \'' + emp.name.replace(/'/g, "\\'") + '\', this)">' +
+                                '<button type="button" class="btn-outline" style="margin-right: 6px;" onclick="approveResignation(\'' + emp.id + '\', \'' + escapedName + '\', this)">' +
                                     '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approve' +
                                 '</button>' +
-                                '<button type="button" class="btn-outline" style="background: #dc3545; border-color: #dc3545; color: white;" onclick="declineResignation(\'' + emp.id + '\', \'' + emp.name.replace(/'/g, "\\'") + '\', this)">' +
+                                '<button type="button" class="btn-outline" style="background: #dc3545; border-color: #dc3545; color: white;" onclick="declineResignation(\'' + emp.id + '\', \'' + escapedName + '\', this)">' +
                                     '<svg style="width:14px;height:14px;vertical-align:middle;fill:white;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Decline' +
                                 '</button>' +
                             '</td>' +
@@ -1978,19 +1979,21 @@
                     var currentAdminId = result.currentAdminId;
 
                     tbody.innerHTML = result.data.map(function (leave) {
-                        var initials = getInitials(leave.employeeName);
+                        var employeeName = leave.employeeName || 'Unknown Employee';
+                        var initials = getInitials(employeeName);
                         var dateRange = leave.startDate === leave.endDate
                             ? leave.startDate
                             : leave.startDate + ' - ' + leave.endDate;
 
                         var isOwnRequest = leave.employeeId === currentAdminId;
+                        var escapedName = employeeName.replace(/'/g, "\\'");
                         var actionsHtml = isOwnRequest
                             ? '<span style="font-size: 11px; font-weight: 600; color: #9B7D7B; font-style: italic;">Your Request</span>'
-                            : '<button type="button" class="btn-outline" style="margin-right: 6px;" onclick="approveLeave(\'' + leave.id + '\', \'' + leave.employeeName.replace(/'/g, "\\'") + '\', this)"><svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approve</button>' +
-                              '<button type="button" class="btn-outline" style="background: #dc3545; border-color: #dc3545; color: white;" onclick="declineLeave(\'' + leave.id + '\', \'' + leave.employeeName.replace(/'/g, "\\'") + '\', this)"><svg style="width:14px;height:14px;vertical-align:middle;fill:white;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Decline</button>';
+                            : '<button type="button" class="btn-outline" style="margin-right: 6px;" onclick="approveLeave(\'' + leave.id + '\', \'' + escapedName + '\', this)"><svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approve</button>' +
+                              '<button type="button" class="btn-outline" style="background: #dc3545; border-color: #dc3545; color: white;" onclick="declineLeave(\'' + leave.id + '\', \'' + escapedName + '\', this)"><svg style="width:14px;height:14px;vertical-align:middle;fill:white;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Decline</button>';
 
                         return '<tr data-leave-id="' + leave.id + '">' +
-                            '<td><span class="avatar-initial">' + initials + '</span>' + leave.employeeName + '</td>' +
+                            '<td><span class="avatar-initial">' + initials + '</span>' + employeeName + '</td>' +
                             '<td>' + (leave.employeeId || 'N/A') + '</td>' +
                             '<td>' + leave.leaveType + '</td>' +
                             '<td>' + dateRange + '</td>' +

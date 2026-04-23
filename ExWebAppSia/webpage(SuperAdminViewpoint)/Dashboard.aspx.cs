@@ -160,21 +160,27 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             var currentMonthAbsent = Math.Max(0, pastWeekdays - currentMonthPresent);
             var currentMonthLate = currentMonthRecords.GroupBy(x => x.LocalTime.Date).Count(g => g.OrderBy(x => x.LocalTime).First().LocalTime.Hour >= 9);
 
-            // Yearly stats
+            // Yearly stats — delegate to centralized service (uses yesterday as finalized cutoff)
+            var yearlyAbsent = 0; // Placeholder; remaining absences come from service below
+            var remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
+
+            // Count finalized present days (before today) for yearly tracking
+            var yesterday = today.AddDays(-1);
             var yearlyRecords = _employeeAttendanceRecords
                 .Where(a => a.TimeIn.HasValue)
                 .Select(a => a.TimeIn.Value.ToLocalTime())
-                .Where(t => t.Year == currentYear && t.Date >= effectiveStart)
+                .Where(t => t.Year == now.Year && t.Date >= effectiveStart)
                 .ToList();
-
-            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count();
-            
-            var pastYearWeekdays = Enumerable.Range(0, (today - effectiveStart).Days + 1)
-                .Select(i => effectiveStart.AddDays(i))
-                .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Sunday); // Include Saturdays
-            
-            var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent);
-            var remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
+            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count(d => d < today);
+            int pastYearWeekdays = 0;
+            if (effectiveStart <= yesterday)
+            {
+                pastYearWeekdays = Enumerable.Range(0, (yesterday - effectiveStart).Days + 1)
+                    .Select(i => effectiveStart.AddDays(i))
+                    .Count(d => d.DayOfWeek != DayOfWeek.Sunday);
+            }
+            yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent);
+            remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
 
             _attendanceStats = new Dictionary<string, object>
             {

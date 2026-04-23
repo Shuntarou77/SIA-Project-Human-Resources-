@@ -524,6 +524,8 @@ namespace ExWebAppSia.Models
 
         /// <summary>
         /// Calculates the remaining absence allowance for an employee for the current year.
+        /// Only counts FINALIZED past days (up to yesterday) to avoid penalizing employees for
+        /// the current unfinished day. Present days for today are included if timed in.
         /// </summary>
         public async Task<int> GetRemainingAbsencesAsync(string employeeId, DateTime hiredDate)
         {
@@ -531,6 +533,7 @@ namespace ExWebAppSia.Models
             {
                 var now = DateTime.UtcNow.AddHours(8); // PH Time
                 var today = now.Date;
+                var yesterday = today.AddDays(-1);
                 var currentYear = now.Year;
                 var hiredDateLocal = hiredDate.ToLocalTime().Date;
                 var yearStart = new DateTime(currentYear, 1, 1);
@@ -539,38 +542,45 @@ namespace ExWebAppSia.Models
                 // Don't count absences before the system tracking started (March 19, 2026)
                 if (statsStart < TRACKING_START_DATE) statsStart = TRACKING_START_DATE;
 
-                // 1. Get yearly attendance (Present days)
+                // 1. Get yearly attendance (FINALIZED present days — up to yesterday only)
+                //    We exclude today because it's incomplete. If they timed in today but haven't
+                //    timed out, counting today as both present AND as a working day would be
+                //    inconsistent — so we only finalize yesterday and before.
                 var yearlyRecords = await _attendance
                     .Find(a => a.EmployeeId == employeeId && a.IsActive && a.TimeIn != null && a.Date.Year == currentYear)
                     .ToListAsync();
 
-                var yearlyPresent = yearlyRecords.Select(r => r.Date).Distinct().Count();
+                // Only count distinct present days that are BEFORE today (finalized)
+                var yearlyPresent = yearlyRecords
+                    .Select(r => r.Date.Date)
+                    .Distinct()
+                    .Count(d => d < today);
 
                 // 2. Get approved leaves
                 var leaveService = new LeaveService();
                 var leaves = await leaveService.GetLeavesByEmployeeIdAsync(employeeId);
                 var approvedLeaves = leaves.Where(l => l.Status == "Approved" && l.StartDate.Year == currentYear).ToList();
 
-                // 3. Calculate past weekdays
+                // 3. Calculate FINALIZED past working days (Mon–Sat), up to YESTERDAY only
+                //    We never include today to avoid treating the current day as missed before it ends.
                 int pastYearWeekdays = 0;
-                if (statsStart <= today)
+                if (statsStart <= yesterday)
                 {
-                    pastYearWeekdays = Enumerable.Range(0, (today - statsStart).Days + 1)
+                    pastYearWeekdays = Enumerable.Range(0, (yesterday - statsStart).Days + 1)
                         .Select(i => statsStart.AddDays(i))
-                        .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Sunday); // Include Saturdays as working days
+                        .Count(d => d.DayOfWeek != DayOfWeek.Sunday); // Include Saturdays as working days
                 }
 
-                // 4. Calculate leave days
+                // 4. Calculate leave days (finalized — before today)
                 int yearlyLeaveDays = 0;
                 foreach (var leave in approvedLeaves)
                 {
-                    // Ensure dates are compared in the same timezone
                     var lStart = leave.StartDate.ToLocalTime().Date;
                     var lEnd = leave.EndDate.ToLocalTime().Date;
 
                     for (var d = lStart; d <= lEnd; d = d.AddDays(1))
                     {
-                        if (d.Year == currentYear && d >= statsStart && d <= today && d.DayOfWeek != DayOfWeek.Sunday)
+                        if (d.Year == currentYear && d >= statsStart && d < today && d.DayOfWeek != DayOfWeek.Sunday)
                         {
                             yearlyLeaveDays++;
                         }

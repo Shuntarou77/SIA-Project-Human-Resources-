@@ -142,18 +142,31 @@ namespace ExWebAppSia.webpage
 
             // Yearly stats
             var currentYear = now.Year;
+            var trackingStart = AttendanceService.TRACKING_START_DATE;
+            var employee = CurrentEmployee;
+            var hireDate = (employee != null && employee.HiredDate != DateTime.MinValue) ? employee.HiredDate.ToLocalTime().Date : trackingStart;
+            var yearStart = new DateTime(currentYear, 1, 1);
+            var effectiveYearStart = hireDate > yearStart ? hireDate : yearStart;
+            if (effectiveYearStart < trackingStart) effectiveYearStart = trackingStart;
+
             var yearlyRecords = _employeeAttendanceRecords
                 .Where(a => a.TimeIn.HasValue)
                 .Select(a => a.TimeIn.Value.ToLocalTime())
-                .Where(t => t.Year == currentYear)
+                .Where(t => t.Year == currentYear && t.Date >= effectiveYearStart)
                 .ToList();
 
-            var yearStart = new DateTime(currentYear, 1, 1);
-            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count();
+            var yesterday = today.AddDays(-1);
+            // Only count finalized present days (before today)
+            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count(d => d < today);
             
-            var pastYearWeekdays = Enumerable.Range(0, (today - yearStart).Days + 1)
-                .Select(i => yearStart.AddDays(i))
-                .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
+            // Only count finalized working days (Mon-Sat, up to yesterday)
+            int pastYearWeekdays = 0;
+            if (effectiveYearStart <= yesterday)
+            {
+                pastYearWeekdays = Enumerable.Range(0, (yesterday - effectiveYearStart).Days + 1)
+                    .Select(i => effectiveYearStart.AddDays(i))
+                    .Count(d => d.DayOfWeek != DayOfWeek.Sunday);
+            }
             
             var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent);
             var remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);

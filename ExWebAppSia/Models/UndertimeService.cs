@@ -35,6 +35,23 @@ namespace ExWebAppSia.Models
                 };
 
                 await _requests.InsertOneAsync(request);
+
+                // Notification for Admin/HR
+                try
+                {
+                    var notifService = new NotificationService();
+                    await notifService.CreateNotificationAsync(new Notification
+                    {
+                        RecipientId = "ADMIN",
+                        Title = "New Undertime Request",
+                        Message = $"{employeeName} has submitted an undertime request.",
+                        Type = "NewRequest",
+                        Link = "~/webpage(SuperAdminViewpoint)/Approvals.aspx",
+                        RelatedId = request.Id
+                    });
+                }
+                catch { }
+
                 return true;
             }
             catch (Exception ex)
@@ -78,6 +95,22 @@ namespace ExWebAppSia.Models
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error getting active undertime request: {ex.Message}");
+                return null;
+            }
+        }
+
+        // Get a single undertime request by its ID (used for self-approval checks)
+        public async Task<UndertimeRequest> GetRequestByIdAsync(string requestId)
+        {
+            try
+            {
+                return await _requests
+                    .Find(r => r.Id == requestId)
+                    .FirstOrDefaultAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting undertime request by ID: {ex.Message}");
                 return null;
             }
         }
@@ -185,6 +218,23 @@ namespace ExWebAppSia.Models
                 };
 
                 await RecordUndertimeAsync(record);
+
+                // Notification for Employee
+                try
+                {
+                    var notifService = new NotificationService();
+                    await notifService.CreateNotificationAsync(new Notification
+                    {
+                        RecipientId = request.EmployeeId,
+                        Title = "Undertime Request Approved",
+                        Message = "Your undertime request has been approved.",
+                        Type = "RequestUpdate",
+                        Link = "~/webpage(EmployeeViewpoint)/Dashboard.aspx",
+                        RelatedId = requestId
+                    });
+                }
+                catch { }
+
                 return true;
             }
             catch (Exception ex)
@@ -200,7 +250,31 @@ namespace ExWebAppSia.Models
             {
                 var update = Builders<UndertimeRequest>.Update.Set(r => r.Status, "Rejected");
                 var result = await _requests.UpdateOneAsync(r => r.Id == requestId, update);
-                return result.ModifiedCount > 0;
+                
+                if (result.ModifiedCount > 0)
+                {
+                    // Notification for Employee
+                    try
+                    {
+                        var request = await GetRequestByIdAsync(requestId);
+                        if (request != null)
+                        {
+                            var notifService = new NotificationService();
+                            await notifService.CreateNotificationAsync(new Notification
+                            {
+                                RecipientId = request.EmployeeId,
+                                Title = "Undertime Request Rejected",
+                                Message = "Your undertime request has been rejected.",
+                                Type = "RequestUpdate",
+                                Link = "~/webpage(EmployeeViewpoint)/Dashboard.aspx",
+                                RelatedId = requestId
+                            });
+                        }
+                    }
+                    catch { }
+                    return true;
+                }
+                return false;
             }
             catch (Exception ex)
             {

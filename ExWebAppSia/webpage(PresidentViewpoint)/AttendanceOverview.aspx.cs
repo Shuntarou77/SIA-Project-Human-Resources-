@@ -29,6 +29,19 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
         private readonly OvertimeService _overtimeService = new OvertimeService();
         private readonly UndertimeService _undertimeService = new UndertimeService();
 
+        protected List<OvertimeRequest> PendingOvertimeRequests { get; set; } = new List<OvertimeRequest>();
+        protected List<UndertimeRequest> PendingUndertimeRequests { get; set; } = new List<UndertimeRequest>();
+        protected List<UndertimeRecord> UndertimeRecords { get; set; } = new List<UndertimeRecord>();
+        protected List<Employee> AllEmployees { get; set; } = new List<Employee>();
+        protected string CurrentAdminId 
+        { 
+            get 
+            {
+                var emp = Session["Employee"] as Employee;
+                return emp?.EmployeeId;
+            }
+        }
+
         protected void Page_Load(object sender, EventArgs e)
         {
             if (!IsPostBack)
@@ -53,19 +66,24 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                     selectedDate = DateTime.Now;
                 }
 
+                // 1. Load Requests and Records
+                PendingOvertimeRequests = await _overtimeService.GetPendingRequestsAsync();
+                PendingUndertimeRequests = await _undertimeService.GetAllPendingRequestsAsync();
+                UndertimeRecords = await _undertimeService.GetUndertimeRecordsByDateAsync(selectedDate);
+                AllEmployees = await _employeeService.GetAllEmployeesAsync();
+
                 var allAttendance = await _attendanceService.GetAllActiveAttendanceAsync();
                 var dayAttendance = allAttendance.Where(a => a.TimeIn.HasValue && a.TimeIn.Value.ToLocalTime().Date == selectedDate.Date).ToList();
 
                 // Load all employees to calculate absents
-                var allEmployees = await _employeeService.GetAllEmployeesAsync();
-                int totalEmpCount = allEmployees.Count;
+                int totalEmpCount = AllEmployees.Count;
 
                 // Department Filter
                 string selectedDept = ddlDeptFilter.SelectedValue;
                 if (!string.IsNullOrEmpty(selectedDept))
                 {
                     dayAttendance = dayAttendance.Where(a => a.Department == selectedDept).ToList();
-                    totalEmpCount = allEmployees.Count(e => e.Department == selectedDept);
+                    totalEmpCount = AllEmployees.Count(e => e.Department == selectedDept);
                 }
 
                 // Stats calculation
@@ -83,21 +101,18 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                 }
                 
                 // For OT and UT, we'd need to check the respective collections
-                var otRequests = await _overtimeService.GetAllAsync();
-                int otCount = otRequests.Count(r => r.Date.Date == selectedDate.Date && r.Status == "Approved");
-
-                var utRequests = await _undertimeService.GetAllRequestsAsync();
-                int utCount = utRequests.Count(r => r.Date.Date == selectedDate.Date && r.Status == "Approved");
+                int otCount = PendingOvertimeRequests.Count(r => r.Date.Date == selectedDate.Date && r.Status == "Approved");
+                int utCount = UndertimeRecords.Count; // Records for the selected day
 
                 litPresent.Text = present.ToString();
                 litLate.Text = late.ToString();
                 litAbsent.Text = absent.ToString();
-                litOT.Text = otCount.ToString();
-                litUT.Text = utCount.ToString();
+                litOT.Text = PendingOvertimeRequests.Count.ToString(); // Show pending count
+                litUT.Text = PendingUndertimeRequests.Count.ToString(); // Show pending count
 
                 // NEW: Working Format Stats
-                int regularCount = allEmployees.Count(e => e.EmploymentStatus == "Regular");
-                int probationaryCount = allEmployees.Count(e => e.EmploymentStatus == "Probationary");
+                int regularCount = AllEmployees.Count(e => e.EmploymentStatus == "Regular");
+                int probationaryCount = AllEmployees.Count(e => e.EmploymentStatus == "Probationary");
                 
                 // Fetch Approved Leaves for the selected date
                 var leaveCol = MongoDBHelper.GetLeavesCollection();
@@ -147,6 +162,17 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
             }
             
             return "<span class='time-chip chip-in'>On Time</span>";
+        }
+
+        protected string GetEstimatedOTRate(OvertimeRequest req)
+        {
+            var emp = AllEmployees?.FirstOrDefault(e => e.EmployeeId == req.EmployeeId);
+            if (emp == null || emp.BaseSalary <= 0) return "0.00";
+            decimal dailyRate = (emp.BaseSalary * 12) / 313m; 
+            decimal multiplier = _overtimeService.GetMultiplier(req.OvertimeType ?? "Regular");
+            decimal estimatedHourlyRate = (dailyRate / 8m) * multiplier;
+            if (req.IsNightShift) estimatedHourlyRate *= 1.10m;
+            return estimatedHourlyRate.ToString("N2");
         }
     }
 }

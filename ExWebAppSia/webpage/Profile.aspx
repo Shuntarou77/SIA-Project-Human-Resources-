@@ -536,6 +536,64 @@
                 resize: vertical;
             }
 
+            /* Success Modal Styles */
+            .success-modal-content {
+                text-align: center;
+                padding: 40px 30px !important;
+                max-width: 400px !important;
+            }
+
+            .success-icon-container {
+                width: 80px;
+                height: 80px;
+                background: #d1fae5;
+                color: #10b981;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 40px;
+                margin: 0 auto 24px;
+                animation: scaleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            }
+
+            .success-title {
+                font-size: 24px;
+                font-weight: 800;
+                color: var(--text-primary);
+                margin-bottom: 12px;
+            }
+
+            .success-message {
+                color: var(--text-secondary);
+                line-height: 1.6;
+                margin-bottom: 30px;
+                font-size: 15px;
+            }
+
+            .btn-success-close {
+                background: linear-gradient(135deg, #10b981, #059669);
+                color: white;
+                border: none;
+                padding: 12px 40px;
+                border-radius: 12px;
+                font-weight: 700;
+                font-size: 15px;
+                cursor: pointer;
+                transition: all 0.3s ease;
+                box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+            }
+
+            .btn-success-close:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 15px rgba(16, 185, 129, 0.3);
+            }
+
+            @keyframes scaleIn {
+                from { transform: scale(0); opacity: 0; }
+                to { transform: scale(1); opacity: 1; }
+            }
+
             /* Responsive */
             @media (max-width: 1024px) {
                 .profile-grid {
@@ -1057,6 +1115,52 @@
                 </div>
             </div>
         </div>
+        
+        <!-- Policy Restriction Modal -->
+        <div id="restrictionModal" class="page-modal">
+            <div class="modal-content"
+                style="max-width: 450px; border-radius: 20px; overflow: hidden; border: none; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+                <div class="modal-header"
+                    style="background: #A44F56; border-bottom: none; padding: 12px 20px; position: relative; display: flex; align-items: center; justify-content: center;">
+                    <span class="close" onclick="closeModal('restrictionModal')"
+                        style="color: white; position: absolute; left: 15px; top: 10px; font-size: 24px;">&times;</span>
+                    <h2 class="modal-title"
+                        style="color: white; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                        ⚠️ Attendance Policy
+                    </h2>
+                </div>
+                <div class="modal-body" style="text-align: center; padding: 35px 30px;">
+                    <div
+                        style="background: #FFF5F5; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #A44F56;">
+                        <i class="fas fa-clock" style="font-size: 32px;"></i>
+                    </div>
+                    <h2 id="restrictionTitle" style="color: #111; font-size: 20px; font-weight: 800; margin-bottom: 12px;">Action Restricted</h2>
+                    <p id="restrictionMessage" style="color: #4b5563; line-height: 1.6; margin-bottom: 30px; font-size: 14px;">
+                        <!-- Message will be injected here -->
+                    </p>
+                    <div style="display: flex; gap: 12px; justify-content: center; width: 100%;">
+                        <button type="button" class="action-btn" onclick="closeModal('restrictionModal')"
+                            style="flex: 1; background: #A44F56; color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 800; font-size: 14px; cursor: pointer; text-transform: uppercase;">OK</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Modal -->
+        <div id="successModal" class="page-modal">
+            <div class="modal-content success-modal-content">
+                <div class="success-icon-container">
+                    <svg style="width:48px;height:48px;fill:currentColor" viewBox="0 0 24 24">
+                        <path d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />
+                    </svg>
+                </div>
+                <h2 class="success-title">Submission Successful!</h2>
+                <p id="successModalMessage" class="success-message">Your request has been processed and sent successfully.</p>
+                <div style="text-align: center;">
+                    <button type="button" class="btn-success-close" onclick="closeModal('successModal')">Great!</button>
+                </div>
+            </div>
+        </div>
 
         <script>
             // Data from server
@@ -1130,7 +1234,7 @@
 
             async function timeIn() {
                 if (hasTimedIn && !hasTimedOut) {
-                    alert('Already timed in.');
+                    showRestrictionModal('Already timed in.', 'Attendance Info');
                     return;
                 }
 
@@ -1152,13 +1256,13 @@
                     if (result.success) {
                         window.location.reload();
                     } else {
-                        alert(result.message || 'Time in failed.');
+                        showRestrictionModal(result.message || 'Time in failed.', 'Restriction Notice');
                         btn.disabled = false;
                         btn.innerHTML = 'Time In';
                     }
                 } catch (error) {
                     console.error(error);
-                    alert('Error occurring.');
+                    showRestrictionModal('An unexpected error occurred. Please try again.', 'Error');
                     btn.disabled = false;
                 }
             }
@@ -1186,13 +1290,13 @@
                     if (status.undertimeStatus === 'Approved') {
                         proceedWithTimeOut();
                     } else if (status.undertimeStatus === 'Pending') {
-                        alert('Your undertime request is still pending admin approval. Please wait for approval before timing out.');
+                        showRestrictionModal('Your undertime request is still pending admin approval. Please wait for approval before timing out.', 'Pending Approval');
                     } else {
-                        alert('No approved undertime request found. Please click "No" to submit a formal request.');
+                        showRestrictionModal('No approved undertime request found. Please click "No" to submit a formal request.', 'Missing Approval');
                     }
                 } catch (error) {
                     console.error('Error fetching status:', error);
-                    alert('Could not verify undertime status. Please try again.');
+                    showRestrictionModal('Could not verify undertime status. Please try again.', 'Connection Error');
                 }
             }
 
@@ -1222,13 +1326,13 @@
                     if (result.success) {
                         window.location.reload();
                     } else {
-                        alert(result.message || 'Time out failed.');
+                        showRestrictionModal(result.message || 'Time out failed.', 'Error');
                         btn.disabled = false;
                         btn.innerHTML = 'Time Out';
                     }
                 } catch (error) {
                     console.error(error);
-                    alert('Error occurring.');
+                    showRestrictionModal('An unexpected error occurred. Please try again.', 'Error');
                     btn.disabled = false;
                     btn.innerHTML = 'Time Out';
                 }
@@ -1236,6 +1340,19 @@
 
             function closeModal(modalId) {
                 document.getElementById(modalId).style.display = 'none';
+            }
+
+            function showRestrictionModal(message, title = "Action Restricted") {
+                document.getElementById('restrictionTitle').innerText = title;
+                document.getElementById('restrictionMessage').innerText = message;
+                document.getElementById('restrictionModal').style.display = 'block';
+            }
+
+            function openSuccessModal(message) {
+                if (message) {
+                    document.getElementById('successModalMessage').innerText = message;
+                }
+                document.getElementById('successModal').style.display = 'block';
             }
 
             function openPayslipModal() {
@@ -1283,7 +1400,7 @@
             async function submitUndertimeRequest() {
                 const reason = document.getElementById('txtUndertimeReason').value.trim();
                 if (!reason) {
-                    alert('Please provide a reason for the undertime.');
+                    showRestrictionModal('Please provide a reason for the undertime.', 'Required Field');
                     return;
                 }
 
@@ -1292,21 +1409,22 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        alert('Undertime request submitted successfully!');
-                        window.location.reload();
+                        closeModal('undertimeRequestModal');
+                        openSuccessModal('Your undertime request has been submitted successfully! One of our HR personnel will review it shortly.');
+                        setTimeout(() => { window.location.reload(); }, 3000);
                     } else {
-                        alert(result.message || 'Failed to submit request.');
+                        showRestrictionModal(result.message || 'Failed to submit request.', 'Submission Error');
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    alert('An error occurred. Please try again.');
+                    showRestrictionModal('An unexpected error occurred. Please try again.', 'Error');
                 }
             }
 
             async function submitResignationRequest() {
                 const reason = document.getElementById('txtResignationReason').value.trim();
                 if (!reason) {
-                    alert('Please provide a reason for your resignation.');
+                    showRestrictionModal('Please provide a reason for your resignation.', 'Required Field');
                     return;
                 }
 
@@ -1319,14 +1437,15 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        alert('Resignation request submitted successfully!');
-                        window.location.reload();
+                        closeModal('resignationRequestModal');
+                        openSuccessModal('Your resignation request has been submitted successfully. This will be processed by the HR department.');
+                        setTimeout(() => { window.location.reload(); }, 3000);
                     } else {
-                        alert(result.message || 'Failed to submit request.');
+                        showRestrictionModal(result.message || 'Failed to submit request.', 'Submission Error');
                     }
                 } catch (error) {
                     console.error('Error:', error);
-                    alert('An error occurred. Please try again.');
+                    showRestrictionModal('An unexpected error occurred. Please try again.', 'Error');
                 }
             }
 

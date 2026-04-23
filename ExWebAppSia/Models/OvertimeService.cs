@@ -41,6 +41,23 @@ namespace ExWebAppSia.Models
                 };
 
                 await _overtime.InsertOneAsync(request);
+
+                // Notification for Admin/HR
+                try
+                {
+                    var notifService = new NotificationService();
+                    await notifService.CreateNotificationAsync(new Notification
+                    {
+                        RecipientId = "ADMIN",
+                        Title = "New Overtime Request",
+                        Message = $"{employeeName} has submitted an overtime request.",
+                        Type = "NewRequest",
+                        Link = "~/webpage(SuperAdminViewpoint)/Approvals.aspx",
+                        RelatedId = request.Id
+                    });
+                }
+                catch { }
+
                 return true;
             }
             catch (Exception ex)
@@ -96,7 +113,31 @@ namespace ExWebAppSia.Models
                     .Set(o => o.OvertimeHourlyRate, otHourlyRate);
 
                 var result = await _overtime.UpdateOneAsync(o => o.Id == overtimeRequestId, updateBuilder);
-                return result.ModifiedCount > 0;
+                
+                if (result.ModifiedCount > 0)
+                {
+                    // Notification for Employee
+                    try
+                    {
+                        var updatedRequest = await GetByIdAsync(overtimeRequestId);
+                        if (updatedRequest != null)
+                        {
+                            var notifService = new NotificationService();
+                            await notifService.CreateNotificationAsync(new Notification
+                            {
+                                RecipientId = updatedRequest.EmployeeId,
+                                Title = "Overtime Request Approved",
+                                Message = "Your overtime request has been approved.",
+                                Type = "RequestUpdate",
+                                Link = "~/webpage(EmployeeViewpoint)/Dashboard.aspx",
+                                RelatedId = overtimeRequestId
+                            });
+                        }
+                    }
+                    catch { }
+                    return true;
+                }
+                return false;
             }
             catch (Exception ex)
             {
@@ -114,7 +155,31 @@ namespace ExWebAppSia.Models
                     .Set(o => o.Status, "Rejected");
 
                 var result = await _overtime.UpdateOneAsync(o => o.Id == overtimeRequestId, update);
-                return result.ModifiedCount > 0;
+                
+                if (result.ModifiedCount > 0)
+                {
+                    // Notification for Employee
+                    try
+                    {
+                        var updatedRequest = await GetByIdAsync(overtimeRequestId);
+                        if (updatedRequest != null)
+                        {
+                            var notifService = new NotificationService();
+                            await notifService.CreateNotificationAsync(new Notification
+                            {
+                                RecipientId = updatedRequest.EmployeeId,
+                                Title = "Overtime Request Rejected",
+                                Message = "Your overtime request has been rejected.",
+                                Type = "RequestUpdate",
+                                Link = "~/webpage(EmployeeViewpoint)/Dashboard.aspx",
+                                RelatedId = overtimeRequestId
+                            });
+                        }
+                    }
+                    catch { }
+                    return true;
+                }
+                return false;
             }
             catch (Exception ex)
             {
@@ -153,6 +218,22 @@ namespace ExWebAppSia.Models
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error getting overtime request by attendance ID: {ex.Message}");
+                return null;
+            }
+        }
+
+        // Get a single overtime request by its ID (used for self-approval checks)
+        public async Task<OvertimeRequest> GetByIdAsync(string requestId)
+        {
+            try
+            {
+                return await _overtime
+                    .Find(o => o.Id == requestId)
+                    .FirstOrDefaultAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting overtime request by ID: {ex.Message}");
                 return null;
             }
         }

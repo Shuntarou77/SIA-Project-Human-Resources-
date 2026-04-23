@@ -98,7 +98,7 @@ namespace ExWebAppSia.Models
 
         public static IMongoCollection<Applicant> GetApplicantsCollection()
         {
-            return GetCollection<Applicant>("job_applicant");
+            return GetCollection<Applicant>("Applicants");
         }
 
         public static IMongoCollection<Interview> GetInterviewsCollection()

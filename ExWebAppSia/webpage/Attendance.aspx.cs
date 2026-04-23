@@ -100,56 +100,35 @@ namespace ExWebAppSia.webpage
                 // FETCH ALL EMPLOYEES FIRST
                 AllEmployees = await _employeeService.GetAllEmployeesAsync();
 
-                // Convert local date to UTC date for querying
-                // The attendance records are stored with UTC dates
+                // The attendance records are stored with PH local dates at midnight UTC
                 var localDate = SelectedDate.Date;
-                var utcDate = localDate.ToUniversalTime().Date;
+                var queryDate = localDate; // Use local date directly
                 
                 System.Diagnostics.Debug.WriteLine($"=== Loading Attendance Data ===");
                 System.Diagnostics.Debug.WriteLine($"Selected local date: {localDate:yyyy-MM-dd}");
-                System.Diagnostics.Debug.WriteLine($"UTC date for query: {utcDate:yyyy-MM-dd}");
-                System.Diagnostics.Debug.WriteLine($"Current UTC time: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}");
-                System.Diagnostics.Debug.WriteLine($"Current local time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+                System.Diagnostics.Debug.WriteLine($"Query date: {queryDate:yyyy-MM-dd}");
                 
-                // Query using UTC date directly
-                var records = await _attendanceService.GetAttendanceByDateAsync(utcDate);
-                System.Diagnostics.Debug.WriteLine($"Records for UTC date {utcDate:yyyy-MM-dd}: {records.Count}");
+                // Query using date directly
+                var records = await _attendanceService.GetAttendanceByDateAsync(queryDate);
+                System.Diagnostics.Debug.WriteLine($"Records for query date {queryDate:yyyy-MM-dd}: {records.Count}");
+                AttendanceRecords = new List<Attendance>();
+                
+                System.Diagnostics.Debug.WriteLine($"Found {records.Count} raw records for date {localDate:yyyy-MM-dd}");
+
+                // Apply filtering to ensure we only show records specifically for this local day
                 foreach (var r in records)
                 {
-                    System.Diagnostics.Debug.WriteLine($"  - EmployeeId: {r.EmployeeId}, Date: {r.Date:yyyy-MM-dd}, TimeIn: {r.TimeIn?.ToString("yyyy-MM-dd HH:mm:ss") ?? "null"}");
+                    if (r.TimeIn.HasValue && r.TimeIn.Value.ToLocalTime().Date == localDate)
+                    {
+                        AttendanceRecords.Add(r);
+                    }
+                    else if (!r.TimeIn.HasValue && r.Date == localDate)
+                    {
+                        AttendanceRecords.Add(r);
+                    }
                 }
                 
-                // Also check the day before and after in UTC to catch timezone edge cases
-                var recordsBefore = await _attendanceService.GetAttendanceByDateAsync(utcDate.AddDays(-1));
-                var recordsAfter = await _attendanceService.GetAttendanceByDateAsync(utcDate.AddDays(1));
-                
-                System.Diagnostics.Debug.WriteLine($"Records for UTC date {utcDate.AddDays(-1):yyyy-MM-dd}: {recordsBefore.Count}");
-                System.Diagnostics.Debug.WriteLine($"Records for UTC date {utcDate.AddDays(1):yyyy-MM-dd}: {recordsAfter.Count}");
-                
-                // Filter records to only include those where TimeIn falls on the selected local date
-                var allRecords = new List<Attendance>();
-                allRecords.AddRange(records);
-                allRecords.AddRange(recordsBefore);
-                allRecords.AddRange(recordsAfter);
-                
-                System.Diagnostics.Debug.WriteLine($"Total records before filtering: {allRecords.Count}");
-                
-                // Filter by local time to ensure we show records for the correct local day
-                AttendanceRecords = allRecords.Where(a =>
-                {
-                    if (a.TimeIn == null) 
-                    {
-                        System.Diagnostics.Debug.WriteLine($"  Skipping record (no TimeIn): EmployeeId={a.EmployeeId}");
-                        return false;
-                    }
-                    var localTimeIn = a.TimeIn.Value.ToLocalTime();
-                    bool matches = localTimeIn.Date == localDate;
-                    if (matches)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"  Match found: EmployeeId={a.EmployeeId}, LocalTimeIn={localTimeIn:yyyy-MM-dd HH:mm:ss}");
-                    }
-                    return matches;
-                }).ToList();
+                System.Diagnostics.Debug.WriteLine($"Found {AttendanceRecords.Count} filtered records for local date {localDate:yyyy-MM-dd}");
                 
                 System.Diagnostics.Debug.WriteLine($"Found {AttendanceRecords.Count} attendance records for local date {localDate:yyyy-MM-dd}");
 
