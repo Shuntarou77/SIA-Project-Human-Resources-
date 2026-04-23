@@ -216,10 +216,7 @@
     <Content Include="webpage%28EmployeeViewpoint%29\Profile.aspx" />
     <Content Include="webpage%28EmployeeViewpoint%29\Attendance.aspx" />
     <Content Include="webpage%28EmployeeViewpoint%29\Announcement.aspx" />
-    <Content Include="webpage%28ManagerViewpoint\Attendance.aspx" />
-    <Content Include="webpage%28ManagerViewpoint\Dashboard.aspx" />
-    <Content Include="webpage%28ManagerViewpoint\Employee.aspx" />
-    <Content Include="webpage%28ManagerViewpoint\Profile.aspx" />
+
     <Content Include="webpage%28PresidentViewpoint%29\Account.aspx" />
     <Content Include="webpage%28PresidentViewpoint%29\Announcement.aspx" />
     <Content Include="webpage%28PresidentViewpoint%29\Approvals.aspx" />
@@ -379,41 +376,7 @@
     <Compile Include="webpage%28EmployeeViewpoint%29\Announcement.aspx.designer.cs">
       <DependentUpon>Announcement.aspx</DependentUpon>
     </Compile>
-    <Compile Include="webpage%28ManagerViewpoint\Attendance.aspx.cs">
-      <DependentUpon>Attendance.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="webpage%28ManagerViewpoint\Attendance.aspx.designer.cs">
-      <DependentUpon>Attendance.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="webpage%28ManagerViewpoint\Dashboard.aspx.cs">
-      <DependentUpon>Dashboard.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="webpage%28ManagerViewpoint\Dashboard.aspx.designer.cs">
-      <DependentUpon>Dashboard.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="webpage%28ManagerViewpoint\Employee.aspx.cs">
-      <DependentUpon>Employee.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="webpage%28ManagerViewpoint\Employee.aspx.designer.cs">
-      <DependentUpon>Employee.aspx</DependentUpon>
-    </Compile>
-    <Compile Include="webpage%28ManagerViewpoint\ManagerHR.Master.cs">
-      <DependentUpon>ManagerHR.Master</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="webpage%28ManagerViewpoint\ManagerHR.Master.designer.cs">
-      <DependentUpon>ManagerHR.Master</DependentUpon>
-    </Compile>
-    <Compile Include="webpage%28ManagerViewpoint\Profile.aspx.cs">
-      <DependentUpon>Profile.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="webpage%28ManagerViewpoint\Profile.aspx.designer.cs">
-      <DependentUpon>Profile.aspx</DependentUpon>
-    </Compile>
+
     <Compile Include="webpage%28PresidentViewpoint%29\Account.aspx.cs">
       <DependentUpon>Account.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -702,7 +665,7 @@
     <Content Include="webpage%28EmployeeViewpoint%29\EmployeeHR.Master" />
     <Content Include="webpage\api\Announcements.ashx" />
     <Content Include="webpage\api\AttendanceHandler.ashx" />
-    <Content Include="webpage%28ManagerViewpoint\ManagerHR.Master" />
+
     <Content Include="webpage\Recruitment.aspx.cs.backup" />
     <Content Include="webpage\Payroll.aspx.cs.fixed" />
     <Content Include="webpage\Payroll.aspx.cs.fixed2" />

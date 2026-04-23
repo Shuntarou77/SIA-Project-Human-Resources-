@@ -57,8 +57,16 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             //        Response.Cookies.Add(userCookie);
             //    }
 
-            //    // Redirect to login page
-            //    Response.Redirect("~/LoginFolder/Login.aspx");
+            // Hide search bar for pages that don't need it
+            string currentPage = Request.Url.AbsolutePath.ToLower();
+            bool needsSearch = currentPage.Contains("employee.aspx") || 
+                              currentPage.Contains("attendance.aspx") || 
+                              currentPage.Contains("recruitment.aspx") || 
+                              currentPage.Contains("approvals.aspx") ||
+                              currentPage.Contains("activitylog.aspx");
+            
+            if (searchContainer != null)
+                searchContainer.Visible = needsSearch;
         }
     }
 }

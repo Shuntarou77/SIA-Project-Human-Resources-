@@ -68,7 +68,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 int otCount = PendingOvertimeRequests.Count;
                 int utCount = PendingUndertimeRequests.Count;
                 int resignCount = pendingResignations.Count;
-                int concernCount = allConcerns.Count(c => c.Status == "Submitted" || c.Status == "In Progress");
+                int concernCount = allConcerns.Count(c => string.Equals(c.Status, "Submitted", StringComparison.OrdinalIgnoreCase) || string.Equals(c.Status, "In Progress", StringComparison.OrdinalIgnoreCase));
 
                 // We use FindControl to be safe if the designer is out of sync
                 var l_leave = Master.FindControl("ContentPlaceHolder1").FindControl("litLeaveCount") as Literal;
@@ -298,7 +298,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 return Task.Run(async () => {
                     var service = new EmployeeConcernService();
                     var all = await service.GetAllConcernsAsync();
-                    var pending = all.Where(c => c.Status == "Submitted").ToList();
+                    var pending = all.Where(c => string.Equals(c.Status, "Submitted", StringComparison.OrdinalIgnoreCase) || string.Equals(c.Status, "In Progress", StringComparison.OrdinalIgnoreCase)).ToList();
                     var result = pending.Select(c => new {
                         id = c.Id,
                         employeeName = c.EmployeeName,

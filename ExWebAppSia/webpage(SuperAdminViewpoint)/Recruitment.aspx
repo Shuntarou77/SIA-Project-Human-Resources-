@@ -1362,7 +1362,7 @@
                 });
 
                 if (selectedIds.length === 0) {
-                    alert('Please select at least one applicant.');
+                    showWarningModal('No Applicant Selected', 'Please select at least one applicant before proceeding.');
                     return false;
                 }
 
@@ -1471,7 +1471,7 @@
                 // Get selected applicant IDs from Approved tab
                 var tableBody = document.getElementById('<%= approvedApplicantsTableBody.ClientID %>');
                 if (!tableBody) {
-                    alert('Unable to find applicants table. Please refresh the page.');
+                    showWarningModal('Error', 'Unable to find applicants table. Please refresh the page.');
                     return;
                 }
 
@@ -1486,7 +1486,7 @@
                 });
 
                 if (checkedBoxes.length === 0) {
-                    alert('Please select at least one approved applicant to schedule an interview.');
+                    showWarningModal('No Applicant Selected', 'Please select at least one approved applicant to schedule an interview.');
                     return;
                 }
 
@@ -1512,7 +1512,7 @@
                 });
 
                 if (selectedIds.length === 0) {
-                    alert('Please select at least one approved applicant to schedule an interview.');
+                    showWarningModal('No Applicant Selected', 'Please select at least one approved applicant to schedule an interview.');
                     return;
                 }
 
@@ -1676,27 +1676,27 @@
                 var howDidYouHearUs = document.getElementById('<%= ddlHowDidYouHearUs.ClientID %>').value;
 
                 if (!firstName) {
-                    alert('Please enter First Name');
+                    showWarningModal('Missing Field', 'Please enter the applicant\'s First Name.');
                     return false;
                 }
 
                 if (!lastName) {
-                    alert('Please enter Last Name');
+                    showWarningModal('Missing Field', 'Please enter the applicant\'s Last Name.');
                     return false;
                 }
 
                 if (!appliedPosition) {
-                    alert('Please select Applied Position (Department)');
+                    showWarningModal('Missing Field', 'Please select an Applied Position (Department).');
                     return false;
                 }
 
                 if (!role) {
-                    alert('Please select Role (Job Title)');
+                    showWarningModal('Missing Field', 'Please select a Role (Job Title).');
                     return false;
                 }
 
                 if (!howDidYouHearUs) {
-                    alert('Please select How did you hear us?');
+                    showWarningModal('Missing Field', 'Please select how the applicant heard about us.');
                     return false;
                 }
 
@@ -1729,7 +1729,7 @@
             function validateScheduleInterviewForm() {
                 var time = document.getElementById('<%= txtInterviewTime.ClientID %>').value;
                 if (!time) {
-                    alert('Please select Interview Time');
+                    showWarningModal('Missing Field', 'Please select an Interview Time before submitting.');
                     return false;
                 }
                 var timeParts = time.split(':');
@@ -1744,6 +1744,28 @@
             // Initialize Select All (for future use)
             function initializeSelectAll() {
                 // Placeholder for future implementation
+            }
+
+            // Reusable warning modal — replaces browser alert()
+            function showWarningModal(title, message) {
+                var modal = document.getElementById('emailConfirmationModal');
+                var iconWrapper = document.getElementById('statusIconWrapper');
+                var iconContent = document.getElementById('statusIconContent');
+                var titleEl = document.getElementById('statusTitle');
+                var msgEl = document.getElementById('statusMessage');
+
+                if (!modal) return;
+
+                // Warning style (amber)
+                iconWrapper.className = 'status-icon-wrapper';
+                iconWrapper.style.background = 'linear-gradient(135deg, #FFF8E1 0%, #FFE082 100%)';
+                iconWrapper.style.color = '#F57F17';
+                iconWrapper.style.boxShadow = '0 10px 20px rgba(245, 127, 23, 0.2)';
+                iconContent.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" style="width:48px;height:48px;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+
+                titleEl.textContent = title || 'Notice';
+                msgEl.textContent = message || '';
+                modal.style.display = 'block';
             }
 
             var selectedDept = '';
@@ -2719,7 +2741,7 @@
                         <label>Contract Type</label>
                         <asp:RadioButtonList ID="rblContractType" runat="server" CssClass="contract-type-radio"
                             RepeatDirection="Horizontal">
-                            <asp:ListItem Value="Regular" Selected="True">Regular</asp:ListItem>
+                            <asp:ListItem Value="Probationary" Selected="True">Probationary</asp:ListItem>
                             <asp:ListItem Value="Contractual">Contractual</asp:ListItem>
                         </asp:RadioButtonList>
                     </div>

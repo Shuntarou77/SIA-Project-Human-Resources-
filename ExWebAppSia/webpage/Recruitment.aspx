@@ -1961,7 +1961,7 @@
                         <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
                         <polyline points="22 4 12 14.01 9 11.01" />
                     </svg>
-                    Regularization Process
+                    Other Process
                 </button>
             </div>
 
@@ -2270,13 +2270,13 @@
                             <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
                             <circle cx="19" cy="11" r="2" />
                         </svg>
-                        Probationary Employees (For Regularization)
+                        Probationary Employees (Other Process)
                         <span class="panel-header-badge" style="background: rgba(255,255,255,0.15);">
                             <asp:Literal ID="litRehiringCount" runat="server" Text="0" />
                         </span>
                     </div>
                     <div class="panel-body">
-                        <div class="panel-title">Tenure Tracking & Regularization</div>
+                        <div class="panel-title">Tenure Tracking (Other Process)</div>
                         <div class="select-all"
                             style="margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
                             <input type="checkbox" id="selectAllRehiring" onclick="toggleAllRehiring(this)" />
@@ -2316,12 +2316,13 @@
                     </div>
                 </div>
 
-                <!-- Right Panel: In-Progress (Regularization) -->
+                <!-- Right Panel: In-Progress Regularization -->
                 <div class="panel">
                     <div class="panel-header" style="background: var(--primary-color);">
-                        <svg viewBox="0 0 24 24" fill="none">
-                            <circle cx="12" cy="12" r="10" />
-                            <polyline points="12 6 12 12 16 14" />
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M3 3h18v18H3z" />
+                            <path d="M3 9h18" />
+                            <path d="M9 21V9" />
                         </svg>
                         In-Progress Regularization
                         <span class="panel-header-badge" style="background: rgba(255,255,255,0.15);">
@@ -2329,12 +2330,13 @@
                         </span>
                     </div>
                     <div class="panel-body">
+                        <div class="panel-title">Application Processing</div>
                         <table class="applicant-table">
                             <thead>
                                 <tr>
                                     <th>Name</th>
-                                    <th>Position / Role</th>
-                                    <th style="text-align: center;">Details</th>
+                                    <th>Role</th>
+                                    <th style="text-align: center;">Status</th>
                                     <th style="text-align: center;">Actions</th>
                                 </tr>
                             </thead>
@@ -2346,6 +2348,47 @@
                                             <polyline points="12 6 12 12 16 14" />
                                         </svg>
                                         <p>No in-progress regularization found</p>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- NEW: Contractual Employees Panel -->
+                <div class="panel">
+                    <div class="panel-header" style="background: var(--primary-color);">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                        Contractual Employees
+                        <span class="panel-header-badge" style="background: rgba(255,255,255,0.15);">
+                            <asp:Literal ID="litContractualCount" runat="server" Text="0" />
+                        </span>
+                    </div>
+                    <div class="panel-body">
+                        <div class="panel-title">Active Contractual Staff</div>
+                        <table class="applicant-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Position / Role</th>
+                                    <th>Dept</th>
+                                    <th style="text-align: center;">Hire Date</th>
+                                    <th style="text-align: center;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="contractualTableBody" runat="server">
+                                <tr>
+                                    <td colspan="5" class="empty-state">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <polyline points="12 6 12 12 16 14" />
+                                        </svg>
+                                        <p>No contractual employees found</p>
                                     </td>
                                 </tr>
                             </tbody>
@@ -2681,7 +2724,7 @@
                         <label>Contract Type</label>
                         <asp:RadioButtonList ID="rblContractType" runat="server" CssClass="contract-type-radio"
                             RepeatDirection="Horizontal">
-                            <asp:ListItem Value="Regular" Selected="True">Regular</asp:ListItem>
+                            <asp:ListItem Value="Probationary" Selected="True">Probationary</asp:ListItem>
                             <asp:ListItem Value="Contractual">Contractual</asp:ListItem>
                         </asp:RadioButtonList>
                     </div>

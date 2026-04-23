@@ -133,18 +133,26 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
             var today = now.Date;
             var currentYear = now.Year;
             var yearStart = new DateTime(currentYear, 1, 1);
+            
+            // System-wide start date for attendance tracking
+            var trackingStart = AttendanceService.TRACKING_START_DATE;
+            // Get employee hired date
+            var employee = CurrentEmployee;
+            var hireDate = (employee != null && employee.HiredDate != DateTime.MinValue) ? employee.HiredDate.ToLocalTime().Date : trackingStart;
+            var effectiveStart = hireDate > yearStart ? hireDate : yearStart;
+            if (effectiveStart < trackingStart) effectiveStart = trackingStart;
 
             var yearlyRecords = _employeeAttendanceRecords
                 .Where(a => a.TimeIn.HasValue)
                 .Select(a => a.TimeIn.Value.ToLocalTime())
-                .Where(t => t.Year == currentYear)
+                .Where(t => t.Year == currentYear && t.Date >= effectiveStart)
                 .ToList();
 
             var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count();
             
-            var pastYearWeekdays = Enumerable.Range(0, (today - yearStart).Days + 1)
-                .Select(i => yearStart.AddDays(i))
-                .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
+            var pastYearWeekdays = Enumerable.Range(0, (today - effectiveStart).Days + 1)
+                .Select(i => effectiveStart.AddDays(i))
+                .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Sunday); // Include Saturdays
             
             var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent);
             var remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);

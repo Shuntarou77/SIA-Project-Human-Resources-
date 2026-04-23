@@ -22,6 +22,8 @@ namespace ExWebAppSia.webpage
         private readonly UserService _userService = new UserService();
         private readonly EmailService _emailService = new EmailService();
         private readonly RoleSalaryService _roleSalaryService = new RoleSalaryService();
+        protected global::System.Web.UI.WebControls.Literal litContractualCount;
+        protected global::System.Web.UI.HtmlControls.HtmlGenericControl contractualTableBody;
 
         private void LogActivity(string action, string targetInfo)
         {
@@ -207,7 +209,7 @@ namespace ExWebAppSia.webpage
                     Role = hdnSelectedRole.Value,
                     HowDidYouHearUs = ddlHowDidYouHearUs.SelectedValue,
                     ReferralName = txtReferralName.Text.Trim(),
-                    ContractType = rblContractType.SelectedValue ?? "Provisionary",
+                    ContractType = rblContractType.SelectedValue ?? "Probationary",
                     StartingSalary = 18000, // All probationary employees start at 18,000 PHP
                     HiringType = selectedHiringType,
                     Status = "Pending Review",
@@ -457,6 +459,13 @@ namespace ExWebAppSia.webpage
                 await PopulateInProgressTablesAsync(inProgressApplicantsTask.Result);
                 await PopulateOnboardingTableAsync(onboardingApplicantsTask.Result);
                 PopulateRehiringTable(probationaryEmployees);
+                
+                var contractualEmployees = employeesTask.Result
+                    .Where(e => e.ContractType == "Contractual")
+                    .OrderByDescending(e => e.HiredDate)
+                    .ToList();
+                if (litContractualCount != null) litContractualCount.Text = contractualEmployees.Count.ToString();
+                PopulateContractualTable(contractualEmployees);
 
 
                 int newCount = newCountTask.Result;
@@ -859,6 +868,40 @@ namespace ExWebAppSia.webpage
                 notHireButton);
             }
             tableBody.InnerHtml = sb.ToString();
+        }
+
+        private void PopulateContractualTable(List<Employee> employees)
+        {
+            if (employees == null || employees.Count == 0)
+            {
+                contractualTableBody.InnerHtml = "<tr><td colspan='5' class='empty-state'><svg viewBox='0 0 24 24' fill='none' stroke='currentColor'><path d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2' /><circle cx='12' cy='7' r='4' /></svg><p>No contractual employees found</p></td></tr>";
+                return;
+            }
+
+            var sb = new StringBuilder();
+            foreach (var emp in employees)
+            {
+                sb.AppendFormat(@"<tr>
+                    <td>
+                        <div style='display: flex; flex-direction: column;'>
+                            <strong style='color: var(--text-primary);'>{0}</strong>
+                            <span style='font-size: 11px; color: var(--text-secondary);'>{1}</span>
+                        </div>
+                    </td>
+                    <td>{2}</td>
+                    <td>{3}</td>
+                    <td style='text-align: center;'>{4:MMM dd, yyyy}</td>
+                    <td style='text-align: center;'>
+                        <span class='status-badge' style='background: #eff6ff; color: #1e40af;'>Active Contract</span>
+                    </td>
+                </tr>", 
+                Server.HtmlEncode(emp.FullName), 
+                Server.HtmlEncode(emp.EmployeeId), 
+                Server.HtmlEncode(emp.Role), 
+                Server.HtmlEncode(emp.Department),
+                emp.HiredDate);
+            }
+            contractualTableBody.InnerHtml = sb.ToString();
         }
 
         private void PopulateRehiringTable(List<Employee> employees)

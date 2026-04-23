@@ -153,9 +153,12 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 
                 System.Diagnostics.Debug.WriteLine($"Found {AttendanceRecords.Count} attendance records for local date {localDate:yyyy-MM-dd}");
 
-                // NEW: Ensure ALL employees are shown in the list for the current day
-                // Only do this if there is AT LEAST one record, otherwise it's just an empty day
-                if (AttendanceRecords.Count > 0)
+                // Always show ALL employees for any past/current workday,
+                // inserting an Absent placeholder for those with no time-in record.
+                bool isWorkday = localDate.DayOfWeek != DayOfWeek.Sunday;
+                bool isPastOrToday = localDate.Date <= DateTime.Now.Date;
+
+                if (isWorkday && isPastOrToday)
                 {
                     var finalDisplayList = new List<Attendance>();
                     foreach (var emp in AllEmployees)
@@ -167,7 +170,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                         }
                         else
                         {
-                            // Create a dummy "Absent" record for display
+                            // Insert an in-memory "Absent" placeholder for display
                             finalDisplayList.Add(new Attendance
                             {
                                 EmployeeId = emp.EmployeeId,

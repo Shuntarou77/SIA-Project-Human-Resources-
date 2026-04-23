@@ -725,18 +725,6 @@
                                     </div>
                                     <div class="stat-label">Working Days / Year</div>
                                 </div>
-                                <div class="stat-box">
-                                    <div class="stat-value" style="color: #f59e0b;">
-                                        <%= GetOvertimeHours() %>h
-                                    </div>
-                                    <div class="stat-label">Overtime</div>
-                                </div>
-                                <div class="stat-box">
-                                    <div class="stat-value" style="color: #ef4444;">
-                                        <%= GetUndertimeCount() %>
-                                    </div>
-                                    <div class="stat-label">Undertime</div>
-                                </div>
                             </div>
 
                             <div class="attendance-actions">

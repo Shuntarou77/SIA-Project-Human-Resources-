@@ -167,13 +167,7 @@
                     <button type="button" class="mobile-menu-toggle" id="mobileMenuToggle">
                         <i class="fas fa-bars"></i>
                     </button>
-                    <!-- Search Bar -->
-                    <div class="search-container">
-                        <div class="search-bar">
-                            <i class="fas fa-search search-icon"></i>
-                            <input type="text" class="search-input" id="globalSearch" placeholder="Search for employees, records..." />
-                        </div>
-                    </div>
+                    <!-- Global Search Bar Removed for Cleaner UI -->
                 </div>
 
                 <div class="header-right">

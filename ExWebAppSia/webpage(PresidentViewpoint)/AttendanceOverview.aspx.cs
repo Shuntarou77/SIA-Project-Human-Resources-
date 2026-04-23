@@ -74,7 +74,13 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                     var timeIn = a.TimeIn?.ToLocalTime();
                     return timeIn?.Hour >= 8 && (timeIn?.Minute > 0 || timeIn?.Hour > 8);
                 });
-                int absent = Math.Max(0, totalEmpCount - present);
+                
+                // Only count absentees on working days (Mon-Sat)
+                int absent = 0;
+                if (selectedDate.DayOfWeek != DayOfWeek.Sunday)
+                {
+                    absent = Math.Max(0, totalEmpCount - present);
+                }
                 
                 // For OT and UT, we'd need to check the respective collections
                 var otRequests = await _overtimeService.GetAllAsync();

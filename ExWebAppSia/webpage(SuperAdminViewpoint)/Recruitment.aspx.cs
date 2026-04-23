@@ -211,7 +211,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     Role = hdnSelectedRole.Value,
                     HowDidYouHearUs = ddlHowDidYouHearUs.SelectedValue,
                     ReferralName = txtReferralName.Text.Trim(),
-                    ContractType = rblContractType.SelectedValue ?? "Provisionary",
+                    ContractType = rblContractType.SelectedValue ?? "Probationary",
                     StartingSalary = 18000, 
                     HiringType = (hdnSelectedRole.Value.Contains("Replacement") || ddlAppliedPosition.SelectedValue == "Contractual") ? "Contractual" : selectedHiringType,
                     Status = "Pending Review",

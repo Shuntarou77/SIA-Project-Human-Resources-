@@ -5,207 +5,311 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/orgchart/3.1.1/css/jquery.orgchart.min.css" />
     
     <style>
-        .page-header {
-            margin-bottom: 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        :root {
+            --bg-color: #f8fafc;
+            --panel-bg: #ffffff;
+            --text-dark: #202d41;
+            /* Unified Brand Color */
+            --accent: #A36A66;
+            --accent-light: #C49A99;
+            --accent-dark: #8B5A58;
+            --border-color: #e8e8e8;
+            --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+            --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.12);
         }
 
-        .page-title {
-            font-size: 1.75rem;
-            font-weight: 800;
-            color: #1A202C;
-            margin: 0;
-        }
-
-        .chart-container {
-            position: relative;
-            display: inline-block;
-            top: 10px;
-            left: 10px;
-            height: calc(100vh - 200px);
-            width: calc(100% - 20px);
-            border: none;
-            overflow: auto;
-            text-align: center;
-            background: #f8f9fa;
-            border-radius: 24px;
-            box-shadow: inset 0 2px 10px rgba(0,0,0,0.05);
-            padding: 40px;
-        }
-
-        #chart-container {
+        .org-container {
+            padding: 10px 20px 40px;
             background-color: transparent;
         }
 
-        /* Custom Node Styling */
-        .orgchart .node {
-            box-sizing: border-box;
-            display: inline-block;
-            position: relative;
+        /* Unified Header Style */
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 35px;
+            padding: 24px 30px;
+            background: linear-gradient(to right, #ffffff, #fdfbfb);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+        }
+
+        .header-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--accent);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            box-shadow: 0 4px 10px rgba(163, 106, 102, 0.3);
+        }
+
+        .header-content {
+            flex: 1;
+        }
+
+        .page-title {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--text-dark);
             margin: 0;
-            padding: 3px;
-            border: none;
-            text-align: center;
-            width: 140px;
+            letter-spacing: -0.5px;
+            line-height: 1.2;
         }
 
-        .orgchart .node .title {
-            text-align: center;
-            font-size: 12px;
-            font-weight: bold;
-            height: 24px;
-            line-height: 24px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-            background-color: #333;
-            color: #fff;
-            border-radius: 4px 4px 0 0;
-        }
-
-        .orgchart .node .content {
-            box-sizing: border-box;
-            width: 100%;
-            height: 40px;
-            font-size: 11px;
-            line-height: 18px;
-            border: 1px solid #ccc;
-            border-radius: 0 0 4px 4px;
-            text-align: center;
-            background-color: #fff;
-            color: #333;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: wrap;
-            padding: 4px;
-        }
-
-        /* Premium Node Styles */
-        .orgchart .node {
-            transition: transform 0.3s;
-        }
-
-        .orgchart .node:hover {
-            transform: translateY(-5px);
-            z-index: 10;
-        }
-
-        /* President Node */
-        .orgchart .node.president-node .title {
-            background: linear-gradient(135deg, #4A3534 0%, #2D1B1B 100%) !important;
-            font-size: 11px !important;
-            height: 24px;
-            line-height: 24px;
-        }
-        .orgchart .node.president-node .content {
-            border: 2px solid #4A3534;
-            font-weight: bold;
-            font-size: 10px;
-        }
-
-        /* SuperAdmin Node */
-        .orgchart .node.superadmin-node .title {
-            background: linear-gradient(135deg, #A44F56 0%, #7D3A40 100%) !important;
-        }
-        .orgchart .node.superadmin-node .content {
-            border: 1px solid #A44F56;
-        }
-
-        /* Manager Node */
-        .orgchart .node.manager-node .title {
-            background: linear-gradient(135deg, #5D7987 0%, #4A606B 100%) !important;
-        }
-        .orgchart .node.manager-node .content {
-            border: 1px solid #5D7987;
-        }
-
-        /* Regular Employee Node */
-        .orgchart .node.employee-node .title {
-            background-color: #f1f3f5 !important;
-            color: #495057 !important;
-            border: 1px solid #dee2e6;
-            border-bottom: none;
-        }
-        .orgchart .node.employee-node .content {
-            border: 1px solid #dee2e6;
-        }
-
-        /* Lines styling */
-        .orgchart .lines .downLine {
-            background-color: #A44F56;
-        }
-        .orgchart .lines .leftLine, .orgchart .lines .rightLine {
-            border-color: #A44F56;
-        }
-        .orgchart .lines .topLine {
-            border-color: #A44F56;
+        .page-subtitle {
+            color: #64748b;
+            margin: 4px 0 0;
+            font-size: 14px;
+            font-weight: 500;
         }
 
         .controls {
-            background: white;
-            padding: 10px 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             display: flex;
-            gap: 10px;
+            gap: 12px;
         }
 
         .btn-control {
-            border: 1px solid #dee2e6;
+            border: 1px solid var(--border-color);
             background: white;
-            padding: 8px 12px;
-            border-radius: 8px;
-            color: #4A5568;
+            padding: 10px 18px;
+            border-radius: 10px;
+            color: #475569;
+            font-size: 13px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            box-shadow: var(--shadow-sm);
         }
 
         .btn-control:hover {
-            border-color: #A44F56;
-            color: #A44F56;
-            background: #FFF5F5;
+            border-color: var(--accent);
+            color: var(--accent);
+            background: #fffafa;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
         }
 
-        /* Animation */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: scale(0.95); }
-            to { opacity: 1; transform: scale(1); }
+        .btn-control i {
+            font-size: 14px;
         }
 
-        .chart-container {
-            animation: fadeIn 0.6s ease-out forwards;
+        /* Main Card Container */
+        .org-card {
+            background: white;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            position: relative;
+            background-image: 
+                radial-gradient(#e5e7eb 0.5px, transparent 0.5px),
+                radial-gradient(#e5e7eb 0.5px, #ffffff 0.5px);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+            height: calc(100vh - 250px);
+        }
+
+        /* OrgChart Library Overrides */
+        #chart-container {
+            height: 100%;
+            width: 100%;
+            overflow: auto;
+            text-align: center;
+        }
+
+        .orgchart {
+            background: transparent !important;
+        }
+
+        .orgchart .node {
+            width: 260px;
+            padding: 0;
+            margin: 10px 20px;
+            border: none;
+            background-color: transparent !important;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .orgchart .node:hover {
+            background-color: transparent !important;
+            transform: translateY(-10px) scale(1.02);
+            z-index: 10;
+        }
+
+        .orgchart .node .title {
+            width: 100%;
+            box-sizing: border-box;
+            height: auto;
+            min-height: 60px;
+            line-height: 1.4;
+            font-size: 15px;
+            font-weight: 800;
+            color: #fff !important;
+            background: var(--accent) !important;
+            border-radius: 16px 16px 0 0 !important;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            white-space: normal;
+            word-wrap: break-word;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Remove any injected icons from the title */
+        .orgchart .node .title::before,
+        .orgchart .node .title::after,
+        .orgchart .node .title i {
+            display: none !important;
+        }
+
+        .orgchart .node .content {
+            width: 100%;
+            box-sizing: border-box;
+            height: auto;
+            min-height: 80px;
+            line-height: 1.6;
+            font-size: 14px;
+            font-weight: 600;
+            color: #334155 !important;
+            background: #fff !important;
+            border: 1px solid var(--border-color) !important;
+            border-top: none !important;
+            border-radius: 0 0 16px 16px !important;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+
+        /* Line Styling */
+        .orgchart .lines .downLine {
+            background-color: var(--accent-light) !important;
+            width: 2px;
+        }
+        .orgchart .lines .leftLine {
+            border-left: 2px solid var(--accent-light) !important;
+            border-top: 2px solid var(--accent-light) !important;
+        }
+        .orgchart .lines .rightLine {
+            border-right: 2px solid var(--accent-light) !important;
+            border-top: 2px solid var(--accent-light) !important;
+        }
+        .orgchart .lines .topLine {
+            border-top: 2px solid var(--accent-light) !important;
+        }
+
+        /* Specialized Node Colors */
+        .orgchart .node.president-node .title {
+            background: linear-gradient(135deg, #2d3436 0%, #000000 100%) !important;
+        }
+        
+        .orgchart .node.superadmin-node .title {
+            background: linear-gradient(135deg, #636e72 0%, #2d3436 100%) !important;
+        }
+
+        .orgchart .node.manager-node .title {
+            background: linear-gradient(135deg, #636e72 0%, #2d3436 100%) !important;
+        }
+
+        .orgchart .node.employee-node .title {
+            background: #fff !important;
+            color: #1e293b !important;
+            border: 1px solid var(--border-color) !important;
+            border-bottom: none !important;
+        }
+
+        /* Loading Animation */
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f1f5f9;
+            border-top: 4px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Scrollbar Styling */
+        .org-card::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        .org-card::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .org-card::-webkit-scrollbar-thumb {
+            background: var(--accent-light);
+            border-radius: 10px;
+        }
+        .org-card::-webkit-scrollbar-thumb:hover {
+            background: var(--accent);
         }
     </style>
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
-    <div class="page-header">
-        <div>
-            <h1 class="page-title">Organizational Structure</h1>
-            <p class="text-muted m-0">Dynamic view of company hierarchy and reporting lines.</p>
+    <div class="org-container">
+        <div class="page-header">
+            <div class="header-icon">
+                <i class="fas fa-sitemap"></i>
+            </div>
+            <div class="header-content">
+                <h1 class="page-title">Organizational Structure</h1>
+                <p class="page-subtitle">Dynamic visualization of department hierarchy and personnel reporting lines.</p>
+            </div>
+            <div class="controls">
+                <button type="button" class="btn-control" onclick="exportJSON()">
+                    <i class="fas fa-download"></i> Export data
+                </button>
+                <button type="button" class="btn-control" onclick="resetView()">
+                    <i class="fas fa-sync-alt"></i> Reset view
+                </button>
+            </div>
         </div>
-        <div class="controls">
-            <button type="button" class="btn-control" onclick="exportJSON()">
-                <i class="fas fa-file-export"></i> Export JSON
-            </button>
-            <button type="button" class="btn-control" onclick="chart.init({'pan':true, 'zoom':true})">
-                <i class="fas fa-expand"></i> Reset View
-            </button>
-        </div>
-    </div>
 
-    <div class="chart-container">
-        <div id="loading" style="padding: 100px;">
-            <i class="fas fa-spinner fa-spin fa-3x" style="color: #A44F56;"></i>
-            <p style="margin-top: 15px; font-weight: 600; color: #4A5568;">Building company structure...</p>
+        <div class="org-card">
+            <div id="loading" class="loading-overlay">
+                <div class="spinner"></div>
+                <p style="font-weight: 700; color: #64748b; letter-spacing: 0.5px;">CONSTRUCTING GRAPH...</p>
+            </div>
+            <div id="chart-container"></div>
         </div>
-        <div id="chart-container"></div>
     </div>
 
     <!-- Library JS -->
@@ -224,18 +328,16 @@
             const handlerUrl = '<%= ResolveUrl("~/Handler/OrgChartHandler.ashx") %>';
             $.getJSON(handlerUrl, function(data) {
                 if (data.error) {
-                    console.error("Error fetching data:", data.error);
-                    $('#loading').html('<div class="alert alert-danger">Error: ' + data.error + '</div>');
+                    $('#loading').html('<div style="color: #ef4444; font-weight: 600;">Error: ' + data.error + '</div>');
                     return;
                 }
-
                 orgData = data;
                 initChart(data);
-                $('#loading').hide();
-            }).fail(function(jqxhr, textStatus, error) {
-                const err = textStatus + ", " + error;
-                console.error("Request Failed: " + err);
-                $('#loading').html('<div class="alert alert-danger">Failed to load data from server. Please refresh or contact support.</div>');
+                setTimeout(() => {
+                    $('#loading').fadeOut(500);
+                }, 800);
+            }).fail(function() {
+                $('#loading').html('<div style="color: #ef4444; font-weight: 600;">System connection failed. Please refresh.</div>');
             });
         }
 
@@ -246,16 +348,18 @@
                 'nodeTitle': 'name',
                 'pan': true,
                 'zoom': true,
-                'verticalLevel': 4, // Managers stay horizontal, Staff under them become vertical to save space
+                'verticalLevel': 4,
                 'createNode': function($node, data) {
                     $node.addClass(data.className);
-                    
-                    // Click handler for interaction
-                    $node.on('click', function() {
-                        console.log('Employee clicked:', data);
-                    });
                 }
             });
+        }
+
+        function resetView() {
+            if(chart) {
+                $('#chart-container').empty();
+                initChart(orgData);
+            }
         }
 
         function exportJSON() {
@@ -263,7 +367,7 @@
             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(orgData, null, 2));
             const downloadAnchorNode = document.createElement('a');
             downloadAnchorNode.setAttribute("href", dataStr);
-            downloadAnchorNode.setAttribute("download", "company_orgchart.json");
+            downloadAnchorNode.setAttribute("download", "company_structure.json");
             document.body.appendChild(downloadAnchorNode);
             downloadAnchorNode.click();
             downloadAnchorNode.remove();

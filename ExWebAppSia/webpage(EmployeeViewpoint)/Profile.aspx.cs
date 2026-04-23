@@ -301,6 +301,16 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
             var now = DateTime.Now;
             var today = now.Date;
             var currentMonth = new DateTime(now.Year, now.Month, 1);
+            var currentYear = now.Year;
+            var yearStart = new DateTime(currentYear, 1, 1);
+
+            // System-wide start date for attendance tracking
+            var trackingStart = AttendanceService.TRACKING_START_DATE;
+            // Get employee hired date
+            var employee = CurrentEmployee;
+            var hireDate = (employee != null && employee.HiredDate != DateTime.MinValue) ? employee.HiredDate.ToLocalTime().Date : trackingStart;
+            var effectiveStart = hireDate > yearStart ? hireDate : yearStart;
+            if (effectiveStart < trackingStart) effectiveStart = trackingStart;
 
             // Current month records - filter by local time
             var currentMonthRecords = _employeeAttendanceRecords
@@ -316,11 +326,17 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 .ToList();
             var currentMonthPresent = currentMonthPresentDays.Count;
 
-            // Count past weekdays only (exclude weekends and future days)
-            int pastWeekdays = Enumerable.Range(0, (today - currentMonth).Days + 1)
-                .Select(i => currentMonth.AddDays(i))
-                .Where(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
-                .Count();
+            // Count past workdays (Mon-Sat) only (exclude Sundays and future days)
+            // Also ensure we don't count days before tracking started or before employee was hired
+            var monthTrackingStart = currentMonth > effectiveStart ? currentMonth : effectiveStart;
+            var pastWeekdays = 0;
+            if (monthTrackingStart <= today)
+            {
+                pastWeekdays = Enumerable.Range(0, (today - monthTrackingStart).Days + 1)
+                    .Select(i => monthTrackingStart.AddDays(i))
+                    .Where(d => d <= today && d.DayOfWeek != DayOfWeek.Sunday)
+                    .Count();
+            }
 
             // Subtract approved leave days from pastWeekdays to get target working days
             int leaveDaysInMonth = 0;
@@ -328,7 +344,7 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
             {
                 for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
                 {
-                    if (d >= currentMonth && d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                    if (d >= currentMonth && d <= today && d.DayOfWeek != DayOfWeek.Sunday)
                     {
                         leaveDaysInMonth++;
                     }
@@ -348,26 +364,24 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 : 0;
 
             // Yearly stats
-            var currentYear = now.Year;
             var yearlyRecords = _employeeAttendanceRecords
                 .Where(a => a.TimeIn.HasValue)
                 .Select(a => a.TimeIn.Value.ToLocalTime())
-                .Where(t => t.Year == currentYear)
+                .Where(t => t.Year == currentYear && t.Date >= effectiveStart)
                 .ToList();
 
-            var yearStart = new DateTime(currentYear, 1, 1);
             var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count();
             
-            var pastYearWeekdays = Enumerable.Range(0, (today - yearStart).Days + 1)
-                .Select(i => yearStart.AddDays(i))
-                .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
+            var pastYearWeekdays = Enumerable.Range(0, (today - effectiveStart).Days + 1)
+                .Select(i => effectiveStart.AddDays(i))
+                .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Sunday); // Consistently include Saturdays
             
             int yearlyLeaveDays = 0;
             foreach (var leave in approvedLeaves)
             {
                 for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
                 {
-                    if (d.Year == currentYear && d >= yearStart && d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                    if (d.Year == currentYear && d >= effectiveStart && d <= today && d.DayOfWeek != DayOfWeek.Sunday)
                     {
                         yearlyLeaveDays++;
                     }

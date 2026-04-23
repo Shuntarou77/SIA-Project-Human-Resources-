@@ -118,7 +118,7 @@
         <div style="margin-bottom: 30px; display: flex; justify-content: space-between; align-items: flex-end;">
             <div>
                 <h1 style="font-size: 28px; font-weight: 800; color: #1e293b; margin-bottom: 5px;">Executive Approvals</h1>
-                <p style="color: #64748b; font-weight: 500;">Review and finalize high-level requests from Super Administration.</p>
+                <p style="color: #64748b; font-weight: 500;">Review and finalize all pending personnel requests.</p>
             </div>
             <div style="background: white; padding: 10px 20px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; align-items: center; gap: 10px;">
                 <span style="font-size: 14px; font-weight: 600; color: #475569;">Presidential Guard</span>
@@ -126,17 +126,13 @@
             </div>
         </div>
 
-        <div class="auto-approve-notice">
-            <i class="fas fa-info-circle"></i>
-            <span><strong>Safety Net Active:</strong> Requests pending more than 3 business days will be automatically approved to maintain workflow continuity.</span>
-        </div>
 
         <div class="metrics-grid">
             <div class="metric-card" onclick="switchTab('leave-tab')">
                 <div class="metric-icon" style="background: #A44F56;"><i class="fas fa-calendar-alt"></i></div>
                 <div class="metric-info">
                     <div class="count"><asp:Literal ID="litLeaveCount" runat="server">0</asp:Literal></div>
-                    <div class="label">Super Admin Leaves</div>
+                    <div class="label">Pending Leaves</div>
                 </div>
             </div>
             <div class="metric-card" onclick="switchTab('ot-tab')">
@@ -225,7 +221,7 @@
                     <div class="table-responsive">
                         <table class="modern-table">
                             <thead>
-                                <tr><th>From</th><th>Subject</th><th>Type</th><th>Submitted</th></tr>
+                                <tr><th>From</th><th>Subject</th><th>Type</th><th>Submitted</th><th>Actions</th></tr>
                             </thead>
                             <tbody id="concernBody"></tbody>
                         </table>
@@ -279,7 +275,7 @@
                             </div>
                         </td>
                     </tr>
-                `).join('') : '<tr><td colspan="6" class="empty-state">No pending Super Admin leaves.</td></tr>';
+                `).join('') : '<tr><td colspan="6" class="empty-state">No pending leave requests.</td></tr>';
 
                 // Build OT
                 document.getElementById('otBody').innerHTML = res.ot.length ? res.ot.map(o => `
@@ -295,7 +291,7 @@
                             </div>
                         </td>
                     </tr>
-                `).join('') : '<tr><td colspan="5" class="empty-state">No pending Super Admin OT.</td></tr>';
+                `).join('') : '<tr><td colspan="5" class="empty-state">No pending overtime requests.</td></tr>';
 
                 // Build UT
                 document.getElementById('utBody').innerHTML = res.ut.length ? res.ut.map(u => `
@@ -310,7 +306,7 @@
                             </div>
                         </td>
                     </tr>
-                `).join('') : '<tr><td colspan="4" class="empty-state">No pending Super Admin UT.</td></tr>';
+                `).join('') : '<tr><td colspan="4" class="empty-state">No pending undertime requests.</td></tr>';
 
                 // Build Resign
                 document.getElementById('resignBody').innerHTML = res.resign.length ? res.resign.map(e => `
@@ -325,7 +321,7 @@
                             </div>
                         </td>
                     </tr>
-                `).join('') : '<tr><td colspan="4" class="empty-state">No pending Super Admin resignations.</td></tr>';
+                `).join('') : '<tr><td colspan="4" class="empty-state">No pending resignation requests.</td></tr>';
 
                 // Build Concern
                 document.getElementById('concernBody').innerHTML = res.concerns.length ? res.concerns.map(c => `
@@ -334,13 +330,16 @@
                         <td>${c.subject}</td>
                         <td>${c.type}</td>
                         <td>${c.date}</td>
+                        <td>
+                            <button class="btn-action-approve" onclick="approve('Concern', '${c.id}')">Resolve</button>
+                        </td>
                     </tr>
-                `).join('') : '<tr><td colspan="4" class="empty-state">No recent Super Admin concerns.</td></tr>';
+                `).join('') : '<tr><td colspan="4" class="empty-state">No recent concerns.</td></tr>';
             });
         }
 
         function approve(type, id) {
-            document.getElementById('confirmMsg').textContent = `Are you sure you want to approve this Super Admin ${type} request?`;
+            document.getElementById('confirmMsg').textContent = `Are you sure you want to approve this ${type} request?`;
             document.getElementById('btnConfirm').onclick = function() {
                 PageMethods.ProcessApproval(type, id, true, function(r) {
                     location.reload();
@@ -350,7 +349,7 @@
         }
 
         function reject(type, id) {
-            document.getElementById('confirmMsg').textContent = `Are you sure you want to REJECT this Super Admin ${type} request?`;
+            document.getElementById('confirmMsg').textContent = `Are you sure you want to REJECT this ${type} request?`;
             document.getElementById('btnConfirm').onclick = function() {
                 PageMethods.ProcessApproval(type, id, false, function(r) {
                     location.reload();

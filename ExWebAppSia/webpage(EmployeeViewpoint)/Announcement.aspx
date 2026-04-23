@@ -153,25 +153,6 @@
                 text-transform: uppercase;
             }
 
-            .btn-gmail {
-                margin-top: 20px;
-                padding: 8px 16px;
-                border-radius: 8px;
-                background: #FDF1F0;
-                color: #D93025;
-                font-weight: 700;
-                font-size: 13px;
-                border: 1px solid #F5C2C0;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                transition: all 0.2s;
-            }
-
-            .btn-gmail:hover {
-                background: #FADAD6;
-            }
 
             /* Responsive */
             @media (max-width: 768px) {
@@ -308,9 +289,6 @@
                             <div class="card-body">${content}</div>
                             ${img ? `<img src="${img}" style="width:100%; border-radius:12px; margin-top:16px; border:1px solid #eee;" />` : ''}
                             ${vid ? `<div style="margin-top:16px;"><video controls style="width:100%; border-radius:12px;"><source src="${vid}" /></video></div>` : ''}
-                            <button class="btn-gmail" onclick="window.open('https://mail.google.com/mail/?view=cm&fs=1&su=Announcement: ${encodeURIComponent(content.substring(0,50))}&body=${encodeURIComponent(content)}', '_blank')">
-                                <i class="fas fa-envelope"></i> Compose in Gmail
-                            </button>
                         </div>`;
                 }).join('');
             }

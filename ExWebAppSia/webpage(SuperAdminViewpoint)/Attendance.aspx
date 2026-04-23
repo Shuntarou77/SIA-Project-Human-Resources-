@@ -528,18 +528,6 @@
                             </div>
                             <div class="stat-label">Late</div>
                         </div>
-                        <div class="stat-card" style="background-color: #ef4444;">
-                            <div class="stat-number">
-                                <%= GetUndertimeCount() %>
-                            </div>
-                            <div class="stat-label">Undertime</div>
-                        </div>
-                        <div class="stat-card" style="background-color: #f59e0b;">
-                            <div class="stat-number">
-                                <%= GetOvertimeCount() %>
-                            </div>
-                            <div class="stat-label">Overtime</div>
-                        </div>
                     </div>
 
                     <!-- Filter & Search Row -->
@@ -579,7 +567,6 @@
                                     <th>Time-In</th>
                                     <th>Time-Out</th>
                                     <th>Late</th>
-                                    <th>Undertime</th>
                                     <th>Absence Allowance</th>
                                 </tr>
                             </thead>
@@ -605,9 +592,6 @@
                                             <td style="color: #ef4444; font-weight: 600;">
                                                 <%# FormatLateTime((DateTime?)Eval("TimeIn"), (string)Eval("LateTime"))
                                                     %>
-                                            </td>
-                                            <td>
-                                                <%# GetUndertimeDisplay((string)Eval("Id")) %>
                                             </td>
                                             <td>
                                                 <%# GetAbsenceAllowance((string)Eval("EmployeeId")) %>

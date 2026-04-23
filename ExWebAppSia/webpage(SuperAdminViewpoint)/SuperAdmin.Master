@@ -168,16 +168,7 @@
                             <i class="fas fa-bars"></i>
                         </button>
                         <!-- Search Bar -->
-                        <div class="search-container">
-                            <div class="search-bar">
-                                <i class="fas fa-search search-icon"></i>
-                                <input type="text" class="search-input" id="globalSearch" placeholder="Search for anything..." />
-                                <button class="search-clear" id="searchClear" style="display: none;">
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                            <div class="search-results" id="searchResults"></div>
-                        </div>
+                        <!-- Top Header Search Bar Removed -->
                     </div>
 
                     <div class="header-right">

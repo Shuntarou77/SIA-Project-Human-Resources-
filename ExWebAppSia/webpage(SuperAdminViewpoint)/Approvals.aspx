@@ -308,6 +308,7 @@
                                     <th>Type</th>
                                     <th>Subject</th>
                                     <th>Submission Date</th>
+                                    <th style="text-align:right;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody id="employeeConcernsBody"></tbody>
@@ -418,6 +419,7 @@
                         '<td><span class="status-pill status-pending">'+c.concernType+'</span></td>' +
                         '<td><strong>'+c.subject+'</strong></td>' +
                         '<td>'+c.submittedDate+'</td>' +
+                        '<td style="text-align:right;"><button type="button" class="btn-approve" onclick="resolveConcern(\''+c.id+'\', \''+c.employeeName.replace(/'/g,"")+'\')">Resolve</button></td>' +
                     '</tr>';
                 }).join('');
             });
@@ -498,6 +500,16 @@
                 PageMethods.DeclineResignation(id, function(r) {
                     var res = typeof r === 'string' ? JSON.parse(r) : r;
                     if(res.success) { showAlert("Cancelled", "Resignation request has been rejected.", "success"); loadPendingResignations(); }
+                    else showAlert("Error", res.message, "error");
+                });
+            });
+        }
+
+        function resolveConcern(id, name) {
+            showConfirm("Resolve Concern", "Mark this concern from " + name + " as resolved?", function() {
+                PageMethods.ResolveConcern(id, function(r) {
+                    var res = typeof r === 'string' ? JSON.parse(r) : r;
+                    if(res.success) { showAlert("Resolved", "Employee concern has been settled.", "success"); loadPendingConcerns(); }
                     else showAlert("Error", res.message, "error");
                 });
             });

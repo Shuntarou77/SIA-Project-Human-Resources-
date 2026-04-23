@@ -44,18 +44,7 @@ namespace ExWebAppSia.LoginFolder
             }
         }
 
-        private ManagerService _managerService;
-        private ManagerService ManagerServiceInstance
-        {
-            get
-            {
-                if (_managerService == null)
-                {
-                    _managerService = new ManagerService();
-                }
-                return _managerService;
-            }
-        }
+
 
         protected void Page_Load(object sender, EventArgs e)
         {
@@ -150,72 +139,7 @@ namespace ExWebAppSia.LoginFolder
                             return;
                         }
 
-                        // Load specialized Manager data if applicable
-                        if (user.Role == "Manager")
-                        {
-                            var managerService = new ManagerService();
-                            Manager manager = null;
 
-                            // 1. Try finding by ManagerId if it exists in the User record
-                            if (!string.IsNullOrEmpty(user.ManagerId))
-                            {
-                                manager = await managerService.GetManagerByManagerIdAsync(user.ManagerId);
-                            }
-
-                            // 2. Fallback to Email search (most common)
-                            if (manager == null && !string.IsNullOrEmpty(user.Email))
-                            {
-                                manager = await managerService.GetManagerByEmailAsync(user.Email);
-                            }
-
-                            // 3. Last resort: try searching by Username (if username is an email)
-                            if (manager == null && user.Username.Contains("@"))
-                            {
-                                manager = await managerService.GetManagerByEmailAsync(user.Username);
-                            }
-
-                            if (manager != null)
-                            {
-                                Session["Manager"] = manager;
-                                System.Diagnostics.Debug.WriteLine($"Manager session initialized for: {manager.FullName} (Dept: {manager.Department})");
-                                
-                                // Also ensure they have an Employee session object if they don't yet
-                                if (Session["Employee"] == null)
-                                {
-                                    // Try to load as employee using their email
-                                    var employeeData = await EmployeeServiceInstance.GetEmployeeByEmailAsync(manager.Email);
-                                    if (employeeData != null)
-                                    {
-                                        Session["Employee"] = employeeData;
-                                    }
-                                    else
-                                    {
-                                        // Fallback: Create a temporary Employee object from Manager data
-                                        // so the EmployeeViewpoint pages don't crash and show their info correctly
-                                        Session["Employee"] = new Employee
-                                        {
-                                            EmployeeId = manager.ManagerId,
-                                            FirstName = manager.FirstName,
-                                            LastName = manager.LastName,
-                                            MiddleName = manager.MiddleName,
-                                            Email = manager.Email,
-                                            Department = manager.Department,
-                                            Role = manager.Role,
-                                            ContactNo = manager.ContactNo,
-                                            Address = manager.Address,
-                                            HiredDate = manager.HiredDate,
-                                            ContractType = manager.ContractType,
-                                            IsActive = manager.IsActive
-                                        };
-                                        System.Diagnostics.Debug.WriteLine($"Created temporary Employee session for Manager: {manager.ManagerId}");
-                                    }
-                                }
-                            }
-                            else
-                            {
-                                System.Diagnostics.Debug.WriteLine($"Warning: User has role 'Manager' but no record found in Manager collection for {user.Username}");
-                            }
-                        }
                     }
                     catch (Exception empEx)
                     {
@@ -281,23 +205,7 @@ namespace ExWebAppSia.LoginFolder
                     }
                     else if (user.Role == "Manager")
                     {
-                        var manager = Session["Manager"] as Manager;
-                        var employee = Session["Employee"] as Employee;
-                        
-                        // Check if they belong to Human Resources (e.g., Payroll Manager)
-                        bool isHRManager = (manager != null && manager.Department == "Human Resources") || 
-                                           (employee != null && employee.Department == "Human Resources");
-                                           
-                        if (isHRManager)
-                        {
-                            // HR Managers (including Payroll Manager) get the HR Staff / Admin interface
-                            Response.Redirect("~/webpage/Dashboard.aspx", false);
-                        }
-                        else
-                        {
-                            // Other Managers use the same interface as employees
-                            Response.Redirect("~/webpage(EmployeeViewpoint)/Dashboard.aspx", false);
-                        }
+                        Response.Redirect("~/webpage(EmployeeViewpoint)/Dashboard.aspx", false);
                         Context.ApplicationInstance.CompleteRequest();
                     }
                 }
