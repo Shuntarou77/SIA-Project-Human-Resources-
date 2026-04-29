@@ -705,7 +705,7 @@
                             </div>
                             <div class="stat-box">
                                 <div class="stat-value" style="color: var(--success-color);"><%= GetTargetWorkingDays() %></div>
-                                <div class="stat-label">Target</div>
+                                <div class="stat-label">Working Days (To Date)</div>
                             </div>
                         </div>
 
@@ -956,21 +956,15 @@
             </div>
         </div>
 
-        <!-- Alert Modal -->
-        <div id="alertModal" class="custom-modal-v2">
-            <div class="custom-modal-v2-content" style="max-width: 450px;">
-                <div class="custom-modal-v2-header">
-                    <button type="button" onclick="window.closeCustomModal('alertModal'); return false;" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.25);border:none;color:white;font-size:22px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:bold;z-index:10001;">&times;</button>
-                    <h2 class="custom-modal-v2-title" id="alertModalTitle">Notification</h2>
+        <!-- Success/Alert Modal -->
+        <div id="alertModal" class="custom-modal-v2" style="display:none; z-index:1001;">
+            <div class="custom-modal-v2-content" style="max-width:400px; text-align:center; padding:40px 30px; border-radius: 24px;">
+                <div id="alertIconContainer" style="width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; background: #10b981;">
+                    <i id="alertIcon" class="fas fa-check" style="font-size:32px; color:white;"></i>
                 </div>
-                <div class="custom-modal-v2-body" style="text-align: center; padding: 40px 25px;">
-                    <div id="alertModalIcon" style="font-size: 64px; margin-bottom: 20px;"></div>
-                    <h3 id="alertModalStatus" style="font-size: 20px; color: var(--text-primary); margin-bottom: 10px;"></h3>
-                    <p id="alertModalMessage" style="font-size: 15px; color: var(--text-secondary); line-height: 1.6;"></p>
-                </div>
-                <div class="custom-modal-v2-footer">
-                    <button type="button" class="btn-submit" onclick="closeModal('alertModal')">Close</button>
-                </div>
+                <h3 id="alertModalTitle" style="font-size:24px; font-weight:800; color:var(--primary-color); margin-bottom:10px;">Success</h3>
+                <p id="alertModalMessage" style="color:var(--text-secondary); font-size:15px; margin-bottom:30px;"></p>
+                <button type="button" class="btn-submit" onclick="closeModal('alertModal')" style="min-width:160px; padding:14px; border-radius: 12px;">Acknowledged</button>
             </div>
         </div>
 
@@ -1180,21 +1174,20 @@
                 }
             }
 
-            function showAlert(title, message, type = 'info') {
+            function showAlert(title, message, type = 'success') {
                 document.getElementById('alertModalTitle').textContent = title;
                 document.getElementById('alertModalMessage').textContent = message;
-                const icon = document.getElementById('alertModalIcon');
-                const status = document.getElementById('alertModalStatus');
+                const iconContainer = document.getElementById('alertIconContainer');
+                const icon = document.getElementById('alertIcon');
+                
                 if (type === 'success') {
-                    icon.innerHTML = '✅';
-                    status.textContent = 'Success!';
-                } else if (type === 'error') {
-                    icon.innerHTML = '❌';
-                    status.textContent = 'Error';
+                    iconContainer.style.background = '#10b981';
+                    icon.className = 'fas fa-check';
                 } else {
-                    icon.innerHTML = 'ℹ️';
-                    status.textContent = 'Note';
+                    iconContainer.style.background = '#ef4444';
+                    icon.className = 'fas fa-times';
                 }
+                
                 document.getElementById('alertModal').style.display = 'block';
             }
 

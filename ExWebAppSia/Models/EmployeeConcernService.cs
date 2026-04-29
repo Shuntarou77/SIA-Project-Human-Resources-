@@ -66,6 +66,20 @@ namespace ExWebAppSia.Models
             }
         }
 
+        // Get a specific concern by ID
+        public async Task<EmployeeConcern> GetConcernByIdAsync(string concernId)
+        {
+            try
+            {
+                return await _concerns.Find(c => c.Id == concernId).FirstOrDefaultAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting concern by ID: {ex.Message}");
+                return null;
+            }
+        }
+
         // Update concern status
         public async Task<bool> UpdateConcernStatusAsync(string concernId, string status)
         {

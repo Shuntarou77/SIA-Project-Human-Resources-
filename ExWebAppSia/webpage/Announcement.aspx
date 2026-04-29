@@ -507,7 +507,11 @@
                 return;
             }
 
-            container.innerHTML = filtered.map(ann => `
+            container.innerHTML = filtered.map(ann => {
+                    const img = ann.ImagePath || ann.imagePath || '';
+                    const vid = ann.VideoPath || ann.videoPath || '';
+
+                    return `
                 <div class="announcement-card ${ann.IsPinned ? 'pinned-mode' : ''}">
                     ${ann.IsPinned ? '<div class="pin-badge"><i class="fas fa-thumbtack"></i> Pinned</div>' : ''}
                     <div class="card-header">
@@ -518,13 +522,15 @@
                         </div>
                     </div>
                     <div class="card-body">${ann.Content || ann.content}</div>
-                    ${ann.ImageUrl ? `<img src="${ann.ImageUrl}" style="width:100%; border-radius:12px; margin-top:16px; border:1px solid #eee;" />` : ''}
-                    ${ann.VideoUrl ? `<video controls style="width:100%; border-radius:12px; margin-top:16px;"><source src="${ann.VideoUrl}" /></video>` : ''}
+                    ${img ? `<img src="${img}" style="width:100%; border-radius:12px; margin-top:16px; border:1px solid #eee;" />` : ''}
+                    ${vid ? `<div style="margin-top:16px;"><video controls style="width:100%; border-radius:12px;"><source src="${vid}" /></video></div>` : ''}
                     <button class="btn-gmail" onclick="window.open('https://mail.google.com/mail/?view=cm&fs=1&su=Announcement: ${encodeURIComponent((ann.Content || '').substring(0,50))}&body=${encodeURIComponent(ann.Content || '')}', '_blank')">
                         <i class="fas fa-envelope"></i> Compose in Gmail
                     </button>
                 </div>
-            `).join('');
+            `;
+            }).join('');
+
         }
 
         loadAnnouncements();

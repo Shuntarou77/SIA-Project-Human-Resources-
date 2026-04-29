@@ -781,7 +781,7 @@
                                     <div class="stat-value" style="color: var(--success-color);">
                                         <%= GetTargetWorkingDays() %>
                                     </div>
-                                    <div class="stat-label">Working Days / Year</div>
+                                    <div class="stat-label">Working Days (To Date)</div>
                                 </div>
                             </div>
 

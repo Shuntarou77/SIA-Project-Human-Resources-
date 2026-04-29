@@ -131,35 +131,35 @@
             <div class="metric-card" onclick="switchTab('leave-tab')">
                 <div class="metric-icon" style="background: #A44F56;"><i class="fas fa-calendar-alt"></i></div>
                 <div class="metric-info">
-                    <div class="count"><asp:Literal ID="litLeaveCount" runat="server">0</asp:Literal></div>
+                    <div class="count"><span id="cnt-leave"><asp:Literal ID="litLeaveCount" runat="server">0</asp:Literal></span></div>
                     <div class="label">Pending Leaves</div>
                 </div>
             </div>
             <div class="metric-card" onclick="switchTab('ot-tab')">
                 <div class="metric-icon" style="background: #f59e0b;"><i class="fas fa-clock"></i></div>
                 <div class="metric-info">
-                    <div class="count"><asp:Literal ID="litOTCount" runat="server">0</asp:Literal></div>
+                    <div class="count"><span id="cnt-ot"><asp:Literal ID="litOTCount" runat="server">0</asp:Literal></span></div>
                     <div class="label">Overtime</div>
                 </div>
             </div>
             <div class="metric-card" onclick="switchTab('ut-tab')">
                 <div class="metric-icon" style="background: #3b82f6;"><i class="fas fa-hourglass-start"></i></div>
                 <div class="metric-info">
-                    <div class="count"><asp:Literal ID="litUTCount" runat="server">0</asp:Literal></div>
+                    <div class="count"><span id="cnt-ut"><asp:Literal ID="litUTCount" runat="server">0</asp:Literal></span></div>
                     <div class="label">Undertime</div>
                 </div>
             </div>
             <div class="metric-card" onclick="switchTab('resign-tab')">
                 <div class="metric-icon" style="background: #64748b;"><i class="fas fa-user-slash"></i></div>
                 <div class="metric-info">
-                    <div class="count"><asp:Literal ID="litResignCount" runat="server">0</asp:Literal></div>
+                    <div class="count"><span id="cnt-resign"><asp:Literal ID="litResignCount" runat="server">0</asp:Literal></span></div>
                     <div class="label">Resignations</div>
                 </div>
             </div>
             <div class="metric-card" onclick="switchTab('concern-tab')">
                 <div class="metric-icon" style="background: #10b981;"><i class="fas fa-exclamation-triangle"></i></div>
                 <div class="metric-info">
-                    <div class="count"><asp:Literal ID="litConcernCount" runat="server">0</asp:Literal></div>
+                    <div class="count"><span id="cnt-concern"><asp:Literal ID="litConcernCount" runat="server">0</asp:Literal></span></div>
                     <div class="label">Concerns</div>
                 </div>
             </div>
@@ -259,82 +259,99 @@
             PageMethods.GetSuperAdminRequests(function(r) {
                 const res = typeof r === 'string' ? JSON.parse(r) : r;
                 if(!res.success) return;
+
+                // Update counts
+                if (document.getElementById('cnt-leave')) document.getElementById('cnt-leave').textContent = res.leaves.length;
+                if (document.getElementById('cnt-ot')) document.getElementById('cnt-ot').textContent = res.ot.length;
+                if (document.getElementById('cnt-ut')) document.getElementById('cnt-ut').textContent = res.ut.length;
+                if (document.getElementById('cnt-resign')) document.getElementById('cnt-resign').textContent = res.resign.length;
+                if (document.getElementById('cnt-concern')) document.getElementById('cnt-concern').textContent = res.concerns.length;
                 
                 // Build Leaves
-                document.getElementById('leaveBody').innerHTML = res.leaves.length ? res.leaves.map(l => `
+                document.getElementById('leaveBody').innerHTML = res.leaves.length ? res.leaves.map(l => {
+                    const isSelf = (l.empId && res.currentAdminId && l.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
+                    const actions = isSelf ? '<span class="status-badge status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
+                                  `<div style="display:flex; gap:8px;">
+                                      <button class="btn-action-approve" onclick="approve('Leave', '${l.id}')">Approve</button>
+                                      <button class="btn-action-reject" onclick="reject('Leave', '${l.id}')">Reject</button>
+                                  </div>`;
+                    return `
                     <tr>
                         <td style="font-weight:700;">${l.name}</td>
                         <td>${l.type}</td>
                         <td>${l.range}</td>
                         <td style="font-style:italic;">"${l.reason}"</td>
                         <td><span class="status-badge status-pending">Pending</span></td>
-                        <td>
-                            <div style="display:flex; gap:8px;">
-                                <button class="btn-action-approve" onclick="approve('Leave', '${l.id}')">Approve</button>
-                                <button class="btn-action-reject" onclick="reject('Leave', '${l.id}')">Reject</button>
-                            </div>
-                        </td>
+                        <td>${actions}</td>
                     </tr>
-                `).join('') : '<tr><td colspan="6" class="empty-state">No pending leave requests.</td></tr>';
+                `}).join('') : '<tr><td colspan="6" class="empty-state">No pending leave requests.</td></tr>';
 
                 // Build OT
-                document.getElementById('otBody').innerHTML = res.ot.length ? res.ot.map(o => `
+                document.getElementById('otBody').innerHTML = res.ot.length ? res.ot.map(o => {
+                    const isSelf = (o.empId && res.currentAdminId && o.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
+                    const actions = isSelf ? '<span class="status-badge status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
+                                  `<div style="display:flex; gap:8px;">
+                                      <button class="btn-action-approve" onclick="approve('OT', '${o.id}')">Approve</button>
+                                      <button class="btn-action-reject" onclick="reject('OT', '${o.id}')">Reject</button>
+                                  </div>`;
+                    return `
                     <tr>
                         <td style="font-weight:700;">${o.name}</td>
                         <td>${o.date}</td>
                         <td>${o.hours} hrs</td>
                         <td style="font-style:italic;">"${o.reason}"</td>
-                        <td>
-                            <div style="display:flex; gap:8px;">
-                                <button class="btn-action-approve" onclick="approve('OT', '${o.id}')">Approve</button>
-                                <button class="btn-action-reject" onclick="reject('OT', '${o.id}')">Reject</button>
-                            </div>
-                        </td>
+                        <td>${actions}</td>
                     </tr>
-                `).join('') : '<tr><td colspan="5" class="empty-state">No pending overtime requests.</td></tr>';
+                `}).join('') : '<tr><td colspan="5" class="empty-state">No pending overtime requests.</td></tr>';
 
                 // Build UT
-                document.getElementById('utBody').innerHTML = res.ut.length ? res.ut.map(u => `
+                document.getElementById('utBody').innerHTML = res.ut.length ? res.ut.map(u => {
+                    const isSelf = (u.empId && res.currentAdminId && u.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
+                    const actions = isSelf ? '<span class="status-badge status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
+                                  `<div style="display:flex; gap:8px;">
+                                      <button class="btn-action-approve" onclick="approve('UT', '${u.id}')">Approve</button>
+                                      <button class="btn-action-reject" onclick="reject('UT', '${u.id}')">Reject</button>
+                                  </div>`;
+                    return `
                     <tr>
                         <td style="font-weight:700;">${u.name}</td>
                         <td>${u.date}</td>
                         <td style="font-style:italic;">"${u.reason}"</td>
-                        <td>
-                            <div style="display:flex; gap:8px;">
-                                <button class="btn-action-approve" onclick="approve('UT', '${u.id}')">Approve</button>
-                                <button class="btn-action-reject" onclick="reject('UT', '${u.id}')">Reject</button>
-                            </div>
-                        </td>
+                        <td>${actions}</td>
                     </tr>
-                `).join('') : '<tr><td colspan="4" class="empty-state">No pending undertime requests.</td></tr>';
+                `}).join('') : '<tr><td colspan="4" class="empty-state">No pending undertime requests.</td></tr>';
 
                 // Build Resign
-                document.getElementById('resignBody').innerHTML = res.resign.length ? res.resign.map(e => `
+                document.getElementById('resignBody').innerHTML = res.resign.length ? res.resign.map(e => {
+                    const isSelf = (e.empId && res.currentAdminId && e.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
+                    const actions = isSelf ? '<span class="status-badge status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
+                                  `<div style="display:flex; gap:8px;">
+                                      <button class="btn-action-approve" onclick="approve('Resign', '${e.id}')">Approve</button>
+                                      <button class="btn-action-reject" onclick="reject('Resign', '${e.id}')">Reject</button>
+                                  </div>`;
+                    return `
                     <tr>
                         <td style="font-weight:700;">${e.name}</td>
                         <td>${e.hired}</td>
                         <td>${e.effective}</td>
-                        <td>
-                            <div style="display:flex; gap:8px;">
-                                <button class="btn-action-approve" onclick="approve('Resign', '${e.id}')">Approve</button>
-                                <button class="btn-action-reject" onclick="reject('Resign', '${e.id}')">Reject</button>
-                            </div>
-                        </td>
+                        <td>${actions}</td>
                     </tr>
-                `).join('') : '<tr><td colspan="4" class="empty-state">No pending resignation requests.</td></tr>';
+                `}).join('') : '<tr><td colspan="4" class="empty-state">No pending resignation requests.</td></tr>';
 
                 // Build Concern
-                document.getElementById('concernBody').innerHTML = res.concerns.length ? res.concerns.map(c => `
+                document.getElementById('concernBody').innerHTML = res.concerns.length ? res.concerns.map(c => {
+                    const isSelf = (c.empId && res.currentAdminId && c.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
+                    const actions = isSelf ? '<span class="status-badge status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
+                                  `<button class="btn-action-approve" onclick="approve('Concern', '${c.id}')">Resolve</button>`;
+                    return `
                     <tr>
                         <td style="font-weight:700;">${c.name}</td>
                         <td>${c.subject}</td>
                         <td>${c.type}</td>
                         <td>${c.date}</td>
-                        <td>
-                            <button class="btn-action-approve" onclick="approve('Concern', '${c.id}')">Resolve</button>
-                        </td>
+                        <td>${actions}</td>
                     </tr>
-                `).join('') : '<tr><td colspan="4" class="empty-state">No recent concerns.</td></tr>';
+                `}).join('') : '<tr><td colspan="4" class="empty-state">No recent concerns.</td></tr>';
             });
         }
 
@@ -342,7 +359,8 @@
             document.getElementById('confirmMsg').textContent = `Are you sure you want to approve this ${type} request?`;
             document.getElementById('btnConfirm').onclick = function() {
                 PageMethods.ProcessApproval(type, id, true, function(r) {
-                    location.reload();
+                    closeModal();
+                    loadRequests();
                 });
             };
             document.getElementById('confirmModal').style.display = 'block';
@@ -352,7 +370,8 @@
             document.getElementById('confirmMsg').textContent = `Are you sure you want to REJECT this ${type} request?`;
             document.getElementById('btnConfirm').onclick = function() {
                 PageMethods.ProcessApproval(type, id, false, function(r) {
-                    location.reload();
+                    closeModal();
+                    loadRequests();
                 });
             };
             document.getElementById('confirmModal').style.display = 'block';

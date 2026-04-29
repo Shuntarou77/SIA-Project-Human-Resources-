@@ -172,6 +172,8 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         public static string GetPendingLeaveRequests()
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var currentAdmin = HttpContext.Current?.Session["Employee"] as Employee;
+            var currentAdminId = currentAdmin?.EmployeeId ?? "";
             try
             {
                 return Task.Run(async () => {
@@ -193,7 +195,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                         }
                         return new {
                             id = l.Id,
-                            employeeId = l.EmployeeId,
+                            empId = l.EmployeeId,
                             employeeName = name,
                             department = dept,
                             leaveType = l.LeaveType,
@@ -205,8 +207,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                         };
                     }).ToList();
 
-                    var currentAdmin = HttpContext.Current?.Session["Employee"] as Employee;
-                    return serializer.Serialize(new { success = true, data = result, currentAdminId = currentAdmin?.EmployeeId ?? "" });
+                    return serializer.Serialize(new { success = true, data = result, currentAdminId = currentAdminId });
                 }).GetAwaiter().GetResult();
             }
             catch (Exception ex) { return serializer.Serialize(new { success = false, message = ex.Message }); }
@@ -215,11 +216,17 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         [System.Web.Services.WebMethod(EnableSession = true)]
         public static string ApproveLeaveRequest(string leaveId)
         {
+            var currentAdmin = HttpContext.Current?.Session["Employee"] as Employee;
             try {
                 return Task.Run(async () => {
                     var leaveService = new LeaveService();
                     var leave = await leaveService.GetLeaveByIdAsync(leaveId);
                     if (leave == null) return "{\"success\":false,\"message\":\"Request not found\"}";
+
+                    if (currentAdmin != null && string.Equals(leave.EmployeeId, currentAdmin.EmployeeId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return "{\"success\":false,\"message\":\"You cannot approve your own leave request.\"}";
+                    }
 
                     var success = await leaveService.UpdateLeaveStatusAsync(leaveId, "Approved");
                     if (success) LogActivity("Approved Leave", $"Approved leave for {leave.EmployeeName}");
@@ -243,9 +250,18 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         [System.Web.Services.WebMethod(EnableSession = true)]
         public static string ApproveResignation(string id)
         {
+            var currentAdmin = HttpContext.Current?.Session["Employee"] as Employee;
             try {
                 return Task.Run(async () => {
                     var empService = new EmployeeService();
+                    
+                    // For resignation, 'id' is the MongoDB ObjectId of the employee record
+                    var targetEmp = await empService.GetEmployeeByIdAsync(id);
+                    if (targetEmp != null && currentAdmin != null && string.Equals(targetEmp.EmployeeId, currentAdmin.EmployeeId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return "{\"success\":false,\"message\":\"You cannot approve your own resignation request.\"}";
+                    }
+
                     var success = await empService.ResignEmployeeAsync(id);
                     if (success) LogActivity("Resigned Employee", $"Approved resignation for employee record {id}");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
@@ -273,6 +289,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         public static string GetPendingResignations()
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var currentAdminId = (HttpContext.Current?.Session["Employee"] as Employee)?.EmployeeId ?? "";
             try {
                 return Task.Run(async () => {
                     var empService = new EmployeeService();
@@ -285,7 +302,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                         role = e.Role,
                         dateReq = e.ResignationDate?.ToString("MMM dd, yyyy") ?? "N/A"
                     }).ToList();
-                    return serializer.Serialize(new { success = true, data = result });
+                    return serializer.Serialize(new { success = true, data = result, currentAdminId = currentAdminId });
                 }).GetAwaiter().GetResult();
             } catch (Exception ex) { return serializer.Serialize(new { success = false, message = ex.Message }); }
         }
@@ -294,6 +311,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         public static string GetPendingConcerns()
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var currentAdminId = (HttpContext.Current?.Session["Employee"] as Employee)?.EmployeeId ?? "";
             try {
                 return Task.Run(async () => {
                     var service = new EmployeeConcernService();
@@ -301,13 +319,14 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     var pending = all.Where(c => string.Equals(c.Status, "Submitted", StringComparison.OrdinalIgnoreCase) || string.Equals(c.Status, "In Progress", StringComparison.OrdinalIgnoreCase)).ToList();
                     var result = pending.Select(c => new {
                         id = c.Id,
+                        empId = c.EmployeeId,
                         employeeName = c.EmployeeName,
                         concernType = c.ConcernType,
                         subject = c.Subject,
                         priorityLevel = c.PriorityLevel,
                         submittedDate = c.SubmittedDate.ToString("MMM dd, yyyy")
                     }).ToList();
-                    return serializer.Serialize(new { success = true, data = result });
+                    return serializer.Serialize(new { success = true, data = result, currentAdminId = currentAdminId });
                 }).GetAwaiter().GetResult();
             } catch (Exception ex) { return serializer.Serialize(new { success = false, message = ex.Message }); }
         }
@@ -315,9 +334,17 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         [System.Web.Services.WebMethod(EnableSession = true)]
         public static string ApproveOvertime(string id)
         {
+            var currentAdmin = HttpContext.Current?.Session["Employee"] as Employee;
             try {
                 return Task.Run(async () => {
                     var otService = new OvertimeService();
+                    var req = await otService.GetByIdAsync(id);
+
+                    if (req != null && currentAdmin != null && string.Equals(req.EmployeeId, currentAdmin.EmployeeId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return "{\"success\":false,\"message\":\"You cannot approve your own overtime request.\"}";
+                    }
+
                     var success = await otService.ApproveAsync(id);
                     if (success) LogActivity("Approved OT", $"Approved OT request {id}");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
@@ -340,9 +367,17 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         [System.Web.Services.WebMethod(EnableSession = true)]
         public static string ApproveUndertime(string id)
         {
+            var currentAdmin = HttpContext.Current?.Session["Employee"] as Employee;
             try {
                 return Task.Run(async () => {
                     var utService = new UndertimeService();
+                    var req = await utService.GetRequestByIdAsync(id);
+
+                    if (req != null && currentAdmin != null && string.Equals(req.EmployeeId, currentAdmin.EmployeeId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return "{\"success\":false,\"message\":\"You cannot approve your own undertime request.\"}";
+                    }
+
                     var success = await utService.ApproveRequestAsync(id);
                     if (success) LogActivity("Approved UT", $"Approved UT request {id}");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
@@ -365,14 +400,60 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         [System.Web.Services.WebMethod(EnableSession = true)]
         public static string ResolveConcern(string id)
         {
+            var currentAdmin = HttpContext.Current?.Session["Employee"] as Employee;
             try {
                 return Task.Run(async () => {
                     var service = new EmployeeConcernService();
+                    var concern = await service.GetConcernByIdAsync(id);
+
+                    if (concern != null && currentAdmin != null && string.Equals(concern.EmployeeId, currentAdmin.EmployeeId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return "{\"success\":false,\"message\":\"You cannot resolve your own concern.\"}";
+                    }
+
                     var success = await service.UpdateConcernStatusAsync(id, "Resolved");
                     if (success) LogActivity("Resolved Concern", $"Resolved concern {id}");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
                 }).GetAwaiter().GetResult();
             } catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message + "\"}"; }
+        }
+        [System.Web.Services.WebMethod]
+        public static object GetUpdatedCounts()
+        {
+            try
+            {
+                return Task.Run(async () => {
+                    var otService = new OvertimeService();
+                    var utService = new UndertimeService();
+                    var leaveService = new LeaveService();
+                    var concernService = new EmployeeConcernService();
+                    var employeeService = new EmployeeService();
+
+                    var otTask = otService.GetPendingRequestsAsync();
+                    var utTask = utService.GetAllPendingRequestsAsync();
+                    var leavesTask = leaveService.GetAllLeavesAsync();
+                    var concernsTask = concernService.GetAllConcernsAsync();
+                    var resignedTask = employeeService.GetPendingResignationsAsync();
+
+                    await Task.WhenAll(otTask, utTask, leavesTask, concernsTask, resignedTask);
+
+                    var allLeaves = leavesTask.Result ?? new List<Leave>();
+                    var allConcerns = concernsTask.Result ?? new List<EmployeeConcern>();
+
+                    return new {
+                        success = true,
+                        leaveCount = allLeaves.Count(l => l.Status == "Pending"),
+                        otCount = otTask.Result?.Count ?? 0,
+                        utCount = utTask.Result?.Count ?? 0,
+                        resignCount = resignedTask.Result?.Count ?? 0,
+                        concernCount = allConcerns.Count(c => string.Equals(c.Status, "Submitted", StringComparison.OrdinalIgnoreCase) || string.Equals(c.Status, "In Progress", StringComparison.OrdinalIgnoreCase))
+                    };
+                }).GetAwaiter().GetResult();
+            }
+            catch
+            {
+                return new { success = false };
+            }
         }
     }
 }

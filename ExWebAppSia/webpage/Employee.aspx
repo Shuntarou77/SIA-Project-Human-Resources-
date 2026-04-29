@@ -1844,7 +1844,13 @@
                         var priorityClass = c.priorityLevel === 'Urgent' ? 'status-declined' : 
                                            c.priorityLevel === 'High' ? 'status-pending-res' : 'status-pending';
                         
-                        var escapedName = employeeName.replace(/'/g, "\\'");
+                        var isSelf = (c.employeeId && result.currentAdminId && c.employeeId.toString().toLowerCase() === result.currentAdminId.toString().toLowerCase());
+                        var actionsHtml = isSelf 
+                            ? '<span class="status-badge status-pending-res" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; font-size: 10px; padding: 4px 8px;">SELF-REQUEST</span>'
+                            : '<button type="button" class="btn-outline" onclick="resolveConcern(\'' + c.id + '\', \'' + (employeeName.replace(/'/g, "\\'")) + '\', this)">' +
+                                '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>Mark Resolved' +
+                              '</button>';
+
                         return '<tr>' +
                             '<td><span class="avatar-initial">' + initials + '</span> ' + employeeName + '</td>' +
                             '<td>' + (c.employeeId || '—') + '</td>' +
@@ -1853,11 +1859,7 @@
                             '<td title="' + c.description + '">' + (c.description.length > 60 ? c.description.substring(0, 57) + '...' : c.description) + '</td>' +
                             '<td>' + c.submittedDate + '</td>' +
                             '<td><span class="leave-status ' + priorityClass + '">' + c.priorityLevel + '</span></td>' +
-                            '<td>' +
-                                '<button type="button" class="btn-outline" onclick="resolveConcern(\'' + c.id + '\', \'' + escapedName + '\', this)">' +
-                                    '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>Mark Resolved' +
-                                '</button>' +
-                            '</td>' +
+                            '<td>' + actionsHtml + '</td>' +
                         '</tr>';
                     }).join('');
                 }, function (error) {
@@ -1900,6 +1902,17 @@
                         var employeeName = emp.name || 'Unknown Employee';
                         var initials = getInitials(employeeName);
                         var escapedName = employeeName.replace(/'/g, "\\'");
+                        
+                        var isSelf = (emp.empId && result.currentAdminId && emp.empId.toString().toLowerCase() === result.currentAdminId.toString().toLowerCase());
+                        var actionsHtml = isSelf
+                            ? '<span class="status-badge status-pending-res" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; font-size: 10px; padding: 4px 8px;">SELF-REQUEST</span>'
+                            : '<button type="button" class="btn-outline" style="margin-right: 6px;" onclick="approveResignation(\'' + emp.id + '\', \'' + escapedName + '\', this)">' +
+                                '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approve' +
+                              '</button>' +
+                              '<button type="button" class="btn-outline" style="background: #dc3545; border-color: #dc3545; color: white;" onclick="declineResignation(\'' + emp.id + '\', \'' + escapedName + '\', this)">' +
+                                '<svg style="width:14px;height:14px;vertical-align:middle;fill:white;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Decline' +
+                              '</button>';
+
                         return '<tr>' +
                             '<td><span class="avatar-initial">' + initials + '</span> ' + employeeName + '</td>' +
                             '<td>' + emp.empId + '</td>' +
@@ -1907,14 +1920,7 @@
                             '<td>' + emp.role + '</td>' +
                             '<td>' + emp.dateReq + '</td>' +
                             '<td><span class="leave-status status-pending-res">Pending</span></td>' +
-                            '<td>' +
-                                '<button type="button" class="btn-outline" style="margin-right: 6px;" onclick="approveResignation(\'' + emp.id + '\', \'' + escapedName + '\', this)">' +
-                                    '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approve' +
-                                '</button>' +
-                                '<button type="button" class="btn-outline" style="background: #dc3545; border-color: #dc3545; color: white;" onclick="declineResignation(\'' + emp.id + '\', \'' + escapedName + '\', this)">' +
-                                    '<svg style="width:14px;height:14px;vertical-align:middle;fill:white;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Decline' +
-                                '</button>' +
-                            '</td>' +
+                            '<td>' + actionsHtml + '</td>' +
                         '</tr>';
                     }).join('');
                 }, function (error) {
@@ -1985,10 +1991,10 @@
                             ? leave.startDate
                             : leave.startDate + ' - ' + leave.endDate;
 
-                        var isOwnRequest = leave.employeeId === currentAdminId;
+                        var isSelf = (leave.employeeId && currentAdminId && leave.employeeId.toString().toLowerCase() === currentAdminId.toString().toLowerCase());
                         var escapedName = employeeName.replace(/'/g, "\\'");
-                        var actionsHtml = isOwnRequest
-                            ? '<span style="font-size: 11px; font-weight: 600; color: #9B7D7B; font-style: italic;">Your Request</span>'
+                        var actionsHtml = isSelf
+                            ? '<span class="status-badge status-pending-res" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; font-size: 10px; padding: 4px 8px;">SELF-REQUEST</span>'
                             : '<button type="button" class="btn-outline" style="margin-right: 6px;" onclick="approveLeave(\'' + leave.id + '\', \'' + escapedName + '\', this)"><svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>Approve</button>' +
                               '<button type="button" class="btn-outline" style="background: #dc3545; border-color: #dc3545; color: white;" onclick="declineLeave(\'' + leave.id + '\', \'' + escapedName + '\', this)"><svg style="width:14px;height:14px;vertical-align:middle;fill:white;margin-right:4px;" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>Decline</button>';
 

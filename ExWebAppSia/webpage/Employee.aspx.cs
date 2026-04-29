@@ -414,12 +414,12 @@ namespace ExWebAppSia.webpage
 
                 var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count();
 
+                // Only count finalized working days (Mon-Sat, up to yesterday) using centralized service
+                var yesterday = today.AddDays(-1);
                 int pastYearWeekdays = 0;
-                if (yearlyStatsStart <= today)
+                if (yearlyStatsStart <= yesterday)
                 {
-                    pastYearWeekdays = Enumerable.Range(0, (today - yearlyStatsStart).Days + 1)
-                        .Select(i => yearlyStatsStart.AddDays(i))
-                        .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
+                    pastYearWeekdays = AttendanceService.GetWorkingDaysCount(yearlyStatsStart, yesterday);
                 }
 
                 int yearlyLeaveDays = 0;
@@ -427,7 +427,8 @@ namespace ExWebAppSia.webpage
                 {
                     for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
                     {
-                        if (d.Year == currentYear && d >= yearlyStatsStart && d <= today && d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday)
+                        // Match finalized working days for consistency (up to yesterday)
+                        if (d.Year == currentYear && d >= yearlyStatsStart && d < today && d.DayOfWeek != DayOfWeek.Sunday)
                         {
                             yearlyLeaveDays++;
                         }
@@ -1083,11 +1084,11 @@ namespace ExWebAppSia.webpage
         public static string GetPendingLeaveRequests()
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
-            System.Diagnostics.Debug.WriteLine("--- GetPendingLeaveRequests CALLED ---");
+            var currentAdmin = HttpContext.Current?.Session["Employee"] as Employee;
+            var currentAdminId = currentAdmin?.EmployeeId ?? "";
             
             try
             {
-                // Run the entire logic in a background thread to prevent ASP.NET Deadlock
                 return Task.Run(async () => {
                     var leaveService = new LeaveService();
                     var employeeService = new EmployeeService();
@@ -1156,17 +1157,6 @@ namespace ExWebAppSia.webpage
                         };
                     }).ToList();
 
-                    string currentAdminId = "";
-                    try {
-                        var context = System.Web.HttpContext.Current;
-                        var currentAdmin = context?.Session?["Employee"] as Employee;
-                        currentAdminId = currentAdmin?.EmployeeId ?? "";
-                        System.Diagnostics.Debug.WriteLine($"Current Admin ID: {currentAdminId}");
-                    } catch (Exception ex) {
-                        System.Diagnostics.Debug.WriteLine($"Session error: {ex.Message}");
-                    }
-
-                    System.Diagnostics.Debug.WriteLine("GetPendingLeaveRequests logic COMPLETED successfully");
                     return serializer.Serialize(new { success = true, data = result, currentAdminId = currentAdminId });
                     
                 }).GetAwaiter().GetResult();
@@ -1183,6 +1173,7 @@ namespace ExWebAppSia.webpage
         public static string GetPendingResignations()
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var currentAdminId = (HttpContext.Current?.Session["Employee"] as Employee)?.EmployeeId ?? "";
             try
             {
                 return Task.Run(async () =>
@@ -1203,7 +1194,7 @@ namespace ExWebAppSia.webpage
                         status     = e.ResignationStatus ?? "Pending"
                     }).ToList();
 
-                    return serializer.Serialize(new { success = true, data = result });
+                    return serializer.Serialize(new { success = true, data = result, currentAdminId = currentAdminId });
                 }).GetAwaiter().GetResult();
             }
             catch (Exception ex)
@@ -1216,6 +1207,7 @@ namespace ExWebAppSia.webpage
         public static string GetPendingConcerns()
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var currentAdminId = (HttpContext.Current?.Session["Employee"] as Employee)?.EmployeeId ?? "";
             try
             {
                 return Task.Run(async () =>
@@ -1256,7 +1248,7 @@ namespace ExWebAppSia.webpage
                         };
                     }).ToList();
 
-                    return serializer.Serialize(new { success = true, data = result });
+                    return serializer.Serialize(new { success = true, data = result, currentAdminId = currentAdminId });
                 }).GetAwaiter().GetResult();
             }
             catch (Exception ex)
@@ -1269,10 +1261,18 @@ namespace ExWebAppSia.webpage
         public static string ResolveConcern(string id)
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var currentAdmin = HttpContext.Current?.Session["Employee"] as Employee;
             try
             {
                 return Task.Run(async () => {
                     var concernService = new EmployeeConcernService();
+                    var concern = await concernService.GetConcernByIdAsync(id);
+
+                    if (concern != null && currentAdmin != null && string.Equals(concern.EmployeeId, currentAdmin.EmployeeId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return serializer.Serialize(new { success = false, message = "You cannot resolve your own concern." });
+                    }
+
                     var success = await concernService.UpdateConcernStatusAsync(id, "Resolved").ConfigureAwait(false);
 
                     if (success)
@@ -1363,6 +1363,8 @@ namespace ExWebAppSia.webpage
         public static string ApproveLeaveRequest(string leaveId)
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var currentAdmin = HttpContext.Current?.Session["Employee"] as Employee;
+            var currentAdminId = currentAdmin?.EmployeeId;
             try
             {
                 return Task.Run(async () => {
@@ -1370,10 +1372,6 @@ namespace ExWebAppSia.webpage
                     {
                         return serializer.Serialize(new { success = false, message = "Leave ID is required" });
                     }
-
-                    var context = System.Web.HttpContext.Current;
-                    var currentAdmin = context?.Session?["Employee"] as Employee;
-                    var currentAdminId = currentAdmin?.EmployeeId;
 
                     var leaveService = new LeaveService();
                     var leave = await leaveService.GetLeaveByIdAsync(leaveId).ConfigureAwait(false);
@@ -1408,6 +1406,8 @@ namespace ExWebAppSia.webpage
         public static string DeclineLeaveRequest(string leaveId)
         {
             var serializer = new System.Web.Script.Serialization.JavaScriptSerializer();
+            var currentAdmin = HttpContext.Current?.Session["Employee"] as Employee;
+            var currentAdminId = currentAdmin?.EmployeeId;
             try
             {
                 return Task.Run(async () => {
@@ -1415,10 +1415,6 @@ namespace ExWebAppSia.webpage
                     {
                         return serializer.Serialize(new { success = false, message = "Leave ID is required" });
                     }
-
-                    var context = System.Web.HttpContext.Current;
-                    var currentAdmin = context?.Session?["Employee"] as Employee;
-                    var currentAdminId = currentAdmin?.EmployeeId;
 
                     var leaveService = new LeaveService();
                     var leave = await leaveService.GetLeaveByIdAsync(leaveId).ConfigureAwait(false);

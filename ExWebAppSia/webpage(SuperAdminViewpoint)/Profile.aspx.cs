@@ -318,7 +318,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 { "daysLate", currentMonthLate },
                 { "attendanceRate", currentMonthAttendancePercent },
                 { "remainingAbsences", remainingAbsences },
-                { "targetWorkingDays", TOTAL_WORKING_DAYS_PER_YEAR }
+                { "targetWorkingDays", pastYearWeekdays }
             };
         }
 
@@ -425,7 +425,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         protected string GetPenalties() => _latestSnapshot?.TotalPenalties.ToString("N2") ?? "0.00";
         protected string GetPayPeriod() => _latestSnapshot != null ? $"{_latestSnapshot.PayPeriodStart:MMMM dd, yyyy} - {_latestSnapshot.PayPeriodEnd:MMMM dd, yyyy}" : "-";
 
-        protected void btnSubmitConcern_Click(object sender, EventArgs e)
+        protected async void btnSubmitConcern_Click(object sender, EventArgs e)
         {
             try
             {
@@ -455,25 +455,29 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 };
 
                 var concernService = new EmployeeConcernService();
-                RegisterAsyncTask(new PageAsyncTask(async () => {
-                    await concernService.CreateConcernAsync(concern);
-                    SendConcernEmail(concern, employee);
-                }));
+                await concernService.CreateConcernAsync(concern);
+                
+                // Send email using optimized service
+                var emailService = new EmailService();
+                bool emailSent = await emailService.SendConcernEmailAsync(
+                    employee.Email,
+                    employee.FullName,
+                    employee.EmployeeId,
+                    employee.Department ?? "N/A",
+                    concern.ConcernType,
+                    concern.Subject,
+                    concern.Description
+                );
 
                 // Clear form
                 ddlConcernType.SelectedIndex = 0;
                 txtConcernSubject.Text = "";
                 txtConcernDescription.Text = "";
 
-                lblConcernMessage.Text = "âœ“ Your concern has been submitted successfully!";
-                lblConcernMessage.Style["display"] = "block";
-                lblConcernMessage.Style["color"] = "#155724";
-                lblConcernMessage.Style["backgroundColor"] = "#d4edda";
-                lblConcernMessage.Style["padding"] = "10px";
-                lblConcernMessage.Style["borderRadius"] = "5px";
-                
-                ClientScript.RegisterStartupScript(this.GetType(), "closeConcernModal", 
-                    "setTimeout(function() { closeModal('concernModal'); }, 3000);", true);
+                string title = "Submitted";
+                string msg = emailSent ? "Your concern has been submitted successfully!" : "Concern submitted, but confirmation email failed.";
+                ClientScript.RegisterStartupScript(this.GetType(), "showConcernSuccess", 
+                    $"showAlert('{title}', '{msg}');", true);
             }
             catch (Exception ex)
             {
@@ -515,10 +519,18 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 var leaveService = new LeaveService();
                 await leaveService.CreateLeaveAsync(leave);
 
-                // Send email
-                try {
-                    SendLeaveEmail(employee, leave.LeaveType, txtStartDate.Text, txtEndDate.Text, leave.Reason);
-                } catch { /* Email error shouldn't block submission */ }
+                // Send email using optimized service
+                var emailService = new EmailService();
+                bool emailSent = await emailService.SendLeaveEmailAsync(
+                    employee.Email,
+                    employee.FullName,
+                    employee.EmployeeId,
+                    employee.Department ?? "N/A",
+                    leave.LeaveType,
+                    leave.StartDate.ToLocalTime().ToString("MMM dd, yyyy"),
+                    leave.EndDate.ToLocalTime().ToString("MMM dd, yyyy"),
+                    leave.Reason
+                );
 
                 // Clear form
                 ddlLeaveType.SelectedIndex = 0;
@@ -526,73 +538,16 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 txtEndDate.Text = "";
                 txtLeaveReason.Text = "";
 
-                lblLeaveMessage.Text = "âœ“ Your leave request has been submitted successfully!";
-                lblLeaveMessage.Style["display"] = "block";
-                lblLeaveMessage.Style["color"] = "#155724";
-                lblLeaveMessage.Style["backgroundColor"] = "#d4edda";
-                lblLeaveMessage.Style["padding"] = "10px";
-                lblLeaveMessage.Style["borderRadius"] = "5px";
-                
-                ClientScript.RegisterStartupScript(this.GetType(), "closeLeaveModal", 
-                    "setTimeout(function() { closeModal('leaveModal'); }, 3000);", true);
+                string title = "Success";
+                string msg = emailSent ? "Your leave request has been submitted successfully!" : "Leave submitted, but confirmation email failed.";
+                ClientScript.RegisterStartupScript(this.GetType(), "showLeaveSuccess", 
+                    $"showAlert('{title}', '{msg}');", true);
             }
             catch (Exception ex)
             {
                 lblLeaveMessage.Text = "Error: " + ex.Message;
                 lblLeaveMessage.Style["display"] = "block";
             }
-        }
-
-        private void SendConcernEmail(EmployeeConcern concern, Employee employee)
-        {
-            try
-            {
-                string smtpUsername = ConfigurationManager.AppSettings["SmtpUsername"];
-                string smtpPassword = ConfigurationManager.AppSettings["SmtpPassword"];
-                if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword)) return;
-
-                using (MailMessage mail = new MailMessage())
-                {
-                    mail.From = new MailAddress(smtpUsername, "Employee Concern System");
-                    mail.To.Add(employee.Email);
-                    mail.Subject = "Concern Submission Confirmation";
-                    mail.Body = $"Hello {employee.FirstName},\n\nYour concern regarding '{concern.Subject}' has been received.\n\nPriority: {concern.PriorityLevel}\nStatus: {concern.Status}\n\nThank you.";
-                    
-                    using (SmtpClient smtp = new SmtpClient(ConfigurationManager.AppSettings["SmtpHost"], int.Parse(ConfigurationManager.AppSettings["SmtpPort"])))
-                    {
-                        smtp.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-                        smtp.EnableSsl = true;
-                        smtp.Send(mail);
-                    }
-                }
-            }
-            catch { }
-        }
-
-        private void SendLeaveEmail(Employee employee, string leaveType, string startDate, string endDate, string reason)
-        {
-            try
-            {
-                string smtpUsername = ConfigurationManager.AppSettings["SmtpUsername"];
-                string smtpPassword = ConfigurationManager.AppSettings["SmtpPassword"];
-                if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword)) return;
-
-                using (MailMessage mail = new MailMessage())
-                {
-                    mail.From = new MailAddress(smtpUsername, "Employee Leave System");
-                    mail.To.Add(employee.Email);
-                    mail.Subject = "Leave Request Confirmation";
-                    mail.Body = $"Hello {employee.FirstName},\n\nYour leave request for {leaveType} from {startDate} to {endDate} has been submitted.\n\nReason: {reason}\n\nStatus: Pending Approval";
-                    
-                    using (SmtpClient smtp = new SmtpClient(ConfigurationManager.AppSettings["SmtpHost"], int.Parse(ConfigurationManager.AppSettings["SmtpPort"])))
-                    {
-                        smtp.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-                        smtp.EnableSsl = true;
-                        smtp.Send(mail);
-                    }
-                }
-            }
-            catch { }
         }
     }
 }

@@ -710,7 +710,7 @@
                                     <div class="stat-value" style="color: var(--success-color);">
                                         <%= GetTargetWorkingDays() %>
                                     </div>
-                                    <div class="stat-label">Working Days / Year</div>
+                                    <div class="stat-label">Working Days (To Date)</div>
                                 </div>
                             </div>
 
@@ -1045,6 +1045,18 @@
             </div>
         </div>
 
+        <!-- Success/Alert Modal -->
+        <div id="alertActionModal" class="page-modal" style="display:none; z-index:1001;">
+            <div class="modal-content" style="max-width:400px; text-align:center; padding:40px 30px; border-radius: 24px;">
+                <div id="alertIconContainer" style="width:80px; height:80px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 20px; background: #10b981;">
+                    <i id="alertIcon" class="fas fa-check" style="font-size:32px; color:white;"></i>
+                </div>
+                <h3 id="alertModalTitle" style="font-size:24px; font-weight:800; color:var(--primary-color); margin-bottom:10px;">Success</h3>
+                <p id="alertModalMessage" style="color:var(--text-secondary); font-size:15px; margin-bottom:30px;"></p>
+                <button type="button" class="btn-submit" onclick="closeAlertModal()" style="min-width:160px; padding:14px; border-radius: 12px;">Acknowledged</button>
+            </div>
+        </div>
+
         <script>
             // Data from server
             const employeeId = '<%= GetEmployeeId() %>';
@@ -1225,6 +1237,27 @@
                 document.getElementById(modalId).style.display = 'none';
             }
 
+            function showAlert(title, message, type = 'success') {
+                document.getElementById('alertModalTitle').textContent = title;
+                document.getElementById('alertModalMessage').textContent = message;
+                const iconContainer = document.getElementById('alertIconContainer');
+                const icon = document.getElementById('alertIcon');
+                
+                if (type === 'success') {
+                    iconContainer.style.background = '#10b981';
+                    icon.className = 'fas fa-check';
+                } else {
+                    iconContainer.style.background = '#ef4444';
+                    icon.className = 'fas fa-times';
+                }
+                
+                document.getElementById('alertActionModal').style.display = 'block';
+            }
+
+            function closeAlertModal() {
+                document.getElementById('alertActionModal').style.display = 'none';
+            }
+
             function openPayslipModal() {
                 document.getElementById('payslipModal').style.display = 'block';
             }
@@ -1279,10 +1312,10 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        alert('Undertime request submitted successfully!');
-                        window.location.reload();
+                        closeModal('undertimeRequestModal');
+                        showAlert('Success', 'Undertime request submitted successfully!');
                     } else {
-                        alert(result.message || 'Failed to submit request.');
+                        showAlert('Error', result.message || 'Failed to submit request.', 'error');
                     }
                 } catch (error) {
                     console.error('Error:', error);
@@ -1306,10 +1339,10 @@
                     const result = await response.json();
 
                     if (result.success) {
-                        alert('Resignation request submitted successfully!');
-                        window.location.reload();
+                        closeModal('resignationRequestModal');
+                        showAlert('Submitted', 'Resignation request submitted successfully!');
                     } else {
-                        alert(result.message || 'Failed to submit request.');
+                        showAlert('Error', result.message || 'Failed to submit request.', 'error');
                     }
                 } catch (error) {
                     console.error('Error:', error);

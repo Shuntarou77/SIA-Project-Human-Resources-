@@ -10,7 +10,30 @@ namespace ExWebAppSia.Models
     {
         private readonly IMongoCollection<Attendance> _attendance;
         public const int TOTAL_ALLOWED_ABSENCES_PER_YEAR = 15;
-        public static readonly DateTime TRACKING_START_DATE = new DateTime(2026, 3, 19);
+        public static readonly DateTime TRACKING_START_DATE = new DateTime(2026, 1, 1);
+
+        /// <summary>
+        /// Calculates the number of working days (Monday to Saturday) between two dates inclusive.
+        /// </summary>
+        public static int GetWorkingDaysCount(DateTime startDate, DateTime endDate)
+        {
+            if (startDate > endDate) return 0;
+            
+            int count = 0;
+            for (var d = startDate.Date; d <= endDate.Date; d = d.AddDays(1))
+            {
+                if (d.DayOfWeek != DayOfWeek.Sunday)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        public static int GetTotalWorkingDaysInYear(int year)
+        {
+            return GetWorkingDaysCount(new DateTime(year, 1, 1), new DateTime(year, 12, 31));
+        }
 
         public AttendanceService()
         {

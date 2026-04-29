@@ -1,9 +1,13 @@
 using System;
 using System.Net;
-using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
 using System.Configuration;
+using System.Collections.Generic;
+using MimeKit;
+using MailKit.Net.Smtp;
+using MailKit.Security;
+
 
 namespace ExWebAppSia.Models
 {
@@ -404,97 +408,90 @@ namespace ExWebAppSia.Models
         }
 
         /// <summary>
-        /// Core email sending method
+        /// Core email sending method using MailKit
         /// </summary>
         private async Task<bool> SendEmailAsync(string toEmail, string subject, string body, bool isHtml = true)
         {
             try
             {
-                // Check if SMTP is configured
                 if (string.IsNullOrEmpty(_smtpUsername) || string.IsNullOrEmpty(_smtpPassword) || string.IsNullOrEmpty(_fromEmail))
                 {
                     System.Diagnostics.Debug.WriteLine("SMTP not configured. Skipping email send.");
                     return true;
                 }
 
-                using (var mailMessage = new MailMessage())
+                var message = new MimeMessage();
+                message.From.Add(new MailboxAddress(_fromName, _fromEmail));
+                message.To.Add(new MailboxAddress("", toEmail));
+                message.Subject = subject;
+
+                var bodyBuilder = new BodyBuilder();
+                if (isHtml) bodyBuilder.HtmlBody = body;
+                else bodyBuilder.TextBody = body;
+                message.Body = bodyBuilder.ToMessageBody();
+
+                using (var client = new MailKit.Net.Smtp.SmtpClient())
                 {
-                    mailMessage.From = new MailAddress(_fromEmail, _fromName);
-                    mailMessage.To.Add(toEmail);
-                    mailMessage.Subject = subject;
-                    mailMessage.Body = body;
-                    mailMessage.IsBodyHtml = isHtml;
-
-                    using (var smtpClient = new SmtpClient(_smtpHost, _smtpPort))
-                    {
-                        smtpClient.UseDefaultCredentials = false;
-                        smtpClient.Credentials = new NetworkCredential(_smtpUsername, _smtpPassword);
-                        smtpClient.EnableSsl = _enableSsl;
-                        smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
-
-                        await smtpClient.SendMailAsync(mailMessage);
-                        System.Diagnostics.Debug.WriteLine($"Email sent successfully to: {toEmail}");
-                        return true;
-                    }
+                    // For Gmail/Standard TLS, use StartTls or Auto
+                    await client.ConnectAsync(_smtpHost, _smtpPort, _enableSsl ? SecureSocketOptions.Auto : SecureSocketOptions.None);
+                    await client.AuthenticateAsync(_smtpUsername, _smtpPassword);
+                    await client.SendAsync(message);
+                    await client.DisconnectAsync(true);
                 }
+
+                System.Diagnostics.Debug.WriteLine($"Email sent successfully to: {toEmail}");
+                return true;
             }
             catch (Exception ex)
             {
-                // Rethrow to let the UI display the specific error (Auth failure, timeout, etc.)
                 throw new Exception($"Email sending failed: {ex.Message}", ex);
             }
         }
 
+
         /// <summary>
-        /// Send email with PDF attachment
+        /// Send email with PDF attachment using MailKit
         /// </summary>
         private async Task<bool> SendEmailWithAttachmentAsync(string toEmail, string subject, string body, byte[] attachmentBytes, string attachmentFileName, bool isHtml = true)
         {
             try
             {
-                // Check if SMTP is configured
                 if (string.IsNullOrEmpty(_smtpUsername) || string.IsNullOrEmpty(_smtpPassword) || string.IsNullOrEmpty(_fromEmail))
                 {
                     System.Diagnostics.Debug.WriteLine("SMTP not configured. Skipping email send.");
-                    System.Diagnostics.Debug.WriteLine($"Would have sent email to: {toEmail}");
-                    System.Diagnostics.Debug.WriteLine($"Subject: {subject}");
-                    System.Diagnostics.Debug.WriteLine($"Attachment: {attachmentFileName}");
-                    return true; // Return true to not block the workflow
+                    return true;
                 }
 
-                using (var mailMessage = new MailMessage())
+                var message = new MimeMessage();
+                message.From.Add(new MailboxAddress(_fromName, _fromEmail));
+                message.To.Add(new MailboxAddress("", toEmail));
+                message.Subject = subject;
+
+                var bodyBuilder = new BodyBuilder { HtmlBody = isHtml ? body : null, TextBody = isHtml ? null : body };
+
+                if (attachmentBytes != null && attachmentBytes.Length > 0)
                 {
-                    mailMessage.From = new MailAddress(_fromEmail, _fromName);
-                    mailMessage.To.Add(toEmail);
-                    mailMessage.Subject = subject;
-                    mailMessage.Body = body;
-                    mailMessage.IsBodyHtml = isHtml;
-
-                    // Add PDF attachment
-                    if (attachmentBytes != null && attachmentBytes.Length > 0)
-                    {
-                        var stream = new System.IO.MemoryStream(attachmentBytes);
-                        var attachment = new Attachment(stream, attachmentFileName, "application/pdf");
-                        mailMessage.Attachments.Add(attachment);
-                    }
-
-                    using (var smtpClient = new SmtpClient(_smtpHost, _smtpPort))
-                    {
-                        smtpClient.UseDefaultCredentials = false;
-                        smtpClient.Credentials = new NetworkCredential(_smtpUsername, _smtpPassword);
-                        smtpClient.EnableSsl = _enableSsl;
-
-                        await smtpClient.SendMailAsync(mailMessage);
-                        System.Diagnostics.Debug.WriteLine($"Email with attachment sent successfully to: {toEmail}");
-                        return true;
-                    }
+                    bodyBuilder.Attachments.Add(attachmentFileName, attachmentBytes);
                 }
+
+                message.Body = bodyBuilder.ToMessageBody();
+
+                using (var client = new MailKit.Net.Smtp.SmtpClient())
+                {
+                    await client.ConnectAsync(_smtpHost, _smtpPort, _enableSsl ? SecureSocketOptions.Auto : SecureSocketOptions.None);
+                    await client.AuthenticateAsync(_smtpUsername, _smtpPassword);
+                    await client.SendAsync(message);
+                    await client.DisconnectAsync(true);
+                }
+
+                return true;
             }
             catch (Exception ex)
             {
                 throw new Exception($"Email with attachment failed: {ex.Message}", ex);
             }
         }
+
         public async Task<bool> SendPasswordResetEmailAsync(string toEmail, string userName, string resetLink)
         {
             string subject = "Password Reset Request - Sheessentials Beauty Product Company";
@@ -653,5 +650,216 @@ namespace ExWebAppSia.Models
 
                 return await SendEmailAsync(toEmail, subject, body, isHtml: true);
         }
+        /// <summary>
+        /// Optimized bulk announcement method that reuses a single connection
+        /// </summary>
+        public async Task<bool> SendBulkAnnouncementEmailsAsync(List<Employee> employees, string announcementContent, string department = "General", string imagePath = null)
+        {
+            if (employees == null || employees.Count == 0) return true;
+
+            try
+            {
+                if (string.IsNullOrEmpty(_smtpUsername) || string.IsNullOrEmpty(_smtpPassword) || string.IsNullOrEmpty(_fromEmail))
+                {
+                    System.Diagnostics.Debug.WriteLine("SMTP not configured. Skipping bulk announcement.");
+                    return true;
+                }
+
+                using (var client = new MailKit.Net.Smtp.SmtpClient())
+                {
+                    await client.ConnectAsync(_smtpHost, _smtpPort, _enableSsl ? SecureSocketOptions.Auto : SecureSocketOptions.None);
+                    await client.AuthenticateAsync(_smtpUsername, _smtpPassword);
+
+                    foreach (var employee in employees)
+                    {
+                        if (string.IsNullOrEmpty(employee.Email)) continue;
+
+                        var message = new MimeMessage();
+                        message.From.Add(new MailboxAddress(_fromName, _fromEmail));
+                        message.To.Add(new MailboxAddress(employee.FullName, employee.Email));
+                        message.Subject = $"📢 New Official Announcement: {department} - Sheessentials";
+
+                        var bodyBuilder = new BodyBuilder();
+                        
+                        // Using a private helper for the HTML body to keep logic clean
+                        bodyBuilder.HtmlBody = GenerateAnnouncementHtml(employee.FullName, announcementContent, department, imagePath);
+                        message.Body = bodyBuilder.ToMessageBody();
+
+                        try
+                        {
+                            await client.SendAsync(message);
+                            System.Diagnostics.Debug.WriteLine($"Bulk Email sent to: {employee.Email}");
+                        }
+                        catch (Exception sendEx)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"Failed to send bulk email to {employee.Email}: {sendEx.Message}");
+                            // Continue with next employee even if one fails
+                        }
+                    }
+
+                    await client.DisconnectAsync(true);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Critical failure in bulk announcement: {ex.Message}");
+                return false;
+            }
+        }
+
+        private string GenerateAnnouncementHtml(string employeeName, string announcementContent, string department, string imagePath)
+        {
+            return $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }}
+        .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+        .header {{ background: linear-gradient(135deg, #A44F56, #8B5A58); color: white; padding: 30px; text-align: center; border-radius: 12px 12px 0 0; }}
+        .content {{ background: white; padding: 35px; border: 1px solid #e8e8e8; border-top: none; border-radius: 0 0 12px 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }}
+        .dept-tag {{ display: inline-block; background: #F8ECEB; color: #A44F56; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 15px; text-transform: uppercase; }}
+        .announcement-box {{ background: #fafafa; padding: 25px; border-radius: 10px; border-left: 5px solid #A44F56; margin: 25px 0; font-size: 16px; white-space: pre-wrap; }}
+        .footer {{ text-align: center; margin-top: 30px; font-size: 12px; color: #9B7B7B; }}
+        .btn {{ display: inline-block; background: #A44F56; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px; }}
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='header'>
+            <h1 style='margin: 0; font-size: 26px; letter-spacing: 1px;'>OFFICIAL ANNOUNCEMENT</h1>
+            <p style='margin: 10px 0 0; opacity: 0.9;'>Sheessentials Beauty Product Company</p>
+        </div>
+        <div class='content'>
+            <p>Hello <strong>{employeeName}</strong>,</p>
+            
+            <p>New information has been posted on the company bulletin. Please take a moment to review the details below:</p>
+            
+            <div class='dept-tag'>{department}</div>
+            
+            <div class='announcement-box'>
+                {announcementContent}
+            </div>
+
+            {(!string.IsNullOrEmpty(imagePath) ? $"<p style='color: #666; font-style: italic; font-size: 13px;'>* This announcement includes an image attachment. Please log in to the portal to view the full post with all media.</p>" : "")}
+            
+            <p>Stay informed and stay safe!</p>
+            
+            <div style='text-align: center;'>
+                <a href='http://localhost:54032/Login.aspx' class='btn'>Go to Employee Portal</a>
+            </div>
+
+            <p style='margin-top: 40px;'>Best regards,<br/>
+            <strong>HR Department</strong><br/>
+            Sheessentials Team</p>
+        </div>
+        <div class='footer'>
+            <p>This is an automated company notification. &copy; 2026 Sheessentials Beauty Product Company</p>
+            <p>You are receiving this because you are an active employee in our system.</p>
+        </div>
+    </div>
+</body>
+</html>";
+        }
+        public async Task<bool> SendConcernEmailAsync(string toEmail, string employeeName, string employeeId, string department, string concernType, string subject, string description)
+        {
+            try
+            {
+                string emailSubject = $"Concern Submission Confirmation - {subject}";
+
+                StringBuilder body = new StringBuilder();
+                body.AppendLine("<html><body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>");
+                body.AppendLine("<div style='max-width: 600px; margin: 0 auto; padding: 20px;'>");
+                body.AppendLine("<h2 style='color: #A44F56;'>Concern Submission Confirmation</h2>");
+                body.AppendLine("<hr style='border: 1px solid #E8C4C4; margin: 20px 0;'>");
+                
+                body.AppendLine("<div style='background-color: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #28a745;'>");
+                body.AppendLine("<p style='margin: 0; color: #155724; font-weight: bold;'>✓ Your concern has been successfully submitted!</p>");
+                body.AppendLine("</div>");
+                
+                body.AppendLine("<div style='background-color: #FFE8E8; padding: 15px; border-radius: 8px; margin-bottom: 20px;'>");
+                body.AppendLine($"<p><strong>Employee Name:</strong> {employeeName}</p>");
+                body.AppendLine($"<p><strong>Employee ID:</strong> {employeeId}</p>");
+                body.AppendLine($"<p><strong>Department:</strong> {department}</p>");
+                body.AppendLine("</div>");
+
+                body.AppendLine("<div style='margin-bottom: 20px;'>");
+                body.AppendLine($"<p><strong>Concern Type:</strong> <span style='color: #A44F56; font-weight: bold;'>{concernType}</span></p>");
+                body.AppendLine($"<p><strong>Subject:</strong> {subject}</p>");
+                body.AppendLine($"<p><strong>Submitted Date:</strong> {DateTime.Now:MMM dd, yyyy HH:mm}</p>");
+                body.AppendLine("</div>");
+
+                body.AppendLine("<div style='background-color: #f9f9f9; padding: 15px; border-left: 4px solid #A44F56; margin-bottom: 20px;'>");
+                body.AppendLine("<h3 style='color: #A44F56; margin-top: 0;'>Description:</h3>");
+                body.AppendLine($"<p style='white-space: pre-wrap;'>{System.Web.HttpUtility.HtmlEncode(description)}</p>");
+                body.AppendLine("</div>");
+
+                body.AppendLine("<div style='background-color: #fff3cd; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #ffc107;'>");
+                body.AppendLine("<p style='margin: 0; color: #856404;'><strong>Note:</strong> Your concern has been forwarded to the HR department for review. You will be notified via email of any updates.</p>");
+                body.AppendLine("</div>");
+
+                body.AppendLine("<div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #E8C4C4; font-size: 12px; color: #9B7B7B;'>");
+                body.AppendLine("<p>This is an automated confirmation email from the Sheessentials Employee System.</p>");
+                body.AppendLine("</div>");
+                body.AppendLine("</div></body></html>");
+
+                return await SendEmailAsync(toEmail, emailSubject, body.ToString(), isHtml: true);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error sending concern email: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> SendLeaveEmailAsync(string toEmail, string employeeName, string employeeId, string department, string leaveType, string startDate, string endDate, string reason)
+        {
+            try
+            {
+                string subject = $"Leave Request Confirmation - {employeeName} ({leaveType})";
+
+                StringBuilder body = new StringBuilder();
+                body.AppendLine("<html><body style='font-family: Arial, sans-serif; line-height: 1.6; color: #333;'>");
+                body.AppendLine("<div style='max-width: 600px; margin: 0 auto; padding: 20px;'>");
+                body.AppendLine("<h2 style='color: #A44F56;'>Leave Request Confirmation</h2>");
+                body.AppendLine("<hr style='border: 1px solid #E8C4C4; margin: 20px 0;'>");
+                
+                body.AppendLine("<div style='background-color: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #28a745;'>");
+                body.AppendLine("<p style='margin: 0; color: #155724; font-weight: bold;'>✓ Your leave request has been successfully submitted!</p>");
+                body.AppendLine("</div>");
+                
+                body.AppendLine("<div style='background-color: #FFE8E8; padding: 15px; border-radius: 8px; margin-bottom: 20px;'>");
+                body.AppendLine($"<p><strong>Employee Name:</strong> {employeeName}</p>");
+                body.AppendLine($"<p><strong>Employee ID:</strong> {employeeId}</p>");
+                body.AppendLine($"<p><strong>Department:</strong> {department}</p>");
+                body.AppendLine("</div>");
+
+                body.AppendLine("<div style='margin-bottom: 20px;'>");
+                body.AppendLine($"<p><strong>Leave Type:</strong> <span style='color: #A44F56; font-weight: bold;'>{leaveType}</span></p>");
+                body.AppendLine($"<p><strong>Start Date:</strong> {startDate}</p>");
+                body.AppendLine($"<p><strong>End Date:</strong> {endDate}</p>");
+                body.AppendLine($"<p><strong>Submitted Date:</strong> {DateTime.Now:MMM dd, yyyy HH:mm}</p>");
+                body.AppendLine("</div>");
+
+                body.AppendLine("<div style='background-color: #f9f9f9; padding: 15px; border-left: 4px solid #A44F56; margin-bottom: 20px;'>");
+                body.AppendLine("<h3 style='color: #A44F56; margin-top: 0;'>Reason for Leave:</h3>");
+                body.AppendLine($"<p style='white-space: pre-wrap;'>{System.Web.HttpUtility.HtmlEncode(reason)}</p>");
+                body.AppendLine("</div>");
+
+                body.AppendLine("<div style='margin-top: 30px; padding-top: 20px; border-top: 1px solid #E8C4C4; font-size: 12px; color: #9B7B7B;'>");
+                body.AppendLine("<p>This is an automated confirmation email from the Employee Leave System.</p>");
+                body.AppendLine("</div>");
+                body.AppendLine("</div></body></html>");
+
+                return await SendEmailAsync(toEmail, subject, body.ToString(), isHtml: true);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error sending leave email: {ex.Message}");
+                return false;
+            }
+        }
     }
 }
+

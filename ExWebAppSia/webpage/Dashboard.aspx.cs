@@ -177,7 +177,7 @@ namespace ExWebAppSia.webpage
                 { "daysAbsent", currentMonthAbsent },
                 { "daysLate", currentMonthLate },
                 { "remainingAbsences", remainingAbsences },
-                { "targetWorkingDays", TOTAL_WORKING_DAYS_PER_YEAR }
+                { "targetWorkingDays", pastYearWeekdays }
             };
         }
 
@@ -187,7 +187,7 @@ namespace ExWebAppSia.webpage
             { "daysAbsent", 0 }, 
             { "daysLate", 0 }, 
             { "remainingAbsences", TOTAL_ALLOWED_ABSENCES_PER_YEAR },
-            { "targetWorkingDays", TOTAL_WORKING_DAYS_PER_YEAR }
+            { "targetWorkingDays", AttendanceService.GetWorkingDaysCount(AttendanceService.TRACKING_START_DATE, DateTime.Now.Date.AddDays(-1)) }
         };
 
         public string GetDaysPresent() => _attendanceStats?["daysPresent"].ToString() ?? "0";

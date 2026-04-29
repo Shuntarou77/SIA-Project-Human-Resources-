@@ -25,9 +25,9 @@ namespace ExWebAppSia.Handler
                 
                 var employees = await employeesCollection.Find(e => e.IsActive).ToListAsync();
                 
-                // Date range: March 19, 2026 to April 19, 2026
-                DateTime startDate = new DateTime(2026, 3, 19);
-                DateTime endDate = new DateTime(2026, 4, 19);
+                // Date range: January 1 of this year until now
+                DateTime startDate = new DateTime(DateTime.Today.Year, 1, 1);
+                DateTime endDate = DateTime.Today;
                 
                 int totalCreated = 0;
                 int totalSkipped = 0;

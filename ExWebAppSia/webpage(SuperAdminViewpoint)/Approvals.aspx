@@ -123,35 +123,35 @@
             <div class="metric-card" onclick="switchRequestTab('leave')">
                 <div class="metric-header">
                     <div class="metric-icon" style="background: linear-gradient(135deg, #F87171, #EF4444);"><i class="fas fa-calendar-times"></i></div>
-                    <div class="metric-value"><asp:Literal ID="litLeaveCount" runat="server">0</asp:Literal></div>
+                    <div class="metric-value"><span id="cnt-leave"><asp:Literal ID="litLeaveCount" runat="server">0</asp:Literal></span></div>
                 </div>
                 <div class="metric-label">Leaves</div>
             </div>
             <div class="metric-card" onclick="switchRequestTab('ot')">
                 <div class="metric-header">
                     <div class="metric-icon" style="background: linear-gradient(135deg, #FBBF24, #F59E0B);"><i class="fas fa-clock"></i></div>
-                    <div class="metric-value"><asp:Literal ID="litOTCount" runat="server">0</asp:Literal></div>
+                    <div class="metric-value"><span id="cnt-ot"><asp:Literal ID="litOTCount" runat="server">0</asp:Literal></span></div>
                 </div>
                 <div class="metric-label">Overtime</div>
             </div>
             <div class="metric-card" onclick="switchRequestTab('ut')">
                 <div class="metric-header">
                     <div class="metric-icon" style="background: linear-gradient(135deg, #60A5FA, #3B82F6);"><i class="fas fa-hourglass-half"></i></div>
-                    <div class="metric-value"><asp:Literal ID="litUTCount" runat="server">0</asp:Literal></div>
+                    <div class="metric-value"><span id="cnt-ut"><asp:Literal ID="litUTCount" runat="server">0</asp:Literal></span></div>
                 </div>
                 <div class="metric-label">Undertime</div>
             </div>
             <div class="metric-card" onclick="switchRequestTab('resign')">
                 <div class="metric-header">
                     <div class="metric-icon" style="background: linear-gradient(135deg, #94A3B8, #64748B);"><i class="fas fa-user-slash"></i></div>
-                    <div class="metric-value"><asp:Literal ID="litResignCount" runat="server">0</asp:Literal></div>
+                    <div class="metric-value"><span id="cnt-resign"><asp:Literal ID="litResignCount" runat="server">0</asp:Literal></span></div>
                 </div>
                 <div class="metric-label">Resignations</div>
             </div>
             <div class="metric-card" onclick="switchRequestTab('concern')">
                 <div class="metric-header">
                     <div class="metric-icon" style="background: linear-gradient(135deg, #34D399, #10B981);"><i class="fas fa-comment-dots"></i></div>
-                    <div class="metric-value"><asp:Literal ID="litConcernCount" runat="server">0</asp:Literal></div>
+                    <div class="metric-value"><span id="cnt-concern"><asp:Literal ID="litConcernCount" runat="server">0</asp:Literal></span></div>
                 </div>
                 <div class="metric-label">Concerns</div>
             </div>
@@ -227,8 +227,12 @@
                                         <td style="font-style:italic; max-width:200px;">"<%= ot.Reason %>"</td>
                                         <td>
                                             <div style="display:flex; gap:10px; justify-content:flex-end;">
-                                                <button type="button" class="btn-approve" onclick="approveOvertime('<%= ot.Id %>')">Approve</button>
-                                                <button type="button" class="btn-reject" onclick="rejectOvertime('<%= ot.Id %>')">Reject</button>
+                                                <% if (string.Equals(ot.EmployeeId, CurrentAdminId, StringComparison.OrdinalIgnoreCase)) { %>
+                                                    <span class="status-pill status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>
+                                                <% } else { %>
+                                                    <button type="button" class="btn-approve" onclick="approveOvertime('<%= ot.Id %>')">Approve</button>
+                                                    <button type="button" class="btn-reject" onclick="rejectOvertime('<%= ot.Id %>')">Reject</button>
+                                                <% } %>
                                             </div>
                                         </td>
                                     </tr>
@@ -266,8 +270,12 @@
                                         <td style="font-style:italic;">"<%= ut.Reason %>"</td>
                                         <td>
                                             <div style="display:flex; gap:10px; justify-content:flex-end;">
-                                                <button type="button" class="btn-approve" onclick="approveUndertime('<%= ut.Id %>')">Approve</button>
-                                                <button type="button" class="btn-reject" onclick="rejectUndertime('<%= ut.Id %>')">Reject</button>
+                                                <% if (string.Equals(ut.EmployeeId, CurrentAdminId, StringComparison.OrdinalIgnoreCase)) { %>
+                                                    <span class="status-pill status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>
+                                                <% } else { %>
+                                                    <button type="button" class="btn-approve" onclick="approveUndertime('<%= ut.Id %>')">Approve</button>
+                                                    <button type="button" class="btn-reject" onclick="rejectUndertime('<%= ut.Id %>')">Reject</button>
+                                                <% } %>
                                             </div>
                                         </td>
                                     </tr>
@@ -360,6 +368,18 @@
             document.getElementById('btn-' + tabId).classList.add('active');
         }
 
+        function refreshCounts() {
+            PageMethods.GetUpdatedCounts(function(r) {
+                if(r && r.success) {
+                    document.getElementById('cnt-leave').textContent = r.leaveCount;
+                    document.getElementById('cnt-ot').textContent = r.otCount;
+                    document.getElementById('cnt-ut').textContent = r.utCount;
+                    document.getElementById('cnt-resign').textContent = r.resignCount;
+                    document.getElementById('cnt-concern').textContent = r.concernCount;
+                }
+            });
+        }
+
         function loadPendingLeaveRequests() {
             PageMethods.GetPendingLeaveRequests(function (response) {
                 var result = typeof response === 'string' ? JSON.parse(response) : response;
@@ -370,8 +390,11 @@
                 }
                 tbody.innerHTML = result.data.map(function (l) {
                     var isPresident = (l.department === 'Executive');
+                    var isSelf = (l.empId && result.currentAdminId && l.empId.toString().toLowerCase() === result.currentAdminId.toString().toLowerCase());
+                    
                     var actions = isPresident ? '<span class="status-pill status-crown"><i class="fas fa-crown"></i> PRESIDENT (AUTO)</span>' :
-                        '<div style="display:flex; gap:10px; justify-content:flex-end;"><button type="button" class="btn-approve" onclick="approveLeave(\''+l.id+'\', \''+l.employeeName.replace(/'/g,"")+'\')">Approve</button><button type="button" class="btn-reject" onclick="declineLeave(\''+l.id+'\')">Reject</button></div>';
+                                  isSelf ? '<span class="status-pill status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
+                                  '<div style="display:flex; gap:10px; justify-content:flex-end;"><button type="button" class="btn-approve" onclick="approveLeave(\''+l.id+'\', \''+l.employeeName.replace(/'/g,"")+'\')">Approve</button><button type="button" class="btn-reject" onclick="declineLeave(\''+l.id+'\')">Reject</button></div>';
                     
                     return '<tr>' +
                         '<td><div class="user-cell"><div class="user-avatar">'+getInitials(l.employeeName)+'</div><div class="user-name">'+l.employeeName+'</div></div></td>' +
@@ -394,13 +417,17 @@
                     return;
                 }
                 tbody.innerHTML = res.data.map(function (e) {
+                    var isSelf = (e.empId && res.currentAdminId && e.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
+                    var actions = isSelf ? '<span class="status-pill status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
+                        '<div style="display:flex; gap:10px; justify-content:flex-end;"><button type="button" class="btn-approve" onclick="approveResign(\''+e.id+'\')">Approve</button><button type="button" class="btn-reject" onclick="declineResign(\''+e.id+'\')">Decline</button></div>';
+                    
                     return '<tr>' +
                         '<td><div class="user-cell"><div class="user-avatar">'+getInitials(e.name)+'</div><div class="user-name">'+e.name+'</div></div></td>' +
                         '<td>'+e.department+'</td>' +
                         '<td>'+e.role+'</td>' +
                         '<td>'+e.dateReq+'</td>' +
-                        '<td><div style="display:flex; gap:10px; justify-content:flex-end;"><button type="button" class="btn-approve" onclick="approveResign(\''+e.id+'\')">Approve</button><button type="button" class="btn-reject" onclick="declineResign(\''+e.id+'\')">Decline</button></div></td>' +
-                    '</tr>';
+                        '<td>'+actions+'</td>' +
+                        '</tr>';
                 }).join('');
             });
         }
@@ -414,12 +441,16 @@
                     return;
                 }
                 tbody.innerHTML = res.data.map(function (c) {
+                    var isSelf = (c.empId && res.currentAdminId && c.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
+                    var actions = isSelf ? '<span class="status-pill status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
+                                  '<button type="button" class="btn-approve" onclick="resolveConcern(\''+c.id+'\', \''+c.employeeName.replace(/'/g,"")+'\')">Resolve</button>';
+
                     return '<tr>' +
                         '<td><div class="user-cell"><div class="user-avatar">'+getInitials(c.employeeName)+'</div><div class="user-name">'+c.employeeName+'</div></div></td>' +
                         '<td><span class="status-pill status-pending">'+c.concernType+'</span></td>' +
                         '<td><strong>'+c.subject+'</strong></td>' +
                         '<td>'+c.submittedDate+'</td>' +
-                        '<td style="text-align:right;"><button type="button" class="btn-approve" onclick="resolveConcern(\''+c.id+'\', \''+c.employeeName.replace(/'/g,"")+'\')">Resolve</button></td>' +
+                        '<td style="text-align:right;">'+actions+'</td>' +
                     '</tr>';
                 }).join('');
             });
@@ -429,7 +460,7 @@
             showConfirm("Approve Request", "Authorize leave for " + name + "?", function() {
                 PageMethods.ApproveLeaveRequest(id, function(r) {
                     var res = typeof r === 'string' ? JSON.parse(r) : r;
-                    if(res.success) { showAlert("Confirmed", "Leave request has been authorized.", "success"); loadPendingLeaveRequests(); }
+                    if(res.success) { showAlert("Confirmed", "Leave request has been authorized.", "success"); loadPendingLeaveRequests(); refreshCounts(); }
                     else showAlert("Failed", res.message, "error");
                 });
             });
@@ -439,7 +470,7 @@
             showConfirm("Decline Request", "Are you sure you want to reject this leave request?", function() {
                 PageMethods.DeclineLeaveRequest(id, function(r) {
                     var res = typeof r === 'string' ? JSON.parse(r) : r;
-                    if(res.success) { showAlert("Rejected", "Leave request has been declined.", "success"); loadPendingLeaveRequests(); }
+                    if(res.success) { showAlert("Rejected", "Leave request has been declined.", "success"); loadPendingLeaveRequests(); refreshCounts(); }
                     else showAlert("Error", res.message, "error");
                 });
             });
@@ -449,7 +480,7 @@
             showConfirm("Approve Overtime", "Confirm manual overtime authorization?", function() {
                 PageMethods.ApproveOvertime(id, function(r) {
                     var res = typeof r === 'string' ? JSON.parse(r) : r;
-                    if(res.success) { showAlert("Authorized", "Overtime credit granted.", "success"); setTimeout(() => window.location.reload(), 1000); }
+                    if(res.success) { showAlert("Authorized", "Overtime credit granted.", "success"); refreshCounts(); /* If OT table is SSR, might still need reload or better to make it dynamic later */ setTimeout(() => window.location.reload(), 1000); }
                     else showAlert("Error", res.message, "error");
                 });
             });
@@ -459,7 +490,7 @@
             showConfirm("Reject Overtime", "Decline this overtime request?", function() {
                 PageMethods.RejectOvertime(id, function(r) {
                     var res = typeof r === 'string' ? JSON.parse(r) : r;
-                    if(res.success) { showAlert("Rejected", "Overtime request declined.", "success"); setTimeout(() => window.location.reload(), 1000); }
+                    if(res.success) { showAlert("Rejected", "Overtime request declined.", "success"); refreshCounts(); setTimeout(() => window.location.reload(), 1000); }
                     else showAlert("Error", res.message, "error");
                 });
             });
@@ -469,7 +500,7 @@
             showConfirm("Authorize Undertime", "Confirm early departure authorization?", function() {
                 PageMethods.ApproveUndertime(id, function(r) {
                     var res = typeof r === 'string' ? JSON.parse(r) : r;
-                    if(res.success) { showAlert("Authorized", "Undertime record updated.", "success"); setTimeout(() => window.location.reload(), 1000); }
+                    if(res.success) { showAlert("Authorized", "Undertime record updated.", "success"); refreshCounts(); setTimeout(() => window.location.reload(), 1000); }
                     else showAlert("Error", res.message, "error");
                 });
             });
@@ -479,7 +510,7 @@
             showConfirm("Reject Undertime", "Decline this undertime request?", function() {
                 PageMethods.RejectUndertime(id, function(r) {
                     var res = typeof r === 'string' ? JSON.parse(r) : r;
-                    if(res.success) { showAlert("Rejected", "Undertime request declined.", "success"); setTimeout(() => window.location.reload(), 1000); }
+                    if(res.success) { showAlert("Rejected", "Undertime request declined.", "success"); refreshCounts(); setTimeout(() => window.location.reload(), 1000); }
                     else showAlert("Error", res.message, "error");
                 });
             });
@@ -489,7 +520,7 @@
             showConfirm("Approve Resignation", "This will move the employee to the resigned registry and deactivate their account. Proceed?", function() {
                 PageMethods.ApproveResignation(id, function(r) {
                     var res = typeof r === 'string' ? JSON.parse(r) : r;
-                    if(res.success) { showAlert("Processed", "Employee has been successfully resigned.", "success"); loadPendingResignations(); }
+                    if(res.success) { showAlert("Processed", "Employee has been successfully resigned.", "success"); loadPendingResignations(); refreshCounts(); }
                     else showAlert("Error", res.message, "error");
                 });
             });
@@ -499,7 +530,7 @@
             showConfirm("Decline Resignation", "Cancel this resignation request and keep the employee active?", function() {
                 PageMethods.DeclineResignation(id, function(r) {
                     var res = typeof r === 'string' ? JSON.parse(r) : r;
-                    if(res.success) { showAlert("Cancelled", "Resignation request has been rejected.", "success"); loadPendingResignations(); }
+                    if(res.success) { showAlert("Cancelled", "Resignation request has been rejected.", "success"); loadPendingResignations(); refreshCounts(); }
                     else showAlert("Error", res.message, "error");
                 });
             });
@@ -509,7 +540,7 @@
             showConfirm("Resolve Concern", "Mark this concern from " + name + " as resolved?", function() {
                 PageMethods.ResolveConcern(id, function(r) {
                     var res = typeof r === 'string' ? JSON.parse(r) : r;
-                    if(res.success) { showAlert("Resolved", "Employee concern has been settled.", "success"); loadPendingConcerns(); }
+                    if(res.success) { showAlert("Resolved", "Employee concern has been settled.", "success"); loadPendingConcerns(); refreshCounts(); }
                     else showAlert("Error", res.message, "error");
                 });
             });
