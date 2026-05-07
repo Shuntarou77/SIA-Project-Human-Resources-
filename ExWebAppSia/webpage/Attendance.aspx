@@ -482,10 +482,7 @@
                     style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 2px solid #f1f5f9; padding-bottom: 2px;">
                     <button type="button" onclick="switchTab('attendance-tab')" class="tab-btn active"
                         id="tab-attendance">Attendance Logs</button>
-                    <button type="button" onclick="switchTab('overtime-tab')" class="tab-btn" id="tab-overtime">Overtime
-                        Requests</button>
-                    <button type="button" onclick="switchTab('undertime-tab')" class="tab-btn"
-                        id="tab-undertime">Undertime Records</button>
+                    <!-- OT/UT Requests removed for HR Admin -->
                 </div>
 
                 <!-- Attendance Tab Content -->
@@ -533,18 +530,14 @@
                     <!-- Filter & Search Row -->
                     <div class="filter-search-row">
                         <div class="dept-dropdown">
-                            <select>
-                                <option value="">Select Department</option>
-                                <option value="hr">Human Resources</option>
-                                <option value="finance">Finance</option>
-                                <option value="it">IT Support</option>
+                            <select id="attendanceDeptFilter">
+                                <option value="">All Departments</option>
+                                <option value="research & development">Research & Development</option>
+                                <option value="human resources">Human Resources</option>
+                                <option value="finance/accounting">Finance/Accounting</option>
                                 <option value="marketing">Marketing</option>
-                                <option value="sales">Sales</option>
                                 <option value="operations">Operations</option>
                                 <option value="inventory">Inventory</option>
-                                <option value="r&d">Research & Development</option>
-                                <option value="quality">Quality Control</option>
-                                <option value="customer">Customer Service</option>
                             </select>
                         </div>
                         <div class="search-bar">
@@ -552,7 +545,7 @@
                                 <path
                                     d="M15.5 14h-.79l-.28-.28C15.41 12.59 16 11.11 16 9.5 16 5.91 12.91 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
                             </svg>
-                            <input type="text" class="search-input" placeholder="Search..." />
+                            <input type="text" class="search-input" id="attendanceSearchInput" placeholder="Search..." />
                         </div>
                     </div>
 
@@ -609,254 +602,6 @@
                     </div>
                 </div> <!-- End Attendance Tab Content -->
 
-                <!-- Overtime Tab Content -->
-                <div id="overtime-tab" class="tab-content" style="display: none;">
-                    <!-- Overtime Calculation Guide Card -->
-                    <div
-                        style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-radius: 12px; padding: 20px; border: 1px solid #dee2e6; margin-bottom: 24px; box-shadow: 0 4px 6px rgba(0,0,0,0.02);">
-                        <div style="display: flex; align-items: flex-start; gap: 15px;">
-                            <div
-                                style="background: #A36A66; color: white; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0;">
-                                ??</div>
-                            <div style="flex: 1;">
-                                <h4
-                                    style="margin: 0 0 10px 0; color: #495057; font-size: 16px; font-weight: 700; letter-spacing: 0.5px; border-bottom: 2px solid #A36A66; display: inline-block; padding-bottom: 2px;">
-                                    Overtime Calculation Guide (DOLE)</h4>
-                                <div
-                                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 10px;">
-                                    <div>
-                                        <div
-                                            style="font-size: 11px; color: #868e96; text-transform: uppercase; font-weight: 700; margin-bottom: 5px;">
-                                            Standard Rates</div>
-                                        <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #495057;">
-                                            <li>Regular Day: <span style="font-weight: 600;">125%</span></li>
-                                            <li>Rest Day / Special Holiday: <span style="font-weight: 600;">169%</span>
-                                            </li>
-                                            <li>Regular Holiday: <span style="font-weight: 600;">260%</span></li>
-                                        </ul>
-                                    </div>
-                                    <div>
-                                        <div
-                                            style="font-size: 11px; color: #868e96; text-transform: uppercase; font-weight: 700; margin-bottom: 5px;">
-                                            Special Rules</div>
-                                        <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #495057;">
-                                            <li>Night Shift (10 PM - 6 AM): <span
-                                                    style="color: #d63384; font-weight: 600;">+10% NSD</span></li>
-                                            <li>Turn-around: <span style="font-weight: 600;">12h Rest Required</span>
-                                            </li>
-                                            <li>Health Personnel: <span style="font-weight: 600;">8h Max / 5 Days</span>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Pending Overtime Requests Section -->
-                    <% if (PendingOvertimeRequests !=null && PendingOvertimeRequests.Count> 0) { %>
-                        <div class="attendance-table-wrapper" style="margin-bottom: 20px;">
-                            <div
-                                style="background: var(--panel-bg); padding: 14px 20px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                                <h3
-                                    style="margin: 0; color: var(--stat-bg); font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px; letter-spacing: 0.3px;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#A36A66"
-                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <polyline points="12 6 12 12 16 14" />
-                                    </svg>
-                                    Pending Overtime Requests
-                                </h3>
-                                <span
-                                    style="background: var(--stat-bg); color: white; padding: 3px 12px; border-radius: 50px; font-size: 12px; font-weight: 700;">
-                                    <%= PendingOvertimeRequests.Count %> pending
-                                </span>
-                            </div>
-                            <table class="attendance-table">
-                                <thead class="table-header">
-                                    <tr>
-                                        <th style="width: 20%;">Employee</th>
-                                        <th style="width: 15%;">Department</th>
-                                        <th style="width: 30%;">Reason</th>
-                                        <th style="width: 15%;">OT Rate /Hr</th>
-                                        <th style="width: 20%;">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <% foreach (var req in PendingOvertimeRequests) { %>
-                                        <tr class="table-row">
-                                            <td style="font-weight: 600;">
-                                                <div style="display: flex; flex-direction: column;">
-                                                    <span>
-                                                        <%= req.EmployeeName %>
-                                                    </span>
-                                                    <span style="font-size: 11px; color: #9ca3af; font-weight: 400;">
-                                                        <%= req.EmployeeId %>
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td style="color: #555;">
-                                                <%= req.Department %>
-                                            </td>
-                                            <td style="font-style: italic; color: #6b7280;">"<%= req.Reason %>"</td>
-                                            <td style="font-weight: 700; color: #10b981;">
-                                                <div style="display: flex; flex-direction: column;">
-                                                    <span style="font-size: 14px;">₱ <%= GetEstimatedOTRate(req) %>
-                                                            </span>
-                                                    <span
-                                                        style="font-size: 10px; color: #6b7280; font-weight: 400; line-height: 1.2;">
-                                                        <%= req.IsNightShift ? "Incl. Night Diff (10%)"
-                                                            : "Regular Shift Rate" %>
-                                                    </span>
-                                                </div>
-                                            </td>
-                                            <td>
-                                                <% if (req.EmployeeId !=CurrentAdminId) { %>
-                                                    <div style="display: flex; gap: 8px;">
-                                                        <button type="button" onclick="approveOvertime('<%= req.Id %>')"
-                                                            style="background: var(--stat-bg); color: white; border: none; padding: 6px 16px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 700; transition: all 0.2s;"
-                                                            onmouseover="this.style.background='var(--stat-hover)'"
-                                                            onmouseout="this.style.background='var(--stat-bg)'">Approve</button>
-                                                        <button type="button" onclick="rejectOvertime('<%= req.Id %>')"
-                                                            style="background: white; color: #ef4444; border: 1.5px solid #ef4444; padding: 6px 16px; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 700; transition: all 0.2s;"
-                                                            onmouseover="this.style.background='#fef2f2'"
-                                                            onmouseout="this.style.background='white'">Reject</button>
-                                                    </div>
-                                                    <% } else { %>
-                                                        <span
-                                                            style="font-size: 12px; font-weight: 600; color: #9ca3af; font-style: italic;">Your
-                                                            Request</span>
-                                                        <% } %>
-                                            </td>
-                                        </tr>
-                                        <% } %>
-                                </tbody>
-                            </table>
-                        </div>
-                        <% } else { %>
-                            <div
-                                style="padding: 60px 20px; text-align: center; background-color: #f8fafc; border-radius: 12px; border: 1px dashed #cbd5e1;">
-                                <div style="color: #94a3b8; font-size: 40px; margin-bottom: 15px;">?</div>
-                                <div style="color: #64748b; font-weight: 600;">No Pending Overtime Requests</div>
-                                <p style="color: #94a3b8; font-size: 13px; margin: 5px 0 0 0;">New requests will appear
-                                    here for your review.</p>
-                            </div>
-                            <% } %>
-                </div> <!-- End Overtime Tab Content -->
-
-                <!-- Undertime Tab Content -->
-                <div id="undertime-tab" class="tab-content" style="display: none;">
-                    <!-- Pending Undertime Requests Section -->
-                    <% if (PendingUndertimeRequests !=null && PendingUndertimeRequests.Count> 0) { %>
-                        <div class="attendance-table-wrapper"
-                            style="margin-bottom: 24px; border: 1px solid #fca5a5; box-shadow: 0 4px 6px rgba(239, 68, 68, 0.05);">
-                            <div
-                                style="background: #fef2f2; padding: 14px 20px; border-bottom: 1px solid #fee2e2; display: flex; justify-content: space-between; align-items: center;">
-                                <h3
-                                    style="margin: 0; color: #b91c1c; font-size: 15px; font-weight: 700; display: flex; align-items: center; gap: 8px;">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                                        stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <line x1="12" y1="8" x2="12" y2="12" />
-                                        <line x1="12" y1="16" x2="12.01" y2="16" />
-                                    </svg>
-                                    Pending Undertime Requests
-                                </h3>
-                                <span
-                                    style="background: #ef4444; color: white; padding: 3px 12px; border-radius: 50px; font-size: 12px; font-weight: 700;">
-                                    <%= PendingUndertimeRequests.Count %> pending
-                                </span>
-                            </div>
-                            <table class="attendance-table">
-                                <thead class="table-header" style="background-color: #fff5f5;">
-                                    <tr>
-                                        <th style="width: 25%;">Employee</th>
-                                        <th style="width: 20%;">Department</th>
-                                        <th style="width: 35%;">Reason</th>
-                                        <th style="width: 20%;">Action</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <% foreach (var req in PendingUndertimeRequests) { %>
-                                        <tr class="table-row">
-                                            <td style="font-weight: 600;">
-                                                <%= req.EmployeeName %>
-                                            </td>
-                                            <td style="color: #666;">
-                                                <%= req.Department %>
-                                            </td>
-                                            <td style="font-style: italic; color: #444;">"<%= req.Reason %>"</td>
-                                            <td>
-                                                <% if (req.EmployeeId != CurrentAdminId) { %>
-                                                    <div style="display: flex; gap: 8px;">
-                                                        <button type="button" onclick="approveUndertime('<%= req.Id %>')"
-                                                            style="background: #ef4444; color: white; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">Approve</button>
-                                                        <button type="button" onclick="rejectUndertime('<%= req.Id %>')"
-                                                            style="background: white; color: #666; border: 1.5px solid #ddd; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 700;">Reject</button>
-                                                    </div>
-                                                <% } else { %>
-                                                    <span style="font-size: 12px; font-weight: 600; color: #9ca3af; font-style: italic;">Your Request</span>
-                                                <% } %>
-                                            </td>
-                                        </tr>
-                                        <% } %>
-                                </tbody>
-                            </table>
-                        </div>
-                        <% } %>
-
-                            <% if (UndertimeRecords !=null && UndertimeRecords.Count> 0) { %>
-                                <div
-                                    style="background-color: #fff; border-radius: 12px; border: 1px solid #fee2e2; margin-bottom: 24px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                                    <div
-                                        style="background-color: #fef2f2; padding: 12px 20px; border-bottom: 1px solid #fee2e2; display: flex; align-items: center; justify-content: space-between;">
-                                        <div style="display: flex; align-items: center; gap: 8px;">
-                                            <span
-                                                style="background-color: #ef4444; width: 10px; height: 10px; border-radius: 50%;"></span>
-                                            <h4
-                                                style="margin: 0; color: #991b1b; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">
-                                                Processed Undertime Records - Today</h4>
-                                        </div>
-                                    </div>
-                                    <table class="attendance-table" style="margin: 0; width: 100%;">
-                                        <thead class="table-header" style="background-color: #fef2f2;">
-                                            <tr>
-                                                <th style="width: 30%; color: #991b1b;">Employee</th>
-                                                <th style="width: 25%; color: #991b1b;">Time Missing</th>
-                                                <th style="width: 25%; color: #991b1b;">Deduction</th>
-                                                <th style="width: 20%; color: #991b1b;">Reason</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <% foreach (var ut in UndertimeRecords) { %>
-                                                <tr class="table-row">
-                                                    <td style="font-weight: 600;">
-                                                        <%= ut.EmployeeName %>
-                                                    </td>
-                                                    <td style="color: #ef4444; font-weight: 700;">-<%=
-                                                            ut.HoursUndertime.ToString("N1") %> Hours</td>
-                                                    <td style="color: #b91c1c; font-weight: 800;">₱ <%=
-                                                            ut.DeductionAmount.ToString("N2") %>
-                                                    </td>
-                                                    <td style="font-size: 11px; color: #6b7280;">
-                                                        <%= ut.Reason %>
-                                                    </td>
-                                                </tr>
-                                                <% } %>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <% } else if (PendingUndertimeRequests==null || PendingUndertimeRequests.Count==0) { %>
-                                    <div
-                                        style="padding: 60px 20px; text-align: center; background-color: #f8fafc; border-radius: 12px; border: 1px dashed #fee2e2;">
-                                        <div style="color: #fca5a5; font-size: 40px; margin-bottom: 15px;">?</div>
-                                        <div style="color: #991b1b; font-weight: 600;">No Undertime Requests or Records
-                                            Found</div>
-                                        <p style="color: #64748b; font-size: 13px; margin: 5px 0 0 0;">Employees who
-                                            clock out earlier than required will appear here.</p>
-                                    </div>
-                                    <% } %>
-                </div> <!-- End Undertime Tab Content -->
             </div>
 
             <!-- Notification Modal -->
@@ -1075,6 +820,43 @@
                             }
                         }
                     }
+
+                    const deptFilter = document.getElementById('attendanceDeptFilter');
+                    const searchInput = document.getElementById('attendanceSearchInput');
+                    const tableBody = document.getElementById('<%= attendanceTableBody.ClientID %>');
+
+                    function applyAttendanceFilters() {
+                        if (!tableBody) return;
+
+                        function normalizeDepartment(value) {
+                            const v = (value || '').toString().trim().toLowerCase();
+                            if (v === 'r&d' || v === 'research and development' || v === 'research & development') {
+                                return 'research & development';
+                            }
+                            if (v === 'hr' || v === 'human resources') return 'human resources';
+                            if (v === 'finance' || v === 'finance/accounting') return 'finance/accounting';
+                            return v;
+                        }
+
+                        const selectedDept = (deptFilter ? deptFilter.value : '').toLowerCase().trim();
+                        const searchTerm = (searchInput ? searchInput.value : '').toLowerCase().trim();
+                        const rows = tableBody.querySelectorAll('tr.table-row');
+
+                        rows.forEach(row => {
+                            if (row.id === 'noRecordsRow') return;
+
+                            const rowText = (row.textContent || '').toLowerCase();
+                            const deptCell = row.cells && row.cells[2] ? normalizeDepartment(row.cells[2].textContent) : '';
+
+                            const matchesDept = !selectedDept || deptCell === normalizeDepartment(selectedDept);
+                            const matchesSearch = !searchTerm || rowText.includes(searchTerm);
+
+                            row.style.display = (matchesDept && matchesSearch) ? '' : 'none';
+                        });
+                    }
+
+                    if (deptFilter) deptFilter.addEventListener('change', applyAttendanceFilters);
+                    if (searchInput) searchInput.addEventListener('input', applyAttendanceFilters);
                 });
 
                 const handlerUrl = '<%= ResolveUrl("~/webpage/api/AttendanceHandler.ashx") %>';

@@ -11,7 +11,7 @@ using Newtonsoft.Json;
 using MongoDB.Driver;
 using MongoDB.Bson;
 
-namespace ExWebAppSia.webpage_SuperAdminViewpoint_
+namespace ExWebAppSia.webpage
 {
     public partial class Approvals : System.Web.UI.Page
     {
@@ -141,19 +141,6 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             return estAmount.ToString("N2");
         }
 
-        private static string FormatFullName(string first, string middle, string last)
-        {
-            return $"{first} {(string.IsNullOrEmpty(middle) ? "" : middle[0] + ". ")}{last}".Trim();
-        }
-
-        private static string FormatNameFromSingleString(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return "Unknown";
-            var parts = name.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 1) return parts[0];
-            return $"{parts[0]} {parts[parts.Length - 1]}";
-        }
-
         public string getInitials(string name)
         {
             if (string.IsNullOrEmpty(name)) return "??";
@@ -162,20 +149,8 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             return name.Substring(0, Math.Min(2, name.Length)).ToUpper();
         }
 
-        private static string BuildConcernExcerpt(string desc)
-        {
-            if (string.IsNullOrEmpty(desc)) return "";
-            return desc.Length > 60 ? desc.Substring(0, 57) + "..." : desc;
-        }
-
-        private static string NormalizeDepartment(string value)
-        {
-            return (value ?? "").Trim().ToLowerInvariant();
-        }
-
         private static bool IsHumanResourcesDepartment(string department)
         {
-            // Removed department restriction to allow seeing all employees as requested
             return true;
         }
 
@@ -183,7 +158,6 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         {
             if (string.IsNullOrEmpty(role)) return false;
             var r = role.Trim().ToLowerInvariant();
-            // Broader check for any role containing "super admin", "superadmin", or "president"
             return r.Contains("super admin") || r.Contains("superadmin") || r.Contains("president");
         }
 
@@ -214,7 +188,6 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
 
         private static HashSet<string> BuildHrEmployeeIdSet(IEnumerable<Employee> employees)
         {
-            // 1. Get restricted Employee IDs from the Users collection (the definitive source for account roles)
             var usersCollection = MongoDBHelper.GetUsersCollection();
             var restrictedRoles = new[] { "Super Admin", "President" };
             var restrictedIds = usersCollection.Find(u => restrictedRoles.Contains(u.Role) && u.IsActive)
@@ -222,7 +195,6 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                                             .ToList();
             var restrictedSet = new HashSet<string>(restrictedIds, StringComparer.OrdinalIgnoreCase);
 
-            // 2. Build the set of IDs that the Super Admin SHOULD see (all active employees except restricted executives)
             return new HashSet<string>(
                 (employees ?? Enumerable.Empty<Employee>())
                     .Where(e => e != null
@@ -250,7 +222,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 var logService = new ActivityLogService();
                 
                 string username = (context?.Session["Username"] as string) ?? "System";
-                string hrName = emp?.FullName ?? "Super Admin";
+                string hrName = emp?.FullName ?? "Admin";
 
                 System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
                     Task.Run(() => logService.LogActionAsync(username, hrName, action, "Approvals", targetInfo))
@@ -363,8 +335,6 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             try {
                 return Task.Run(async () => {
                     var empService = new EmployeeService();
-                    
-                    // For resignation, 'id' is the MongoDB ObjectId of the employee record
                     var targetEmp = await empService.GetEmployeeByIdAsync(id);
                     if (targetEmp != null && IsRestrictedExecutiveRole(targetEmp.Role))
                     {

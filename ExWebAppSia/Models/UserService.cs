@@ -1,4 +1,4 @@
-﻿using MongoDB.Driver;
+using MongoDB.Driver;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -75,10 +75,13 @@ namespace ExWebAppSia.Models
 
                 if (user != null)
                 {
-                    System.Diagnostics.Debug.WriteLine($"[UserService] User record found: {user.Username}, Role: {user.Role}, EmployeeId: {user.EmployeeId ?? "NULL"}, Active: {user.IsActive}");
-                    System.Diagnostics.Debug.WriteLine($"[UserService] Stored password length: {user.Password?.Length ?? 0}, Content: {(user.Password?.Length > 3 ? user.Password.Substring(0, 3) : user.Password)}...");
-                    System.Diagnostics.Debug.WriteLine($"[UserService] Entered password length: {password?.Length ?? 0}, Content: {(password?.Length > 3 ? password.Substring(0, 3) : password)}...");
+                    System.Diagnostics.Debug.WriteLine($"[UserService] User found: Username='{user.Username}', Email='{user.Email}', EmployeeId='{user.EmployeeId}', Role='{user.Role}'");
                     
+                    if (user.EmployeeId == "SHE-006" && !username.ToLower().Contains("domer") && !username.ToLower().Contains("ryan"))
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[UserService] WARNING: Identity Mismatch! Username '{username}' matched record for '{user.Username}' with EmployeeId 'SHE-006'");
+                    }
+
                     bool passwordValid = PasswordHelper.VerifyPasswordComplete(password, user.Password);
                     
                     // Plaintext fallback for legacy/unhashed accounts (e.g. random EMP-XXXX or EmployeeId)
@@ -185,11 +188,37 @@ namespace ExWebAppSia.Models
                     .Set(u => u.PasswordResetToken, token)
                     .Set(u => u.PasswordResetTokenExpiration, expiration);
                 var result = await _users.UpdateOneAsync(filter, update);
+                
+                // If not found by email, try by username
+                if (result.MatchedCount == 0)
+                {
+                    filter = Builders<User>.Filter.Eq(u => u.Username, email);
+                    result = await _users.UpdateOneAsync(filter, update);
+                }
+                
                 return result.ModifiedCount > 0;
             }
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error updating reset token: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> UpdateResetTokenByIdAsync(string userId, string token, DateTime expiration)
+        {
+            try
+            {
+                var filter = Builders<User>.Filter.Eq(u => u.Id, userId);
+                var update = Builders<User>.Update
+                    .Set(u => u.PasswordResetToken, token)
+                    .Set(u => u.PasswordResetTokenExpiration, expiration);
+                var result = await _users.UpdateOneAsync(filter, update);
+                return result.ModifiedCount > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating reset token by ID: {ex.Message}");
                 return false;
             }
         }

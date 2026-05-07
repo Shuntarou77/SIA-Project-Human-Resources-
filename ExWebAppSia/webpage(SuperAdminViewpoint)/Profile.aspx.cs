@@ -86,7 +86,56 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
 
         protected Employee CurrentEmployee
         {
-            get { return Session["Employee"] as Employee; }
+            get 
+            { 
+                var emp = Session["Employee"] as Employee;
+                
+                // CRITICAL: Prevent cross-account data leakage
+                if (emp != null)
+                {
+                    string expectedEmail = Session["ExpectedEmail"] as string;
+                    string expectedId = Session["ExpectedId"] as string;
+                    string employeeEmail = emp.Email;
+                    string employeeId = emp.EmployeeId;
+                    
+                    bool isMismatch = false;
+                    
+                    if (!string.IsNullOrEmpty(expectedEmail) && !string.Equals(expectedEmail, employeeEmail, StringComparison.OrdinalIgnoreCase))
+                    {
+                        isMismatch = true;
+                        System.Diagnostics.Debug.WriteLine($"[SuperAdminProfile] SECURITY ALERT: Email Mismatch! Expected={expectedEmail}, Actual={employeeEmail}");
+                    }
+                    
+                    if (!string.IsNullOrEmpty(expectedId) && !string.Equals(expectedId, employeeId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        isMismatch = true;
+                        System.Diagnostics.Debug.WriteLine($"[SuperAdminProfile] SECURITY ALERT: ID Mismatch! Expected={expectedId}, Actual={employeeId}");
+                    }
+
+                    if (isMismatch)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[SuperAdminProfile] Identity Mismatch detected. Re-fetching correct record...");
+                        
+                        var employeeService = new EmployeeService();
+                        Employee correctEmp = null;
+                        
+                        if (!string.IsNullOrEmpty(expectedId))
+                            correctEmp = Task.Run(() => employeeService.GetByEmployeeIdAsync(expectedId)).GetAwaiter().GetResult();
+                        else if (!string.IsNullOrEmpty(expectedEmail))
+                            correctEmp = Task.Run(() => employeeService.GetEmployeeByEmailAsync(expectedEmail)).GetAwaiter().GetResult();
+                            
+                        if (correctEmp != null)
+                        {
+                            Session["Employee"] = correctEmp;
+                            return correctEmp;
+                        }
+                        
+                        Session["Employee"] = null;
+                        return null;
+                    }
+                }
+                return emp; 
+            }
         }
 
         protected string GetEmployeeInitials()
@@ -196,15 +245,19 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     return;
                 }
 
-                _employeeAttendanceRecords = await _attendanceService.GetEmployeeAttendanceAsync(employee.EmployeeId);
-                
-                // Fetch approved leaves
-                var leaveService = new LeaveService();
-                var leaves = await leaveService.GetLeavesByEmployeeIdAsync(employee.EmployeeId);
-                var approvedLeaves = leaves.Where(l => l.Status == "Approved").ToList();
+                // UNIFIED LOGIC: Use centralized AttendanceService for consistent MONTHLY stats
+                var stats = await _attendanceService.GetMonthlyAttendanceStatsAsync(employee.EmployeeId, employee.HiredDate);
 
-                await CalculateAttendanceStatisticsAsync(employee, approvedLeaves);
-                
+                _attendanceStats = new Dictionary<string, object>
+                {
+                    { "daysPresent", stats.PresentCount },
+                    { "daysAbsent", stats.AbsentCount },
+                    { "daysLate", stats.LateCount },
+                    { "attendanceRate", (int)Math.Round(stats.AttendanceRate) },
+                    { "remainingAbsences", stats.RemainingAbsences },
+                    { "targetWorkingDays", stats.WorkingDaysToDate }
+                };
+
                 // Add Overtime and Undertime Async
                 await LoadOvertimeAndUndertimeStatsAsync(employee.EmployeeId);
             }
@@ -215,112 +268,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             }
         }
 
-        private async Task CalculateAttendanceStatisticsAsync(Employee employee, List<Leave> approvedLeaves)
-        {
-            if (_employeeAttendanceRecords == null)
-            {
-                _attendanceStats = GetDefaultStats();
-                return;
-            }
-
-            var now = DateTime.Now;
-            var today = now.Date;
-            var currentYear = now.Year;
-            var yearStart = new DateTime(currentYear, 1, 1);
-            
-            // System-wide start date for attendance tracking
-            var trackingStart = AttendanceService.TRACKING_START_DATE;
-            // Get employee hired date
-            var hiredDate = employee.HiredDate != DateTime.MinValue ? employee.HiredDate.ToLocalTime().Date : trackingStart;
-            var effectiveStart = hiredDate > yearStart ? hiredDate : yearStart;
-            if (effectiveStart < trackingStart) effectiveStart = trackingStart;
-
-            // 1. Current Month Stats
-            var currentMonthStart = new DateTime(now.Year, now.Month, 1);
-            // Don't count days before hired/tracking start date
-            var monthlyStatsStart = effectiveStart > currentMonthStart ? effectiveStart : currentMonthStart;
-
-            var currentMonthRecords = _employeeAttendanceRecords
-                .Where(a => a.TimeIn.HasValue)
-                .Select(a => new { Record = a, LocalTime = a.TimeIn.Value.ToLocalTime() })
-                .Where(x => x.LocalTime.Date >= currentMonthStart && x.LocalTime.Date <= today)
-                .ToList();
-
-            var currentMonthPresent = currentMonthRecords.Select(x => x.LocalTime.Date).Distinct().Count();
-            
-            // Calculate workdays passed (Mon-Sat) since stats start
-            int pastWeekdays = 0;
-            if (monthlyStatsStart <= today)
-            {
-                pastWeekdays = Enumerable.Range(0, (today - monthlyStatsStart).Days + 1)
-                    .Select(i => monthlyStatsStart.AddDays(i))
-                    .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Sunday);
-            }
-
-            // Subract approved leave days from pastWeekdays to reduce absents
-            int leaveDaysInMonth = 0;
-            foreach (var leave in approvedLeaves)
-            {
-                for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
-                {
-                    if (d >= monthlyStatsStart && d <= today && d.DayOfWeek != DayOfWeek.Sunday)
-                    {
-                        leaveDaysInMonth++;
-                    }
-                }
-            }
-
-            // Absent = Past Weekdays - Present - Leave
-            var currentMonthAbsent = Math.Max(0, pastWeekdays - currentMonthPresent - leaveDaysInMonth);
-            var currentMonthLate = currentMonthRecords.GroupBy(x => x.LocalTime.Date).Count(g => g.OrderBy(x => x.LocalTime).First().LocalTime.Hour >= 9);
-            
-            // Attendance Rate based on expected working days (total weekdays minus leaves)
-            int expectedWorkingDays = Math.Max(1, pastWeekdays - leaveDaysInMonth);
-            var currentMonthAttendancePercent = (int)Math.Round((double)currentMonthPresent / expectedWorkingDays * 100);
-
-            // 2. Yearly stats
-            var yearlyRecords = _employeeAttendanceRecords
-                .Where(a => a.TimeIn.HasValue)
-                .Select(a => a.TimeIn.Value.ToLocalTime())
-                .Where(t => t.Year == currentYear && t.Date >= effectiveStart)
-                .ToList();
-
-            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count();
-            var yearlyStatsStart = effectiveStart;
-            
-            int pastYearWeekdays = 0;
-            if (yearlyStatsStart <= today)
-            {
-                pastYearWeekdays = Enumerable.Range(0, (today - yearlyStatsStart).Days + 1)
-                    .Select(i => yearlyStatsStart.AddDays(i))
-                    .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Sunday); // Include Saturdays
-            }
-
-            int yearlyLeaveDays = 0;
-            foreach (var leave in approvedLeaves)
-            {
-                for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
-                {
-                    if (d.Year == currentYear && d >= yearlyStatsStart && d <= today && d.DayOfWeek != DayOfWeek.Sunday)
-                    {
-                        yearlyLeaveDays++;
-                    }
-                }
-            }
-            
-            var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent - yearlyLeaveDays);
-            var remainingAbsences = await _attendanceService.GetRemainingAbsencesAsync(employee.EmployeeId, employee.HiredDate);
-
-            _attendanceStats = new Dictionary<string, object>
-            {
-                { "daysPresent", currentMonthPresent },
-                { "daysAbsent", currentMonthAbsent },
-                { "daysLate", currentMonthLate },
-                { "attendanceRate", currentMonthAttendancePercent },
-                { "remainingAbsences", remainingAbsences },
-                { "targetWorkingDays", pastYearWeekdays }
-            };
-        }
+        // Removed CalculateAttendanceStatisticsAsync as it is now handled by AttendanceService.GetYearlyAttendanceStatsAsync
 
         private async Task LoadOvertimeAndUndertimeStatsAsync(string employeeId)
         {
@@ -367,7 +315,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             { "daysLate", 0 }, 
             { "attendanceRate", 0 },
             { "remainingAbsences", AttendanceService.TOTAL_ALLOWED_ABSENCES_PER_YEAR },
-            { "targetWorkingDays", TOTAL_WORKING_DAYS_PER_YEAR }
+            { "targetWorkingDays", AttendanceService.GetWorkingDaysCount(AttendanceService.TRACKING_START_DATE, DateTime.Now.Date) }
         };
 
         public string GetDaysPresent() => _attendanceStats?["daysPresent"].ToString() ?? "0";

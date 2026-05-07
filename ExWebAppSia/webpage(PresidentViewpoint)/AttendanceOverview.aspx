@@ -204,10 +204,7 @@
             <div style="display: flex; gap: 15px; margin-bottom: 20px; border-bottom: 2px solid #F0EEEE;">
                 <button type="button" onclick="switchTab('logs-tab')" class="tab-btn active" id="tab-logs" 
                     style="background:none; border:none; padding:10px 15px; font-weight:700; color:#A36A66; cursor:pointer; border-bottom: 3px solid #A36A66;">Daily Logs</button>
-                <button type="button" onclick="switchTab('overtime-tab')" class="tab-btn" id="tab-overtime"
-                    style="background:none; border:none; padding:10px 15px; font-weight:700; color:#9B7D7B; cursor:pointer; border-bottom: 3px solid transparent;">Overtime Requests</button>
-                <button type="button" onclick="switchTab('undertime-tab')" class="tab-btn" id="tab-undertime"
-                    style="background:none; border:none; padding:10px 15px; font-weight:700; color:#9B7D7B; cursor:pointer; border-bottom: 3px solid transparent;">Undertime Requests</button>
+                <!-- OT/UT Requests removed for President -->
             </div>
 
             <div id="logs-tab" class="tab-content-pres">
@@ -248,115 +245,7 @@
                 </div>
             </div>
 
-            <div id="overtime-tab" class="tab-content-pres" style="display:none;">
-                <div class="table-responsive">
-                    <table class="attendance-table">
-                        <thead>
-                            <tr>
-                                <th>Employee</th>
-                                <th>Reason</th>
-                                <th>OT Rate</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if (PendingOvertimeRequests != null && PendingOvertimeRequests.Any()) { %>
-                                <% foreach (var req in PendingOvertimeRequests) { %>
-                                    <tr>
-                                        <td>
-                                            <div style="font-weight: 700;"><%= req.EmployeeName %></div>
-                                            <div style="font-size: 11px; color: #9B7D7B;"><%= req.EmployeeId %></div>
-                                        </td>
-                                        <td style="font-style: italic; color: #6b7280;">"<%= req.Reason %>"</td>
-                                        <td style="font-weight: 700; color: #2E7D32;">₱<%= GetEstimatedOTRate(req) %>/hr</td>
-                                        <td>
-                                            <% if (req.EmployeeId != CurrentAdminId) { %>
-                                                <div style="display: flex; gap: 8px;">
-                                                    <button type="button" onclick="approveOvertime('<%= req.Id %>')" style="background:#A44F56; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:700; cursor:pointer;">Approve</button>
-                                                    <button type="button" onclick="rejectOvertime('<%= req.Id %>')" style="background:#F5F5F5; color:#4A3534; border:1px solid #DDD; padding:6px 12px; border-radius:6px; font-weight:700; cursor:pointer;">Reject</button>
-                                                </div>
-                                            <% } else { %>
-                                                <span style="font-size: 12px; font-weight: 600; color: #9ca3af; font-style: italic;">Your Request</span>
-                                            <% } %>
-                                        </td>
-                                    </tr>
-                                <% } %>
-                            <% } else { %>
-                                <tr><td colspan="4" style="text-align:center; padding:40px; color:#9B7D7B;">No pending overtime requests found.</td></tr>
-                            <% } %>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div id="undertime-tab" class="tab-content-pres" style="display:none;">
-                <div class="table-responsive">
-                    <table class="attendance-table">
-                        <thead>
-                            <tr>
-                                <th>Employee</th>
-                                <th>Reason</th>
-                                <th>Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <% if (PendingUndertimeRequests != null && PendingUndertimeRequests.Any()) { %>
-                                <% foreach (var req in PendingUndertimeRequests) { %>
-                                    <tr>
-                                        <td>
-                                            <div style="font-weight: 700;"><%= req.EmployeeName %></div>
-                                            <div style="font-size: 11px; color: #9B7D7B;"><%= req.EmployeeId %></div>
-                                        </td>
-                                        <td style="font-style: italic; color: #6b7280;">"<%= req.Reason %>"</td>
-                                        <td>
-                                            <% if (req.EmployeeId != CurrentAdminId) { %>
-                                                <div style="display: flex; gap: 8px;">
-                                                    <button type="button" onclick="approveUndertime('<%= req.Id %>')" style="background:#A44F56; color:white; border:none; padding:6px 12px; border-radius:6px; font-weight:700; cursor:pointer;">Approve</button>
-                                                    <button type="button" onclick="rejectUndertime('<%= req.Id %>')" style="background:#F5F5F5; color:#4A3534; border:1px solid #DDD; padding:6px 12px; border-radius:6px; font-weight:700; cursor:pointer;">Reject</button>
-                                                </div>
-                                            <% } else { %>
-                                                <span style="font-size: 12px; font-weight: 600; color: #9ca3af; font-style: italic;">Your Request</span>
-                                            <% } %>
-                                        </td>
-                                    </tr>
-                                <% } %>
-                            <% } else { %>
-                                <tr><td colspan="3" style="text-align:center; padding:40px; color:#9B7D7B;">No pending undertime requests found.</td></tr>
-                            <% } %>
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- Processed Undertime Records Section -->
-                <% if (UndertimeRecords != null && UndertimeRecords.Any()) { %>
-                    <div style="margin-top: 30px; border-top: 2px dashed #F0EEEE; padding-top: 20px;">
-                        <h4 style="font-size: 14px; font-weight: 700; color: #4A3534; margin-bottom: 15px;">Finalized Undertime Records</h4>
-                        <div class="table-responsive">
-                            <table class="attendance-table">
-                                <thead>
-                                    <tr>
-                                        <th>Employee</th>
-                                        <th>Hours</th>
-                                        <th>Deduction</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <% foreach (var record in UndertimeRecords) { %>
-                                        <tr>
-                                            <td>
-                                                <div style="font-weight: 700;"><%= record.EmployeeName %></div>
-                                                <div style="font-size: 11px; color: #9B7D7B;"><%= record.EmployeeId %></div>
-                                            </td>
-                                            <td><span style="color: #ef4444; font-weight: 700;">-<%= record.HoursUndertime.ToString("N1") %>h</span></td>
-                                            <td style="font-weight: 700;">₱<%= record.DeductionAmount.ToString("N2") %></td>
-                                        </tr>
-                                    <% } %>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                <% } %>
-            </div>
+            <!-- OT/UT tab panels removed for President -->
 
             <script>
                 function switchTab(tabId) {

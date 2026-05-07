@@ -120,7 +120,7 @@
                         <li class="nav-item">
                             <a runat="server" href="~/webpage(EmployeeViewpoint)/Profile.aspx" class="nav-link">
                                 <i class="fas fa-user"></i>
-                                <span class="nav-text">Account</span>
+                                <span class="nav-text">Profile</span>
                             </a>
                         </li>
                     </ul>

@@ -17,7 +17,7 @@ namespace ExWebAppSia.Models
             _requests = MongoDBHelper.GetUndertimeRequestsCollection();
         }
 
-        public async Task<bool> RequestUndertimeAsync(string attendanceId, string employeeId, string employeeName, string department, string reason)
+        public async Task<bool> RequestUndertimeAsync(string attendanceId, string employeeId, string employeeName, string department, string reason, string utType = "Regular", string departureTime = null)
         {
             try
             {
@@ -31,7 +31,9 @@ namespace ExWebAppSia.Models
                     Date = DateTime.UtcNow.AddHours(8).Date, // PH Local Date (UTC+8)
                     RequestedAt = DateTime.UtcNow,
                     Status = "Pending",
-                    IsActive = true
+                    IsActive = true,
+                    UTType = utType,
+                    RequestedDepartureTime = departureTime
                 };
 
                 await _requests.InsertOneAsync(request);
@@ -43,11 +45,12 @@ namespace ExWebAppSia.Models
                     await notifService.CreateNotificationAsync(new Notification
                     {
                         RecipientId = "ADMIN",
-                        Title = "New Undertime Request",
-                        Message = $"{employeeName} has submitted an undertime request.",
-                        Type = "NewRequest",
-                        Link = "~/webpage(SuperAdminViewpoint)/Approvals.aspx",
-                        RelatedId = request.Id
+                        Title = (utType == "Emergency" ? "🚨 EMERGENCY " : "New ") + "Undertime Request",
+                        Message = $"{employeeName} has submitted a {(utType == "Emergency" ? "HIGH PRIORITY emergency " : "")}undertime request.",
+                        Type = utType == "Emergency" ? "EmergencyAlert" : "NewRequest",
+                        Link = "~/webpage/Approvals.aspx",
+                        RelatedId = request.Id,
+                        Priority = utType == "Emergency" ? "High" : "Normal"
                     });
                 }
                 catch { }
@@ -57,6 +60,68 @@ namespace ExWebAppSia.Models
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error requesting undertime: {ex.Message}");
+                return false;
+            }
+        }
+
+        public async Task<bool> RecordEmergencyUndertimeAsync(string attendanceId, string employeeId, string employeeName, string department)
+        {
+            try
+            {
+                var now = DateTime.UtcNow.AddHours(8);
+                var shiftEnd = new DateTime(now.Year, now.Month, now.Day, 17, 0, 0);
+                double hours = (shiftEnd - now).TotalHours;
+                if (hours < 0) hours = 0;
+
+                string cleanEmployeeId = employeeId?.Trim() ?? "";
+                var employeeCollection = MongoDBHelper.GetEmployeesCollection();
+                var employee = await employeeCollection.Find(e => e.EmployeeId == cleanEmployeeId).FirstOrDefaultAsync();
+                
+                decimal hourlyRate = 0;
+                if (employee != null && employee.BaseSalary > 0)
+                {
+                    hourlyRate = (employee.BaseSalary * 12) / 313m / 8m;
+                }
+
+                var record = new UndertimeRecord
+                {
+                    AttendanceId = attendanceId,
+                    EmployeeId = cleanEmployeeId,
+                    EmployeeName = employeeName,
+                    Date = now.Date,
+                    HoursUndertime = Math.Round(hours, 2),
+                    HourlyRate = Math.Round(hourlyRate, 2),
+                    DeductionAmount = Math.Round((decimal)hours * hourlyRate, 2),
+                    Reason = "EMERGENCY UNDERTIME",
+                    RecordedAt = DateTime.UtcNow,
+                    IsActive = true,
+                    UTType = "Emergency"
+                };
+
+                await RecordUndertimeAsync(record);
+
+                // High Priority Alert to HR Staff (ADMIN)
+                try
+                {
+                    var notifService = new NotificationService();
+                    await notifService.CreateNotificationAsync(new Notification
+                    {
+                        RecipientId = "ADMIN",
+                        Title = "🚨 EMERGENCY UNDERTIME ALERT",
+                        Message = $"URGENT: {employeeName} has triggered an Emergency Undertime and timed out. This has been recorded automatically.",
+                        Type = "EmergencyAlert",
+                        Link = "~/webpage(SuperAdminViewpoint)/Attendance.aspx",
+                        RelatedId = record.Id,
+                        Priority = "High"
+                    });
+                }
+                catch { }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error recording emergency undertime: {ex.Message}");
                 return false;
             }
         }
@@ -289,6 +354,45 @@ namespace ExWebAppSia.Models
                 return await _requests.Find(r => r.IsActive).ToListAsync();
             }
             catch { return new List<UndertimeRequest>(); }
+        }
+
+        public async Task<List<UndertimeRequest>> GetRequestsByEmployeeIdAsync(string employeeId, bool onlyActive = true)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(employeeId)) return new List<UndertimeRequest>();
+                employeeId = employeeId.Trim();
+                return await _requests
+                    .Find(r => r.EmployeeId == employeeId && (!onlyActive || r.IsActive))
+                    .SortByDescending(r => r.RequestedAt)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting undertime requests by employee ID: {ex.Message}");
+                return new List<UndertimeRequest>();
+            }
+        }
+
+        public async Task<List<UndertimeRequest>> GetRecentRequestsByEmployeeIdAsync(string employeeId, int limit = 100, bool onlyActive = true)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(employeeId)) return new List<UndertimeRequest>();
+                employeeId = employeeId.Trim();
+                if (limit <= 0) limit = 100;
+
+                // Avoid DB-side sort (can be slow without indexes).
+                return await _requests
+                    .Find(r => r.EmployeeId == employeeId && (!onlyActive || r.IsActive))
+                    .Limit(limit)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting recent undertime requests by employee ID: {ex.Message}");
+                return new List<UndertimeRequest>();
+            }
         }
 
         public async Task<List<UndertimeRequest>> GetRequestsByDateAsync(DateTime date)

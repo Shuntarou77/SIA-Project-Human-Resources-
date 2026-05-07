@@ -1,4 +1,4 @@
-<%@ Page Title="Organizational Chart" Language="C#" MasterPageFile="~/webpage(SuperAdminViewpoint)/SuperAdmin.Master" AutoEventWireup="true" CodeFile="OrgChart.aspx.cs" Inherits="ExWebAppSia.webpage_SuperAdminViewpoint_.SuperAdminOrgChart" %>
+<%@ Page Title="Organizational Chart" Language="C#" MasterPageFile="~/webpage(SuperAdminViewpoint)/SuperAdmin.Master" AutoEventWireup="true" CodeBehind="OrgChart.aspx.cs" Inherits="ExWebAppSia.webpage_SuperAdminViewpoint_.SuperAdminOrgChart" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
     <!-- Library CSS -->

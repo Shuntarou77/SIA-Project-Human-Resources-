@@ -36,7 +36,7 @@ namespace ExWebAppSia.Models
                         Title = "New Leave Request",
                         Message = $"{leave.EmployeeName} has submitted a {leave.LeaveType} leave request.",
                         Type = "NewRequest",
-                        Link = "~/webpage(SuperAdminViewpoint)/Approvals.aspx",
+                        Link = "~/webpage/Approvals.aspx",
                         RelatedId = leave.Id
                     });
                 }

@@ -12,16 +12,31 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
     public partial class WebForm3 : System.Web.UI.Page
     {
         private readonly AttendanceService _attendanceService = new AttendanceService();
-        private readonly OvertimeService _overtimeService = new OvertimeService();
         private readonly EmployeeService _employeeService = new EmployeeService();
-        private readonly UndertimeService _undertimeService = new UndertimeService();
         protected List<Attendance> AttendanceRecords { get; set; }
-        protected List<OvertimeRequest> PendingOvertimeRequests { get; set; } = new List<OvertimeRequest>();
-        protected List<UndertimeRequest> PendingUndertimeRequests { get; set; } = new List<UndertimeRequest>();
-        protected List<UndertimeRecord> UndertimeRecords { get; set; } = new List<UndertimeRecord>();
         protected List<Employee> AllEmployees { get; set; } = new List<Employee>();
         protected Dictionary<string, int> AbsenceAllowanceCache { get; set; } = new Dictionary<string, int>();
         protected DateTime SelectedDate { get; set; }
+
+        private static string NormalizeEmployeeId(string id)
+        {
+            return (id ?? "").Trim().ToUpperInvariant();
+        }
+
+        private Employee FindEmployeeByPossiblyMismatchedId(string employeeId)
+        {
+            var key = NormalizeEmployeeId(employeeId);
+            if (string.IsNullOrEmpty(key) || AllEmployees == null || AllEmployees.Count == 0) return null;
+
+            var exact = AllEmployees.FirstOrDefault(e => NormalizeEmployeeId(e.EmployeeId) == key);
+            if (exact != null) return exact;
+
+            return AllEmployees.FirstOrDefault(e =>
+            {
+                var eid = NormalizeEmployeeId(e.EmployeeId);
+                return (!string.IsNullOrEmpty(eid) && (key.StartsWith(eid) || eid.StartsWith(key)));
+            });
+        }
 
         protected string CurrentAdminId 
         { 
@@ -86,18 +101,6 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             try
             {
                 // Load all active employees once for lookups
-                AllEmployees = await _employeeService.GetAllEmployeesAsync();
-
-                // Load pending overtime requests from OvertimeRequests collection
-                PendingOvertimeRequests = await _overtimeService.GetPendingRequestsAsync();
-
-                // Load pending undertime requests
-                PendingUndertimeRequests = await _undertimeService.GetAllPendingRequestsAsync();
-
-                // Load undertime records for selected date
-                UndertimeRecords = await _undertimeService.GetUndertimeRecordsByDateAsync(SelectedDate);
-
-                // FETCH ALL EMPLOYEES FIRST
                 AllEmployees = await _employeeService.GetAllEmployeesAsync();
 
                 // Convert local date to UTC date for querying
@@ -199,13 +202,9 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                         return localTime.Hour > 8 || (localTime.Hour == 8 && localTime.Minute > 15);
                     });
 
-                var undertimeCount = UndertimeRecords.Count;
-
                 ViewState["PresentCount"] = presentCount;
                 ViewState["AbsentCount"] = absentCount;
                 ViewState["LateCount"] = lateCount;
-                ViewState["UndertimeCount"] = undertimeCount;
-                ViewState["OvertimeCount"] = PendingOvertimeRequests.Count;
 
                 // Pre-calculate Absence Allowance for all employees in parallel
                 AbsenceAllowanceCache.Clear();
@@ -214,7 +213,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     .GroupBy(r => r.EmployeeId)
                     .Select(async g => {
                         var employeeId = g.Key;
-                        var emp = AllEmployees.FirstOrDefault(e => e.EmployeeId == employeeId);
+                        var emp = FindEmployeeByPossiblyMismatchedId(employeeId);
                         if (emp != null)
                         {
                             int remaining = await _attendanceService.GetRemainingAbsencesAsync(employeeId, emp.HiredDate);
@@ -319,23 +318,8 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             return ViewState["LateCount"] != null ? (int)ViewState["LateCount"] : 0;
         }
 
-        protected int GetUndertimeCount()
-        {
-            return ViewState["UndertimeCount"] != null ? (int)ViewState["UndertimeCount"] : 0;
-        }
 
-        protected int GetOvertimeCount()
-        {
-            return ViewState["OvertimeCount"] != null ? (int)ViewState["OvertimeCount"] : 0;
-        }
 
-        protected string GetUndertimeDisplay(string attendanceId)
-        {
-            var ut = UndertimeRecords.FirstOrDefault(u => u.AttendanceId == attendanceId);
-            if (ut == null) return "<span class=\"time-empty\">-</span>";
-            
-            return $"<span style=\"color: #ef4444; font-weight: 700;\">-{ut.HoursUndertime:N1}h (₱{ut.DeductionAmount:N2})</span>";
-        }
 
         protected string GetAbsenceAllowance(string employeeId)
         {
@@ -345,43 +329,6 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 return $"<span style=\"color: {color}; font-weight: 700;\">{allowance} Days</span>";
             }
             return "<span class=\"time-empty\">-</span>";
-        }
-
-        protected string GetOTStatusBadgeStyle(object statusObj)
-        {
-            string status = statusObj as string;
-            if (string.IsNullOrEmpty(status) || status == "None") 
-                return "display: none;";
-            
-            string color = "#9ca3af";
-            if (status == "Approved") color = "#10b981";
-            else if (status == "Pending") color = "#f59e0b";
-            else if (status == "Rejected") color = "#ef4444";
-            
-            return $"background: {color}; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700;";
-        }
-
-        protected string GetEstimatedOTRate(OvertimeRequest req)
-        {
-            var emp = AllEmployees?.FirstOrDefault(e => e.EmployeeId == req.EmployeeId);
-            if (emp == null || emp.BaseSalary <= 0) return "0.00";
-
-            // Monthly Salary (BaseSalary) -> Daily Rate
-            // Assuming 313 working days per year for 6 days/week or similar standard
-            decimal dailyRate = (emp.BaseSalary * 12) / 313m; 
-            
-            // Re-calculate based on user formula: Daily Rate / 8 = Hourly Rate
-            decimal multiplier = _overtimeService.GetMultiplier(req.OvertimeType ?? "Regular");
-            
-            decimal estimatedHourlyRate = (dailyRate / 8m) * multiplier;
-            
-            // Note: NSD (Night Shift Differential) is 10%
-            if (req.IsNightShift)
-            {
-                estimatedHourlyRate *= 1.10m;
-            }
-
-            return estimatedHourlyRate.ToString("N2");
         }
     }
 }

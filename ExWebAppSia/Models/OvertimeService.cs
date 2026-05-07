@@ -15,7 +15,7 @@ namespace ExWebAppSia.Models
         }
 
         // Employee submits an overtime request
-        public async Task<bool> RequestOvertimeAsync(string attendanceId, string employeeId, string employeeName, string department, string reason)
+        public async Task<bool> RequestOvertimeAsync(string attendanceId, string employeeId, string employeeName, string department, string reason, DateTime otDate, string startTime, string endTime, decimal requestedHours)
         {
             try
             {
@@ -33,8 +33,11 @@ namespace ExWebAppSia.Models
                     EmployeeId = employeeId,
                     EmployeeName = employeeName,
                     Department = department,
-                    Date = DateTime.UtcNow.AddHours(8).Date, // PH Local Date (UTC+8)
+                    Date = otDate.Date,
                     Reason = reason,
+                    StartTime = startTime,
+                    EndTime = endTime,
+                    RequestedHours = requestedHours,
                     Status = "Pending",
                     RequestedAt = DateTime.UtcNow,
                     IsActive = true
@@ -52,7 +55,7 @@ namespace ExWebAppSia.Models
                         Title = "New Overtime Request",
                         Message = $"{employeeName} has submitted an overtime request.",
                         Type = "NewRequest",
-                        Link = "~/webpage(SuperAdminViewpoint)/Approvals.aspx",
+                        Link = "~/webpage/Approvals.aspx",
                         RelatedId = request.Id
                     });
                 }
@@ -201,6 +204,54 @@ namespace ExWebAppSia.Models
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error getting pending overtime requests: {ex.Message}");
+                return new List<OvertimeRequest>();
+            }
+        }
+
+        public async Task<List<OvertimeRequest>> GetRequestsByEmployeeIdAsync(string employeeId, bool onlyActive = true)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(employeeId)) return new List<OvertimeRequest>();
+                employeeId = employeeId.Trim();
+
+                var filter = onlyActive
+                    ? Builders<OvertimeRequest>.Filter.Where(o => o.EmployeeId == employeeId && o.IsActive)
+                    : Builders<OvertimeRequest>.Filter.Where(o => o.EmployeeId == employeeId);
+
+                return await _overtime
+                    .Find(filter)
+                    .SortByDescending(o => o.RequestedAt)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting overtime requests by employee ID: {ex.Message}");
+                return new List<OvertimeRequest>();
+            }
+        }
+
+        public async Task<List<OvertimeRequest>> GetRecentRequestsByEmployeeIdAsync(string employeeId, int limit = 100, bool onlyActive = true)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(employeeId)) return new List<OvertimeRequest>();
+                employeeId = employeeId.Trim();
+                if (limit <= 0) limit = 100;
+
+                var filter = onlyActive
+                    ? Builders<OvertimeRequest>.Filter.Where(o => o.EmployeeId == employeeId && o.IsActive)
+                    : Builders<OvertimeRequest>.Filter.Where(o => o.EmployeeId == employeeId);
+
+                // Avoid DB-side sort (can be slow without indexes).
+                return await _overtime
+                    .Find(filter)
+                    .Limit(limit)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting recent overtime requests by employee ID: {ex.Message}");
                 return new List<OvertimeRequest>();
             }
         }

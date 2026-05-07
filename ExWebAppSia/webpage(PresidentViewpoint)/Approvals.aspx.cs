@@ -53,7 +53,11 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                 
                 // Get Admin IDs from Users collection instead of Employee.Role
                 var usersCollection = MongoDBHelper.GetUsersCollection();
-                var adminIdsTask = usersCollection.Find(u => u.Role == "Super Admin" && u.IsActive).Project(u => u.EmployeeId).ToListAsync();
+                var adminFilter = Builders<User>.Filter.And(
+                    Builders<User>.Filter.Regex(u => u.Role, new MongoDB.Bson.BsonRegularExpression("super admin", "i")),
+                    Builders<User>.Filter.Eq(u => u.IsActive, true)
+                );
+                var adminIdsTask = usersCollection.Find(adminFilter).Project(u => u.EmployeeId).ToListAsync();
 
                 await Task.WhenAll(leavesTask, otTask, utTask, resignedTask, concernsTask, adminIdsTask).ConfigureAwait(false);
 
@@ -86,7 +90,11 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
             {
                 return Task.Run(async () => {
                     var usersCollection = MongoDBHelper.GetUsersCollection();
-                    var adminIds = await usersCollection.Find(u => u.Role == "Super Admin" && u.IsActive).Project(u => u.EmployeeId).ToListAsync();
+                    var adminFilter = Builders<User>.Filter.And(
+                        Builders<User>.Filter.Regex(u => u.Role, new MongoDB.Bson.BsonRegularExpression("super admin", "i")),
+                        Builders<User>.Filter.Eq(u => u.IsActive, true)
+                    );
+                    var adminIds = await usersCollection.Find(adminFilter).Project(u => u.EmployeeId).ToListAsync();
 
                     var leaveS = new LeaveService();
                     var otS = new OvertimeService();
@@ -103,13 +111,20 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                     var ot = (await otS.GetPendingRequestsAsync())
                         .Where(o => adminIds.Contains(o.EmployeeId))
                         .Select(o => new {
-                            id = o.Id, empId = o.EmployeeId, name = o.EmployeeName, date = o.Date.ToString("MMM dd, yyyy"), hours = o.RequestedHours, reason = o.Reason
+                            id = o.Id, empId = o.EmployeeId, name = o.EmployeeName, date = o.Date.ToString("MMM dd, yyyy"), 
+                            startTime = o.StartTime, endTime = o.EndTime,
+                            hours = o.RequestedHours, reason = o.Reason
                         }).ToList();
 
                     var ut = (await utS.GetAllPendingRequestsAsync())
                         .Where(u => adminIds.Contains(u.EmployeeId))
                         .Select(u => new {
-                            id = u.Id, empId = u.EmployeeId, name = u.EmployeeName, date = u.Date.ToString("MMM dd, yyyy"), reason = u.Reason
+                            id = u.Id, 
+                            empId = u.EmployeeId, 
+                            name = u.EmployeeName, 
+                            date = u.Date.ToString("MMM dd, yyyy"), 
+                            departureTime = u.RequestedDepartureTime ?? "Anytime",
+                            reason = u.Reason
                         }).ToList();
 
                     var resign = (await resS.GetPendingResignationsAsync())
@@ -184,7 +199,11 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
             {
                 return Task.Run(async () => {
                     var usersCollection = MongoDBHelper.GetUsersCollection();
-                    var adminIds = await usersCollection.Find(u => u.Role == "Super Admin" && u.IsActive).Project(u => u.EmployeeId).ToListAsync();
+                    var adminFilter = Builders<User>.Filter.And(
+                        Builders<User>.Filter.Regex(u => u.Role, new MongoDB.Bson.BsonRegularExpression("super admin", "i")),
+                        Builders<User>.Filter.Eq(u => u.IsActive, true)
+                    );
+                    var adminIds = await usersCollection.Find(adminFilter).Project(u => u.EmployeeId).ToListAsync();
 
                     var otService = new OvertimeService();
                     var utService = new UndertimeService();

@@ -477,7 +477,9 @@ namespace ExWebAppSia.webpage
                 int approvedCount = approvedCountTask.Result;
                 int declinedCount = declinedCountTask.Result;
                 int rehiringCount = probationaryEmployees.Count;
-                int currentEmployeeCount = employeesTask.Result.Count;
+                int currentEmployeeCount = employeesTask.Result.Count(e => 
+                    !(e.Role ?? "").ToLowerInvariant().Contains("president")
+                );
 
                 if (litNewCount != null) litNewCount.Text = (newCount + forViewingCount + inProgressHiringCount).ToString();
                 if (litInProgressHiringCount != null) litInProgressHiringCount.Text = inProgressHiringCount.ToString();
@@ -524,9 +526,19 @@ namespace ExWebAppSia.webpage
                         {
                             if (!string.IsNullOrEmpty(emp.Role)) {
                                 string r = emp.Role.Trim();
-                                occupiedRoles.Add(r);
-                                if (!roleHeadcounts.ContainsKey(r)) roleHeadcounts[r] = 0;
-                                roleHeadcounts[r]++;
+                                // Exclude President from recruitment logic entirely
+                                if (r.ToLowerInvariant().Contains("president")) continue;
+
+                                if (!string.IsNullOrEmpty(emp.Role)) {
+                                    // Only count towards 'occupied' if they are NOT on leave
+                                    // If they are on leave, the slot is effectively vacant for a temp
+                                    if (onLeaveCount == 0) { // Simplified for this file's logic style
+                                        occupiedRoles.Add(r);
+                                    }
+                                    
+                                    if (!roleHeadcounts.ContainsKey(r)) roleHeadcounts[r] = 0;
+                                    roleHeadcounts[r]++;
+                                }
                             }
                         }
                     }

@@ -1,4 +1,4 @@
-﻿document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', function () {
     console.log('DOM loaded - initializing sidebar functionality');
 
     // Toggle Mobile Sidebar
@@ -88,9 +88,9 @@
             logoutBtnLoading.style.display = 'inline-block';
             confirmLogoutBtn.disabled = true;
 
-            // Perform logout (redirect to logout page)
+            // Perform logout (redirect to server-side logout handler)
             setTimeout(function () {
-                window.location.href = '../LoginFolder/Login.aspx';
+                window.location.href = '../LoginFolder/Logout.ashx';
             }, 1000);
         });
 

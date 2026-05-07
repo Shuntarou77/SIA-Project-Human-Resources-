@@ -61,6 +61,12 @@ namespace ExWebAppSia.Models
         [BsonElement("requestedHours")]
         public decimal RequestedHours { get; set; } // Number of OT hours requested by the employee
 
+        [BsonElement("startTime")]
+        public string StartTime { get; set; } // Start time of OT
+
+        [BsonElement("endTime")]
+        public string EndTime { get; set; } // End time of OT
+
         [BsonElement("baseSalary")]
         public decimal BaseSalary { get; set; } // Employee's base salary at the time of the request
     }

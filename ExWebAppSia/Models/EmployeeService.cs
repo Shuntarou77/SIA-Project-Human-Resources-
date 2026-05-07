@@ -1240,7 +1240,7 @@ namespace ExWebAppSia.Models
 
                 // Get normal employees excluding President and SuperAdmin
                 var normalEmployees = allEmployees
-                    .Where(e => e.EmployeeId != superAdmin?.EmployeeId && e.EmployeeId != president?.EmployeeId && e.Department != "Executive")
+                    .Where(e => e.EmployeeId != superAdmin?.EmployeeId && e.EmployeeId != president?.EmployeeId)
                     .ToList();
 
                 // Build exactly 6 macro-department nodes

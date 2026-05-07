@@ -106,6 +106,8 @@
 </asp:Content>
 
 <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
+    <asp:HiddenField ID="hdnConcernsJson" runat="server" />
+    <asp:HiddenField ID="hdnCurrentAdminId" runat="server" ClientIDMode="Static" />
     <div class="approvals-wrapper">
         <!-- Dashboard Header -->
         <div class="page-header">
@@ -155,6 +157,13 @@
                 </div>
                 <div class="metric-label">Concerns</div>
             </div>
+            <div class="metric-card" onclick="switchRequestTab('loan')">
+                <div class="metric-header">
+                    <div class="metric-icon" style="background: linear-gradient(135deg, #10B981, #059669);"><i class="fas fa-hand-holding-usd"></i></div>
+                    <div class="metric-value"><span id="cnt-loan">0</span></div>
+                </div>
+                <div class="metric-label">Loans</div>
+            </div>
         </div>
 
         <!-- Approval Portal Card -->
@@ -175,6 +184,9 @@
                 </div>
                 <div id="btn-concern" class="tab-btn" onclick="switchRequestTab('concern')">
                     <i class="fas fa-headset"></i> Concerns
+                </div>
+                <div id="btn-loan" class="tab-btn" onclick="switchRequestTab('loan')">
+                    <i class="fas fa-hand-holding-usd"></i> Loan Requests
                 </div>
             </div>
 
@@ -205,10 +217,11 @@
                             <thead>
                                 <tr>
                                     <th>Employee</th>
-                                    <th>Date</th>
-                                    <th>Hours</th>
+                                    <th>OT Date</th>
+                                    <th>Shift Time</th>
+                                    <th>Requested Hours</th>
                                     <th>Est. Pay</th>
-                                    <th>Reason</th>
+                                    <th>Justification</th>
                                     <th style="text-align:right;">Actions</th>
                                 </tr>
                             </thead>
@@ -222,9 +235,10 @@
                                             </div>
                                         </td>
                                         <td><%= ot.Date.ToString("MMM dd, yyyy") %></td>
+                                        <td><span style="color:#A36A66; font-weight:700;"><%= ot.StartTime %> - <%= ot.EndTime %></span></td>
                                         <td><strong><%= ot.RequestedHours %></strong> hrs</td>
                                         <td><span style="color:#A36A66; font-weight:700;">&#8369;<%= GetEstimatedOTRate(ot) %></span></td>
-                                        <td style="font-style:italic; max-width:200px;">"<%= ot.Reason %>"</td>
+                                        <td style="font-style:italic; max-width:250px;">"<%= ot.Reason %>"</td>
                                         <td>
                                             <div style="display:flex; gap:10px; justify-content:flex-end;">
                                                 <% if (string.Equals(ot.EmployeeId, CurrentAdminId, StringComparison.OrdinalIgnoreCase)) { %>
@@ -253,6 +267,7 @@
                                 <tr>
                                     <th>Employee</th>
                                     <th>Date</th>
+                                    <th>Requested Departure</th>
                                     <th>Reason</th>
                                     <th style="text-align:right;">Actions</th>
                                 </tr>
@@ -267,6 +282,7 @@
                                             </div>
                                         </td>
                                         <td><%= ut.Date.ToString("MMM dd, yyyy") %></td>
+                                        <td><span style="color:#A36A66; font-weight:700;"><%= !string.IsNullOrEmpty(ut.RequestedDepartureTime) ? ut.RequestedDepartureTime : "Unspecified" %></span></td>
                                         <td style="font-style:italic;">"<%= ut.Reason %>"</td>
                                         <td>
                                             <div style="display:flex; gap:10px; justify-content:flex-end;">
@@ -281,7 +297,7 @@
                                     </tr>
                                 <% } %>
                                 <% if (PendingUndertimeRequests.Count == 0) { %>
-                                    <tr><td colspan="4"><div class="empty-visual"><i class="fas fa-list-ul"></i><p>No waiting Undertime requests.</p></div></td></tr>
+                                    <tr><td colspan="5"><div class="empty-visual"><i class="fas fa-list-ul"></i><p>No waiting Undertime requests.</p></div></td></tr>
                                 <% } %>
                             </tbody>
                         </table>
@@ -323,6 +339,25 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- LOAN TAB -->
+                <div id="pane-loan" class="tab-pane">
+                    <div class="table-responsive">
+                        <table class="premium-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Type</th>
+                                    <th>Agency</th>
+                                    <th>Requested</th>
+                                    <th>Status</th>
+                                    <th style="text-align:right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="loanRequestsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -358,6 +393,7 @@
             loadPendingLeaveRequests();
             loadPendingConcerns();
             loadPendingResignations();
+            loadLoanRequests();
         });
 
         function switchRequestTab(tabId) {
@@ -542,6 +578,84 @@
                     var res = typeof r === 'string' ? JSON.parse(r) : r;
                     if(res.success) { showAlert("Resolved", "Employee concern has been settled.", "success"); loadPendingConcerns(); refreshCounts(); }
                     else showAlert("Error", res.message, "error");
+                });
+            });
+        }
+
+        // Loan Management
+        function loadLoanRequests() {
+            const currentUserId = document.getElementById('hdnCurrentAdminId')?.value || "";
+            const handler = '<%= ResolveUrl("~/Handler/LoanHandler.ashx") %>?action=getall';
+            fetch(handler)
+                .then(r => r.json())
+                .then(res => {
+                    const tbody = document.getElementById('loanRequestsBody');
+                    const cntLoan = document.getElementById('cnt-loan');
+                    
+                    if (!res.success || !res.data || res.data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-visual"><i class="fas fa-hand-holding-usd"></i><p>No active loan requests found.</p></div></td></tr>';
+                        cntLoan.textContent = '0';
+                        return;
+                    }
+                    
+                    const pendingCount = res.data.filter(l => l.Status === 'PENDING').length;
+                    cntLoan.textContent = pendingCount;
+
+                    tbody.innerHTML = res.data.map(l => {
+                        const statusClass = l.Status === 'PENDING' ? 'status-pending' : (l.Status === 'APPROVED' ? 'status-active-emp' : 'status-declined');
+                        const dateReq = new Date(l.RequestDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        
+                        let actions = '';
+                        if (l.Status === 'PENDING') {
+                            if (l.EmployeeId === currentUserId) {
+                                actions = `<div style="text-align:right;"><span class="status-badge" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; font-size: 10px; padding: 4px 8px; border-radius: 4px; display: inline-block;">SELF-REQUEST</span></div>`;
+                            } else {
+                                actions = `
+                                    <div style="display:flex; gap:10px; justify-content:flex-end;">
+                                        <button type="button" class="btn-approve" onclick="updateLoanStatus('${l.Id}', 'APPROVED', '${l.EmployeeName}')">Approve</button>
+                                        <button type="button" class="btn-reject" onclick="updateLoanStatus('${l.Id}', 'DECLINED', '${l.EmployeeName}')">Decline</button>
+                                    </div>`;
+                            }
+                        } else {
+                            actions = `<div style="text-align:right;"><span class="status-pill status-crown"><i class="fas fa-check-circle"></i> PROCESSED</span></div>`;
+                        }
+
+                        return `<tr>
+                            <td>
+                                <div class="user-cell">
+                                    <div class="user-avatar">${getInitials(l.EmployeeName)}</div>
+                                    <div class="user-name">${l.EmployeeName}</div>
+                                </div>
+                            </td>
+                            <td><strong>${l.LoanType}</strong></td>
+                            <td><span class="status-pill" style="background:#f1f5f9; color:#475569;">${l.Agency}</span></td>
+                            <td>${dateReq}</td>
+                            <td><span class="status-pill ${statusClass}">${l.Status}</span></td>
+                            <td>${actions}</td>
+                        </tr>`;
+                    }).join('');
+                });
+        }
+
+        function updateLoanStatus(id, status, name) {
+            const actionText = status === 'APPROVED' ? 'Approve' : 'Decline';
+            showConfirm(actionText + " Loan", "Confirm " + actionText.toLowerCase() + " for " + name + "'s loan?", function() {
+                const formData = new FormData();
+                formData.append('id', id);
+                formData.append('status', status);
+
+                fetch('<%= ResolveUrl("~/Handler/LoanHandler.ashx") %>?action=updatestatus', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        showAlert("Success", "Loan status updated successfully.", "success");
+                        loadLoanRequests();
+                    } else {
+                        showAlert("Error", res.message, "error");
+                    }
                 });
             });
         }

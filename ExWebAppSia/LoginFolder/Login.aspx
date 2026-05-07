@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Login.aspx.cs" Inherits="ExWebAppSia.LoginFolder.Login"
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Login.aspx.cs" Inherits="ExWebAppSia.LoginFolder.Login"
     Async="true" %>
 
     <!DOCTYPE html>
@@ -528,6 +528,26 @@
             document.getElementById('<%= btnLogin.ClientID %>').addEventListener('click', function (e) {
                 this.classList.add('loading');
             });
+
+            // Update Forgot Password link with current username
+            const usernameInput = document.getElementById('<%= txtUsername.ClientID %>');
+            const forgotLink = document.querySelector('.forgot-link');
+            
+            if (usernameInput && forgotLink) {
+                usernameInput.addEventListener('input', function() {
+                    const username = this.value.trim();
+                    if (username) {
+                        forgotLink.href = 'ForgotPassword.aspx?email=' + encodeURIComponent(username);
+                    } else {
+                        forgotLink.href = 'ForgotPassword.aspx';
+                    }
+                });
+                
+                // Initialize link if there's a pre-filled username (e.g. from Remember Me)
+                if (usernameInput.value.trim()) {
+                    forgotLink.href = 'ForgotPassword.aspx?email=' + encodeURIComponent(usernameInput.value.trim());
+                }
+            }
 
             // Focus animation for inputs
             const inputs = document.querySelectorAll('.form-control');

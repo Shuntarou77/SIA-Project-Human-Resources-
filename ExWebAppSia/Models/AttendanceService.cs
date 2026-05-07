@@ -546,78 +546,315 @@ namespace ExWebAppSia.Models
         }
 
         /// <summary>
-        /// Calculates the remaining absence allowance for an employee for the current year.
-        /// Only counts FINALIZED past days (up to yesterday) to avoid penalizing employees for
-        /// the current unfinished day. Present days for today are included if timed in.
+        /// Centralized method to calculate comprehensive attendance statistics for an employee.
+        /// Consistently used across President, Admin, and Employee dashboards.
         /// </summary>
-        public async Task<int> GetRemainingAbsencesAsync(string employeeId, DateTime hiredDate)
+        /// <summary>
+        /// Centralized method to calculate MONTHLY attendance statistics for an employee.
+        /// Useful for dashboards that prefer a month-to-month view.
+        /// </summary>
+        public async Task<AttendanceStats> GetMonthlyAttendanceStatsAsync(string employeeId, DateTime hiredDate)
         {
             try
             {
-                var now = DateTime.UtcNow.AddHours(8); // PH Time
-                var today = now.Date;
-                var yesterday = today.AddDays(-1);
-                var currentYear = now.Year;
-                var hiredDateLocal = hiredDate.ToLocalTime().Date;
-                var yearStart = new DateTime(currentYear, 1, 1);
-                var statsStart = hiredDateLocal > yearStart ? hiredDateLocal : yearStart;
+                var now = DateTime.UtcNow.AddHours(8); // PH Local Time
+                var todayLocal = now.Date;
+                var currentMonthStart = new DateTime(now.Year, now.Month, 1);
                 
-                // Don't count absences before the system tracking started (March 19, 2026)
-                if (statsStart < TRACKING_START_DATE) statsStart = TRACKING_START_DATE;
+                // Determine effective start date for THIS MONTH
+                var hiredDateLocal = hiredDate == DateTime.MinValue ? TRACKING_START_DATE : hiredDate.ToLocalTime().Date;
+                var effectiveStart = currentMonthStart > hiredDateLocal ? currentMonthStart : hiredDateLocal;
+                
+                // Ensure we don't go before system tracking start
+                if (effectiveStart < TRACKING_START_DATE) effectiveStart = TRACKING_START_DATE;
 
-                // 1. Get yearly attendance (FINALIZED present days — up to yesterday only)
-                //    We exclude today because it's incomplete. If they timed in today but haven't
-                //    timed out, counting today as both present AND as a working day would be
-                //    inconsistent — so we only finalize yesterday and before.
-                var yearlyRecords = await _attendance
-                    .Find(a => a.EmployeeId == employeeId && a.IsActive && a.TimeIn != null && a.Date.Year == currentYear)
+                // CRITICAL: MongoDB queries should use DateTimeKind.Utc to avoid driver-side conversions
+                DateTime queryStart = DateTime.SpecifyKind(effectiveStart, DateTimeKind.Utc);
+                DateTime queryEnd = DateTime.SpecifyKind(todayLocal, DateTimeKind.Utc);
+
+                // 1. Fetch records for the CURRENT MONTH
+                var monthlyRecords = await _attendance
+                    .Find(a => a.EmployeeId == employeeId && a.IsActive && a.Date >= queryStart && a.Date <= queryEnd)
                     .ToListAsync();
 
-                // Only count distinct present days that are BEFORE today (finalized)
-                var yearlyPresent = yearlyRecords
+                // 2. Count PRESENT days
+                var presentDates = monthlyRecords
+                    .Where(r => r.TimeIn.HasValue)
                     .Select(r => r.Date.Date)
                     .Distinct()
-                    .Count(d => d < today);
+                    .ToList();
+                int presentCount = presentDates.Count;
 
-                // 2. Get approved leaves
-                var leaveService = new LeaveService();
-                var leaves = await leaveService.GetLeavesByEmployeeIdAsync(employeeId);
-                var approvedLeaves = leaves.Where(l => l.Status == "Approved" && l.StartDate.Year == currentYear).ToList();
+                // 3. Count LATE days
+                int lateCount = monthlyRecords
+                    .Where(r => r.TimeIn.HasValue)
+                    .GroupBy(r => r.Date.Date)
+                    .Count(g => {
+                        var firstIn = g.OrderBy(r => r.TimeIn).First();
+                        var localIn = firstIn.TimeIn.Value.ToLocalTime();
+                        // 8:15 AM is the limit
+                        return localIn.Hour >= 9 || (localIn.Hour == 8 && localIn.Minute > 15);
+                    });
 
-                // 3. Calculate FINALIZED past working days (Mon–Sat), up to YESTERDAY only
-                //    We never include today to avoid treating the current day as missed before it ends.
-                int pastYearWeekdays = 0;
-                if (statsStart <= yesterday)
+                // 4. Calculate WORKING DAYS for the month so far
+                int workingDaysSoFar = 0;
+                if (effectiveStart <= todayLocal)
                 {
-                    pastYearWeekdays = Enumerable.Range(0, (yesterday - statsStart).Days + 1)
-                        .Select(i => statsStart.AddDays(i))
-                        .Count(d => d.DayOfWeek != DayOfWeek.Sunday); // Include Saturdays as working days
+                    workingDaysSoFar = Enumerable.Range(0, (todayLocal - effectiveStart).Days + 1)
+                        .Select(i => effectiveStart.AddDays(i))
+                        .Count(d => d.DayOfWeek != DayOfWeek.Sunday);
                 }
 
-                // 4. Calculate leave days (finalized — before today)
-                int yearlyLeaveDays = 0;
+                // 5. Fetch approved LEAVES for the month
+                var leaveService = new LeaveService();
+                var leaves = await leaveService.GetLeavesByEmployeeIdAsync(employeeId);
+                var monthlyLeaves = leaves?.Where(l => l.Status == "Approved" && 
+                    ((l.StartDate.Month == now.Month && l.StartDate.Year == now.Year) || 
+                     (l.EndDate.Month == now.Month && l.EndDate.Year == now.Year))).ToList() ?? new List<Leave>();
+
+                int leaveDaysCount = 0;
+                var uniqueLeaveDates = new HashSet<DateTime>();
+                foreach (var leave in monthlyLeaves)
+                {
+                    var lStart = leave.StartDate.ToLocalTime().Date;
+                    var lEnd = leave.EndDate.ToLocalTime().Date;
+                    for (var d = lStart; d <= lEnd; d = d.AddDays(1))
+                    {
+                        if (d.Month == now.Month && d.Year == now.Year && d >= effectiveStart && d <= todayLocal && d.DayOfWeek != DayOfWeek.Sunday)
+                        {
+                            uniqueLeaveDates.Add(d);
+                        }
+                    }
+                }
+                leaveDaysCount = uniqueLeaveDates.Count(ld => !presentDates.Contains(ld));
+
+                // 6. Calculate ABSENT days
+                int absentCount = Math.Max(0, workingDaysSoFar - presentCount - leaveDaysCount);
+
+                // 7. Absence Allowance (Yearly pool)
+                // We always fetch the yearly allowance remaining, but keep other stats monthly
+                var yearlyStats = await GetYearlyAttendanceStatsAsync(employeeId, hiredDate);
+
+                return new AttendanceStats
+                {
+                    PresentCount = presentCount,
+                    AbsentCount = absentCount,
+                    LateCount = lateCount,
+                    WorkingDaysToDate = workingDaysSoFar, // Now strictly monthly
+                    RemainingAbsences = yearlyStats.RemainingAbsences,
+                    AttendanceRate = workingDaysSoFar > 0 ? (presentCount * 100.0 / workingDaysSoFar) : 0
+                };
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error calculating monthly stats: {ex.Message}");
+                return new AttendanceStats { RemainingAbsences = TOTAL_ALLOWED_ABSENCES_PER_YEAR };
+            }
+        }
+
+        public async Task<AttendanceStats> GetYearlyAttendanceStatsAsync(string employeeId, DateTime hiredDate)
+        {
+            try
+            {
+                var now = DateTime.UtcNow.AddHours(8); // PH Local Time
+                var todayLocal = now.Date;
+                var currentYear = now.Year;
+                var yearStart = new DateTime(currentYear, 1, 1);
+                
+                // Determine effective start date for stats
+                var hiredDateLocal = hiredDate == DateTime.MinValue ? TRACKING_START_DATE : hiredDate.ToLocalTime().Date;
+                var effectiveStart = hiredDateLocal > yearStart ? hiredDateLocal : yearStart;
+                
+                // Ensure we don't go before system tracking start
+                if (effectiveStart < TRACKING_START_DATE) effectiveStart = TRACKING_START_DATE;
+
+                // CRITICAL: MongoDB queries should use DateTimeKind.Utc to avoid driver-side conversions
+                DateTime queryStart = DateTime.SpecifyKind(effectiveStart, DateTimeKind.Utc);
+                DateTime queryEnd = DateTime.SpecifyKind(todayLocal, DateTimeKind.Utc);
+
+                // 1. Fetch ALL yearly records for this employee
+                var yearlyRecords = await _attendance
+                    .Find(a => a.EmployeeId == employeeId && a.IsActive && a.Date >= queryStart && a.Date <= queryEnd)
+                    .ToListAsync();
+
+                // 2. Count PRESENT days (distinct dates where TimeIn exists, including today)
+                var presentDates = yearlyRecords
+                    .Where(r => r.TimeIn.HasValue)
+                    .Select(r => r.Date.Date)
+                    .Distinct()
+                    .ToList();
+                int presentCount = presentDates.Count;
+
+                // 3. Count LATE days (include today if timed in)
+                int lateCount = yearlyRecords
+                    .Where(r => r.TimeIn.HasValue)
+                    .GroupBy(r => r.Date.Date)
+                    .Count(g => {
+                        var firstIn = g.OrderBy(r => r.TimeIn).First();
+                        var localIn = firstIn.TimeIn.Value.ToLocalTime();
+                        // PH Standard: 8:00 AM start, 15 min grace period
+                        return localIn.Hour >= 9 || (localIn.Hour == 8 && localIn.Minute > 15);
+                    });
+
+                // 4. Fetch approved LEAVES
+                var leaveService = new LeaveService();
+                var leaves = await leaveService.GetLeavesByEmployeeIdAsync(employeeId);
+                var approvedLeaves = leaves?.Where(l => l.Status == "Approved" && l.StartDate.Year == currentYear).ToList() ?? new List<Leave>();
+
+                // 5. Calculate WORKING DAYS passed (Mon-Sat, from effectiveStart to todayLocal)
+                int workingDaysPassed = 0;
+                if (effectiveStart <= todayLocal)
+                {
+                    workingDaysPassed = Enumerable.Range(0, (todayLocal - effectiveStart).Days + 1)
+                        .Select(i => effectiveStart.AddDays(i))
+                        .Count(d => d.DayOfWeek != DayOfWeek.Sunday);
+                }
+
+                // 6. Calculate LEAVE days that overlap with working days (up to todayLocal)
+                int leaveDaysCount = 0;
+                var uniqueLeaveDates = new HashSet<DateTime>();
                 foreach (var leave in approvedLeaves)
                 {
                     var lStart = leave.StartDate.ToLocalTime().Date;
                     var lEnd = leave.EndDate.ToLocalTime().Date;
-
                     for (var d = lStart; d <= lEnd; d = d.AddDays(1))
                     {
-                        if (d.Year == currentYear && d >= statsStart && d < today && d.DayOfWeek != DayOfWeek.Sunday)
+                        if (d.Year == currentYear && d >= effectiveStart && d <= todayLocal && d.DayOfWeek != DayOfWeek.Sunday)
                         {
-                            yearlyLeaveDays++;
+                            uniqueLeaveDates.Add(d);
+                        }
+                    }
+                }
+                // Only count leaves on days where the employee was NOT present
+                leaveDaysCount = uniqueLeaveDates.Count(ld => !presentDates.Contains(ld));
+
+                // 7. Calculate ABSENT days
+                // Absent = Total Work Days - Present Days - Leave Days
+                int absentCount = Math.Max(0, workingDaysPassed - presentCount - leaveDaysCount);
+                int remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - absentCount);
+
+                return new AttendanceStats
+                {
+                    PresentCount = presentCount,
+                    AbsentCount = absentCount,
+                    LateCount = lateCount,
+                    WorkingDaysToDate = workingDaysPassed,
+                    RemainingAbsences = remainingAbsences,
+                    AttendanceRate = workingDaysPassed > 0 ? (presentCount * 100.0 / workingDaysPassed) : 0
+                };
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error calculating yearly stats: {ex.Message}");
+                return new AttendanceStats { RemainingAbsences = TOTAL_ALLOWED_ABSENCES_PER_YEAR };
+            }
+        }
+
+        public async Task<int> GetRemainingAbsencesAsync(string employeeId, DateTime hiredDate)
+        {
+            var stats = await GetYearlyAttendanceStatsAsync(employeeId, hiredDate);
+            return stats.RemainingAbsences;
+        }
+
+        /// <summary>
+        /// Calculates MONTHLY aggregate attendance for the whole team.
+        /// </summary>
+        public async Task<TeamAttendanceStats> GetMonthlyTeamStatsAsync()
+        {
+            try
+            {
+                var now = DateTime.UtcNow.AddHours(8);
+                var currentMonthStart = new DateTime(now.Year, now.Month, 1);
+                var todayLocal = now.Date;
+
+                DateTime queryStart = DateTime.SpecifyKind(currentMonthStart, DateTimeKind.Utc);
+                DateTime queryEnd = DateTime.SpecifyKind(todayLocal, DateTimeKind.Utc);
+
+                // 1. Get all active employees
+                var employees = await MongoDBHelper.GetEmployeesCollection()
+                    .Find(e => e.IsActive)
+                    .ToListAsync();
+                int totalEmployees = employees.Count;
+
+                // 2. Get all attendance records for the month
+                var monthlyRecords = await _attendance
+                    .Find(a => a.IsActive && a.Date >= queryStart && a.Date <= queryEnd)
+                    .ToListAsync();
+
+                // 3. Count total presents, lates
+                int totalPresents = monthlyRecords.Count(r => r.TimeIn.HasValue);
+                int totalLates = monthlyRecords.Count(r => r.TimeIn.HasValue && 
+                    (r.TimeIn.Value.ToLocalTime().Hour > 8 || 
+                     (r.TimeIn.Value.ToLocalTime().Hour == 8 && r.TimeIn.Value.ToLocalTime().Minute > 15)));
+
+                // 4. Get all approved leaves for the month
+                var leaves = await MongoDBHelper.GetLeavesCollection()
+                    .Find(l => l.Status == "Approved" && 
+                        ((l.StartDate.Month == now.Month && l.StartDate.Year == now.Year) || 
+                         (l.EndDate.Month == now.Month && l.EndDate.Year == now.Year)))
+                    .ToListAsync();
+
+                int totalLeaveDays = 0;
+                var workingDaysInMonth = Enumerable.Range(0, (todayLocal - currentMonthStart).Days + 1)
+                    .Select(i => currentMonthStart.AddDays(i))
+                    .Where(d => d.DayOfWeek != DayOfWeek.Sunday)
+                    .ToList();
+
+                foreach (var leave in leaves)
+                {
+                    var lStart = leave.StartDate.ToLocalTime().Date;
+                    var lEnd = leave.EndDate.ToLocalTime().Date;
+                    foreach (var wd in workingDaysInMonth)
+                    {
+                        if (wd >= lStart && wd <= lEnd)
+                        {
+                            // Only count if they didn't time in that day
+                            if (!monthlyRecords.Any(r => r.EmployeeId == leave.EmployeeId && r.Date.Date == wd.Date && r.TimeIn.HasValue))
+                            {
+                                totalLeaveDays++;
+                            }
                         }
                     }
                 }
 
-                var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent - yearlyLeaveDays);
-                return Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
+                // 5. Calculate total expected working days across all employees
+                int workingDaysSoFar = workingDaysInMonth.Count;
+                int totalPossibleWorkingDays = totalEmployees * workingDaysSoFar;
+
+                // 6. Calculate total absents
+                int totalAbsents = Math.Max(0, totalPossibleWorkingDays - totalPresents - totalLeaveDays);
+
+                return new TeamAttendanceStats
+                {
+                    PresentCount = totalPresents,
+                    AbsentCount = totalAbsents,
+                    OnLeaveCount = totalLeaveDays,
+                    LateCount = totalLates
+                };
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error calculating remaining absences: {ex.Message}");
-                return TOTAL_ALLOWED_ABSENCES_PER_YEAR;
+                System.Diagnostics.Debug.WriteLine($"Error calculating team monthly stats: {ex.Message}");
+                return new TeamAttendanceStats();
             }
         }
+    }
+
+    public class TeamAttendanceStats
+    {
+        public int PresentCount { get; set; }
+        public int AbsentCount { get; set; }
+        public int OnLeaveCount { get; set; }
+        public int LateCount { get; set; }
+    }
+
+    public class AttendanceStats
+    {
+        public int PresentCount { get; set; }
+        public int AbsentCount { get; set; }
+        public int LateCount { get; set; }
+        public int WorkingDaysToDate { get; set; }
+        public int RemainingAbsences { get; set; }
+        public double AttendanceRate { get; set; }
     }
 }

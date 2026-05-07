@@ -249,9 +249,11 @@
     <Content Include="webpage%28PresidentViewpoint%29\RecruitmentStatus.aspx" />
     <Content Include="webpage%28PresidentViewpoint%29\Resignation.aspx" />
     <Content Include="webpage%28PresidentViewpoint%29\UndertimeRequest.aspx" />
+    <Content Include="webpage%28SuperAdminViewpoint%29\OrgChart.aspx" />
     <Content Include="webpage\css\modern-theme.css" />
     <Content Include="webpage\custom-css\mainsidebar.css" />
     <Content Include="webpage\Dashboard.aspx" />
+    <Content Include="webpage\Approvals.aspx" />
     <Content Include="webpage\Employee.aspx" />
     <Content Include="webpage\EmployeeReport.aspx" />
     <Content Include="webpage\Attendance.aspx" />
@@ -269,6 +271,7 @@
     <Content Include="webpage\ActivityLog.aspx" />
     <Content Include="Handler\DatabaseResetHandler.ashx" />
     <Content Include="Handler\NotificationHandler.ashx" />
+    <Content Include="Handler\LoanHandler.ashx" />
     <Content Include="webpage\css\notifications.css" />
     <Content Include="custom-js\notifications.js" />
   </ItemGroup>
@@ -322,6 +325,8 @@
     <Compile Include="Models\Employee.cs" />
     <Compile Include="Models\EmployeeConcernService.cs" />
     <Compile Include="Models\EmployeeService.cs" />
+    <Compile Include="Models\LoanRequest.cs" />
+    <Compile Include="Models\LoanService.cs" />
     <Compile Include="Models\EmployeeSeeder.cs" />
     <Compile Include="Models\UndertimeRecord.cs" />
     <Compile Include="Models\UndertimeService.cs" />
@@ -362,6 +367,9 @@
     <Compile Include="Models\NotificationService.cs" />
     <Compile Include="Handler\NotificationHandler.ashx.cs">
       <DependentUpon>NotificationHandler.ashx</DependentUpon>
+    </Compile>
+    <Compile Include="Handler\LoanHandler.ashx.cs">
+      <DependentUpon>LoanHandler.ashx</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="webpage%28EmployeeViewpoint%29\EmployeeHR.Master.cs">
@@ -463,6 +471,10 @@
       <DependentUpon>UndertimeRequest.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
+    <Compile Include="webpage%28SuperAdminViewpoint%29\OrgChart.aspx.cs">
+      <DependentUpon>OrgChart.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="webpage\api\Announcements.ashx.cs">
       <DependentUpon>Announcements.ashx</DependentUpon>
     </Compile>
@@ -482,6 +494,13 @@
     </Compile>
     <Compile Include="webpage\Dashboard.aspx.designer.cs">
       <DependentUpon>Dashboard.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="webpage\Approvals.aspx.cs">
+      <DependentUpon>Approvals.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="webpage\Approvals.aspx.designer.cs">
+      <DependentUpon>Approvals.aspx</DependentUpon>
     </Compile>
     <Compile Include="webpage\Employee.aspx.cs">
       <DependentUpon>Employee.aspx</DependentUpon>
@@ -674,6 +693,7 @@
     <Content Include="Handler\GetPayRunDetailsHandler.ashx" />
     <Content Include="Handler\GetPayslipContentHandler.ashx" />
     <Content Include="Handler\GetPayslipsHandler.ashx" />
+    <Content Include="Handler\OrgChartHandler.ashx" />
     <None Include="packages.config" />
     <None Include="Properties\PublishProfiles\shuntarou77-001-site1 - FTP.pubxml" />
     <None Include="Properties\PublishProfiles\shuntarou77-001-site1 - Web Deploy.pubxml" />

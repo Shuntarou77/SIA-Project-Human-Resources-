@@ -23,6 +23,27 @@ namespace ExWebAppSia.webpage
         protected Dictionary<string, int> AbsenceAllowanceCache { get; set; } = new Dictionary<string, int>();
         protected DateTime SelectedDate { get; set; }
 
+        private static string NormalizeEmployeeId(string id)
+        {
+            return (id ?? "").Trim().ToUpperInvariant();
+        }
+
+        private Employee FindEmployeeByPossiblyMismatchedId(string employeeId)
+        {
+            var key = NormalizeEmployeeId(employeeId);
+            if (string.IsNullOrEmpty(key) || AllEmployees == null || AllEmployees.Count == 0) return null;
+
+            var exact = AllEmployees.FirstOrDefault(e => NormalizeEmployeeId(e.EmployeeId) == key);
+            if (exact != null) return exact;
+
+            // Handle occasional prefix/suffix mismatches (e.g., data coming from different sources)
+            return AllEmployees.FirstOrDefault(e =>
+            {
+                var eid = NormalizeEmployeeId(e.EmployeeId);
+                return (!string.IsNullOrEmpty(eid) && (key.StartsWith(eid) || eid.StartsWith(key)));
+            });
+        }
+
         protected string CurrentAdminId 
         { 
             get 
@@ -192,7 +213,7 @@ namespace ExWebAppSia.webpage
                 {
                     if (!AbsenceAllowanceCache.ContainsKey(record.EmployeeId))
                     {
-                        var emp = AllEmployees.FirstOrDefault(e => e.EmployeeId == record.EmployeeId);
+                        var emp = FindEmployeeByPossiblyMismatchedId(record.EmployeeId);
                         if (emp != null)
                         {
                             int remaining = await _attendanceService.GetRemainingAbsencesAsync(record.EmployeeId, emp.HiredDate);

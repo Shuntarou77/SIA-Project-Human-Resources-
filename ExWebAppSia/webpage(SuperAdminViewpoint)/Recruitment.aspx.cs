@@ -461,7 +461,9 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 int approvedCount = approvedApplicants.Count;
                 int declinedCount = declinedApplicants.Count;
                 int rehiringCount = probationaryEmployees.Count;
-                int currentEmployeeCount = allEmployees.Count;
+                int currentEmployeeCount = allEmployees.Count(e => 
+                    !(e.Role ?? "").ToLowerInvariant().Contains("president")
+                );
 
                 if (litNewCount != null) litNewCount.Text = (newCount + forViewingCount + inProgressHiringCount).ToString();
                 if (litInProgressHiringCount != null) litInProgressHiringCount.Text = inProgressHiringCount.ToString();
@@ -529,6 +531,9 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                         {
                             if (!string.IsNullOrEmpty(emp.Role)) {
                                 string r = emp.Role.Trim();
+                                // Exclude President from recruitment logic entirely
+                                if (r.ToLowerInvariant().Contains("president")) continue;
+
                                 // Only count towards 'occupied' if they are NOT on leave
                                 // If they are on leave, the slot is effectively vacant for a temp
                                 if (onLeaveIds == null || !onLeaveIds.Contains(emp.EmployeeId)) {

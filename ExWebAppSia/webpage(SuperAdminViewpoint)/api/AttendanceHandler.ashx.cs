@@ -332,6 +332,20 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_.api
 
                     case "requestovertime":
                         string reason = context.Request["reason"] ?? context.Request.QueryString["reason"] ?? "No reason provided";
+                        string otDateStr = context.Request["otDate"] ?? context.Request.QueryString["otDate"] ?? "";
+                        string startTime = context.Request["startTime"] ?? context.Request.QueryString["startTime"] ?? "";
+                        string endTime = context.Request["endTime"] ?? context.Request.QueryString["endTime"] ?? "";
+                        string reqHoursStr = context.Request["requestedHours"] ?? context.Request.QueryString["requestedHours"] ?? "0";
+
+                        DateTime otDate;
+                        if (!DateTime.TryParse(otDateStr, out otDate))
+                        {
+                            otDate = DateTime.UtcNow.AddHours(8).Date;
+                        }
+
+                        decimal requestedHours;
+                        decimal.TryParse(reqHoursStr, out requestedHours);
+
                         if (string.IsNullOrEmpty(employeeId))
                         {
                             message = "Missing employee ID";
@@ -351,7 +365,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_.api
                                 var empOt = Task.Run(async () => await _employeeService.GetEmployeeByIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
                                 string empNameOt = empOt?.FullName ?? currentAttendance.EmployeeName;
                                 string deptOt = empOt?.Department ?? currentAttendance.Department;
-                                result = Task.Run(async () => await _overtimeService.RequestOvertimeAsync(currentAttendance.Id, employeeId, empNameOt, deptOt, reason).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                result = Task.Run(async () => await _overtimeService.RequestOvertimeAsync(currentAttendance.Id, employeeId, empNameOt, deptOt, reason, otDate, startTime, endTime, requestedHours).ConfigureAwait(false)).GetAwaiter().GetResult();
                                 message = result ? "Overtime request submitted successfully" : "Failed to submit overtime request. A request may already be pending.";
                             }
                         }

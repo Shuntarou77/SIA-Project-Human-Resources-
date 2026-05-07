@@ -39,5 +39,8 @@ namespace ExWebAppSia.Models
 
         [BsonElement("isActive")]
         public bool IsActive { get; set; } = true;
+
+        [BsonElement("utType")]
+        public string UTType { get; set; } = "Regular"; // Regular, Emergency
     }
 }

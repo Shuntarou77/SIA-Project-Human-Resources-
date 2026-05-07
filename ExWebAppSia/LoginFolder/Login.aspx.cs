@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Web;
 using System.Web.UI;
@@ -106,6 +108,9 @@ namespace ExWebAppSia.LoginFolder
                     Session["Role"] = user.Role;
                     Session["UserId"] = user.Id;
                     Session["IsLoggedIn"] = true;
+                    Session["Employee"] = null; // Clear stale employee data
+                    Session["ExpectedEmail"] = user.Email;
+                    Session["ExpectedId"] = user.EmployeeId;
 
                     // Load employee data for ALL roles if an EmployeeId or Email link exists
                     try
@@ -113,23 +118,35 @@ namespace ExWebAppSia.LoginFolder
                         Employee employee = null;
                         if (!string.IsNullOrEmpty(user.EmployeeId))
                         {
-                            employee = await EmployeeServiceInstance.GetEmployeeByIdAsync(user.EmployeeId);
+                            employee = await EmployeeServiceInstance.GetByEmployeeIdAsync(user.EmployeeId);
                         }
                         
                         // Fallback to email if not found by ID
                         if (employee == null)
                         {
-                            employee = await EmployeeServiceInstance.GetEmployeeByEmailAsync(user.Username);
+                            employee = await EmployeeServiceInstance.GetEmployeeByEmailAsync(user.Email ?? user.Username);
                         }
 
                         if (employee != null)
                         {
+                            // CRITICAL IDENTITY CHECK: Ensure the employee record we found actually belongs to this user
+                            string userEmail = (user.Email ?? user.Username).ToLower();
+                            string empEmail = (employee.Email ?? "").ToLower();
+                            
+                            System.Diagnostics.Debug.WriteLine($"[Login] Verifying Identity: UserEmail={userEmail}, EmpEmail={empEmail}");
+                            
+                            if (empEmail != "" && userEmail != "" && empEmail != userEmail && !userEmail.Contains("@") == false)
+                            {
+                                // If they don't match, and the username looks like an email, we might have a cross-account mapping issue
+                                System.Diagnostics.Debug.WriteLine($"[Login] WARNING: Identity mismatch detected during login! User={userEmail}, Employee={employee.FullName} ({empEmail})");
+                            }
+
                             Session["Employee"] = employee;
+                            Session["EmployeeId"] = employee.EmployeeId; // Store explicit ID for secondary verification
 
                             // ── HR DEPARTMENT OVERRIDE ──────────────────────────────────────
                             // If this employee belongs to Human Resources, treat them as an
-                            // Admin (HR) for routing purposes. This covers both "Employee"
-                            // and the deprecated "Manager" role stored in legacy User documents.
+                            // Admin (HR) for routing purposes.
                             if ((user.Role == "Employee" || user.Role == "Manager") &&
                                 string.Equals(employee.Department?.Trim(), "Human Resources", StringComparison.OrdinalIgnoreCase))
                             {
@@ -138,7 +155,7 @@ namespace ExWebAppSia.LoginFolder
                                 Session["Role"] = "HR";
                             }
 
-                            System.Diagnostics.Debug.WriteLine($"Employee data loaded: {employee.EmployeeId} - {employee.FullName}, Dept: {employee.Department}");
+                            System.Diagnostics.Debug.WriteLine($"[Login] Success: {employee.EmployeeId} - {employee.FullName} logged in as {user.Role}");
                         }
                         else if (user.Role == "Employee" || user.Role == "President")
                         {
@@ -278,29 +295,50 @@ namespace ExWebAppSia.LoginFolder
 
         private bool TryHandleDefaultLogin(string username, string password)
         {
-            var testAccounts = new[]
+            var hardcodedUsers = new[]
             {
-                new { Username = "admin2",   Password = "admin234",  Role = "Admin",    Redirect = "~/webpage/Dashboard.aspx" },
-                new { Username = "employee",   Password = "emp123",  Role = "Employee",    Redirect = "~/webpage(EmployeeViewpoint)/Dashboard.aspx" },
-                new { Username = "superadmin",   Password = "superadmin123",  Role = "Super Admin",    Redirect = "~/webpage(SuperAdminViewpoint)/Dashboard.aspx" }
+                new { Username = "superadmin",   Password = "superadmin123",  Role = "Super Admin",    EmployeeId = "SHE-001", Redirect = "~/webpage(SuperAdminViewpoint)/Dashboard.aspx" },
+                new { Username = "admin",        Password = "admin123",       Role = "Admin",          EmployeeId = "SHE-001", Redirect = "~/webpage/Dashboard.aspx" },
+                new { Username = "president",    Password = "president123",   Role = "President",      EmployeeId = "SHE-031", Redirect = "~/webpage(PresidentViewpoint)/Dashboard.aspx" },
+                new { Username = "hr.employee",  Password = "employee123",    Role = "Employee",       EmployeeId = "SHE-002", Redirect = "~/webpage(EmployeeViewpoint)/Dashboard.aspx" }
             };
 
-            foreach (var acct in testAccounts)
-          {
-if (string.Equals(username, acct.Username, StringComparison.OrdinalIgnoreCase) &&
-    string.Equals(password, acct.Password, StringComparison.Ordinal))
-   {
-       Session["Username"] = acct.Username;
-   Session["Role"] = acct.Role;
-              Session["IsLoggedIn"] = true;
+            var acct = hardcodedUsers.FirstOrDefault(u => 
+                string.Equals(u.Username, username, StringComparison.OrdinalIgnoreCase) && 
+                u.Password == password);
 
-          Response.Redirect(acct.Redirect, false);
-     Context.ApplicationInstance.CompleteRequest();
-           return true;
-      }
+            if (acct != null)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Login] Hardcoded login successful for: {username} (Role: {acct.Role})");
+                
+                Session["Username"] = acct.Username;
+                Session["Role"] = acct.Role;
+                Session["IsLoggedIn"] = true;
+                Session["ExpectedId"] = acct.EmployeeId;
+                // For hardcoded users, we'll fetch the email from the employee record below
+
+                // Attempt to link to real employee data if ID is provided
+                try
+                {
+                    var emp = Task.Run(() => EmployeeServiceInstance.GetByEmployeeIdAsync(acct.EmployeeId)).GetAwaiter().GetResult();
+                    if (emp != null)
+                    {
+                        Session["Employee"] = emp;
+                        Session["ExpectedEmail"] = emp.Email;
+                        System.Diagnostics.Debug.WriteLine($"[Login] Successfully linked hardcoded user {acct.Username} to employee {emp.FullName}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[Login] Error linking hardcoded user to employee: {ex.Message}");
+                }
+
+                Response.Redirect(acct.Redirect, false);
+                Context.ApplicationInstance.CompleteRequest();
+                return true;
             }
 
-   return false;
+            return false;
         }
     }
 }

@@ -191,7 +191,7 @@
                     <div class="table-responsive">
                         <table class="modern-table">
                             <thead>
-                                <tr><th>Admin Name</th><th>Date</th><th>Hours</th><th>Reason</th><th>Actions</th></tr>
+                                <tr><th>Admin Name</th><th>OT Date</th><th>Shift Time</th><th>Hours</th><th>Justification</th><th>Actions</th></tr>
                             </thead>
                             <tbody id="otBody"></tbody>
                         </table>
@@ -201,7 +201,7 @@
                     <div class="table-responsive">
                         <table class="modern-table">
                             <thead>
-                                <tr><th>Admin Name</th><th>Date</th><th>Reason</th><th>Actions</th></tr>
+                                <tr><th>Admin Name</th><th>Date</th><th>Requested Departure</th><th>Reason</th><th>Actions</th></tr>
                             </thead>
                             <tbody id="utBody"></tbody>
                         </table>
@@ -243,6 +243,19 @@
         </div>
     </div>
 
+    <div id="alertModal" class="page-modal">
+        <div class="modal-content" style="max-width:420px;">
+            <div class="modal-header" id="alertHeader">Success</div>
+            <div class="modal-body" style="text-align:center;">
+                <div id="alertIcon" style="font-size:56px; margin-bottom:12px;"></div>
+                <p id="alertMsg" style="margin:0; font-weight:600; color:#334155;"></p>
+            </div>
+            <div class="modal-footer" style="justify-content:center;">
+                <button type="button" class="btn-action-approve" onclick="closeAlert()">OK</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             loadRequests();
@@ -272,8 +285,8 @@
                     const isSelf = (l.empId && res.currentAdminId && l.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
                     const actions = isSelf ? '<span class="status-badge status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
                                   `<div style="display:flex; gap:8px;">
-                                      <button class="btn-action-approve" onclick="approve('Leave', '${l.id}')">Approve</button>
-                                      <button class="btn-action-reject" onclick="reject('Leave', '${l.id}')">Reject</button>
+                                      <button type="button" class="btn-action-approve" onclick="approve('Leave', '${l.id}')">Approve</button>
+                                      <button type="button" class="btn-action-reject" onclick="reject('Leave', '${l.id}')">Reject</button>
                                   </div>`;
                     return `
                     <tr>
@@ -290,44 +303,46 @@
                 document.getElementById('otBody').innerHTML = res.ot.length ? res.ot.map(o => {
                     const isSelf = (o.empId && res.currentAdminId && o.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
                     const actions = isSelf ? '<span class="status-badge status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
-                                  `<div style="display:flex; gap:8px;">
-                                      <button class="btn-action-approve" onclick="approve('OT', '${o.id}')">Approve</button>
-                                      <button class="btn-action-reject" onclick="reject('OT', '${o.id}')">Reject</button>
-                                  </div>`;
+                                   `<div style="display:flex; gap:8px;">
+                                       <button type="button" class="btn-action-approve" onclick="approve('OT', '${o.id}')">Approve</button>
+                                       <button type="button" class="btn-action-reject" onclick="reject('OT', '${o.id}')">Reject</button>
+                                   </div>`;
                     return `
                     <tr>
                         <td style="font-weight:700;">${o.name}</td>
                         <td>${o.date}</td>
-                        <td>${o.hours} hrs</td>
+                        <td><span style="color:#A44F56; font-weight:700;">${o.startTime} - ${o.endTime}</span></td>
+                        <td><strong>${o.hours}</strong> hrs</td>
                         <td style="font-style:italic;">"${o.reason}"</td>
                         <td>${actions}</td>
                     </tr>
-                `}).join('') : '<tr><td colspan="5" class="empty-state">No pending overtime requests.</td></tr>';
+                `}).join('') : '<tr><td colspan="6" class="empty-state">No pending overtime requests.</td></tr>';
 
                 // Build UT
                 document.getElementById('utBody').innerHTML = res.ut.length ? res.ut.map(u => {
                     const isSelf = (u.empId && res.currentAdminId && u.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
                     const actions = isSelf ? '<span class="status-badge status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
                                   `<div style="display:flex; gap:8px;">
-                                      <button class="btn-action-approve" onclick="approve('UT', '${u.id}')">Approve</button>
-                                      <button class="btn-action-reject" onclick="reject('UT', '${u.id}')">Reject</button>
+                                      <button type="button" class="btn-action-approve" onclick="approve('UT', '${u.id}')">Approve</button>
+                                      <button type="button" class="btn-action-reject" onclick="reject('UT', '${u.id}')">Reject</button>
                                   </div>`;
                     return `
                     <tr>
                         <td style="font-weight:700;">${u.name}</td>
                         <td>${u.date}</td>
+                        <td><span style="color:#A44F56; font-weight:700;">${u.departureTime}</span></td>
                         <td style="font-style:italic;">"${u.reason}"</td>
                         <td>${actions}</td>
                     </tr>
-                `}).join('') : '<tr><td colspan="4" class="empty-state">No pending undertime requests.</td></tr>';
+                `}).join('') : '<tr><td colspan="5" class="empty-state">No pending undertime requests.</td></tr>';
 
                 // Build Resign
                 document.getElementById('resignBody').innerHTML = res.resign.length ? res.resign.map(e => {
                     const isSelf = (e.empId && res.currentAdminId && e.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
                     const actions = isSelf ? '<span class="status-badge status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
                                   `<div style="display:flex; gap:8px;">
-                                      <button class="btn-action-approve" onclick="approve('Resign', '${e.id}')">Approve</button>
-                                      <button class="btn-action-reject" onclick="reject('Resign', '${e.id}')">Reject</button>
+                                      <button type="button" class="btn-action-approve" onclick="approve('Resign', '${e.id}')">Approve</button>
+                                      <button type="button" class="btn-action-reject" onclick="reject('Resign', '${e.id}')">Reject</button>
                                   </div>`;
                     return `
                     <tr>
@@ -342,7 +357,7 @@
                 document.getElementById('concernBody').innerHTML = res.concerns.length ? res.concerns.map(c => {
                     const isSelf = (c.empId && res.currentAdminId && c.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
                     const actions = isSelf ? '<span class="status-badge status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
-                                  `<button class="btn-action-approve" onclick="approve('Concern', '${c.id}')">Resolve</button>`;
+                                  `<button type="button" class="btn-action-approve" onclick="approve('Concern', '${c.id}')">Resolve</button>`;
                     return `
                     <tr>
                         <td style="font-weight:700;">${c.name}</td>
@@ -360,7 +375,14 @@
             document.getElementById('btnConfirm').onclick = function() {
                 PageMethods.ProcessApproval(type, id, true, function(r) {
                     closeModal();
-                    loadRequests();
+                    const res = typeof r === 'string' ? JSON.parse(r) : r;
+                    if (res && res.success) {
+                        loadRequests();
+                        const verb = (type === 'Concern') ? 'resolved' : 'approved';
+                        showAlert('Success', `Request ${verb} successfully.`, 'success');
+                    } else {
+                        showAlert('Error', (res && res.message) ? res.message : 'Action failed. Please try again.', 'error');
+                    }
                 });
             };
             document.getElementById('confirmModal').style.display = 'block';
@@ -371,13 +393,38 @@
             document.getElementById('btnConfirm').onclick = function() {
                 PageMethods.ProcessApproval(type, id, false, function(r) {
                     closeModal();
-                    loadRequests();
+                    const res = typeof r === 'string' ? JSON.parse(r) : r;
+                    if (res && res.success) {
+                        loadRequests();
+                        showAlert('Success', 'Request declined successfully.', 'success');
+                    } else {
+                        showAlert('Error', (res && res.message) ? res.message : 'Action failed. Please try again.', 'error');
+                    }
                 });
             };
             document.getElementById('confirmModal').style.display = 'block';
         }
 
         function closeModal() { document.getElementById('confirmModal').style.display = 'none'; }
+
+        function showAlert(title, message, type) {
+            const modal = document.getElementById('alertModal');
+            const header = document.getElementById('alertHeader');
+            const icon = document.getElementById('alertIcon');
+            const msg = document.getElementById('alertMsg');
+
+            header.textContent = title || (type === 'error' ? 'Error' : 'Success');
+            header.style.background = (type === 'error') ? '#ef4444' : '#10b981';
+
+            icon.innerHTML = (type === 'error')
+                ? '<i class="fas fa-times-circle" style="color:#ef4444;"></i>'
+                : '<i class="fas fa-check-circle" style="color:#10b981;"></i>';
+            msg.textContent = message || '';
+
+            modal.style.display = 'block';
+        }
+
+        function closeAlert() { document.getElementById('alertModal').style.display = 'none'; }
     </script>
 </asp:Content>
 

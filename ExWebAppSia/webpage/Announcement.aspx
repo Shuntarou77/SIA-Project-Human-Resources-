@@ -277,6 +277,26 @@
         .btn-gmail:hover {
             background: #FADAD6;
         }
+        .announcement-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 14px;
+            flex-wrap: wrap;
+        }
+        .btn-mini {
+            border: 1px solid var(--border-color);
+            background: #fff;
+            color: var(--text-secondary);
+            border-radius: 8px;
+            padding: 6px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .btn-mini:hover {
+            border-color: var(--primary-color);
+            color: var(--primary-color);
+        }
 
         /* Video/Image Preview */
         #mediaPreview {
@@ -291,6 +311,27 @@
             .create-controls { flex-direction: column; align-items: stretch; }
             .post-button { width: 100%; }
         }
+        .ann-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .ann-modal-content {
+            width: 100%;
+            max-width: 520px;
+            background: #fff;
+            border-radius: 14px;
+            border: 2px solid var(--border-color);
+            padding: 16px;
+        }
+        .ann-modal-title { margin: 0 0 12px 0; color: var(--text-primary); font-size: 16px; font-weight: 800; }
+        .ann-modal-text { width: 100%; min-height: 120px; border: 1px solid var(--border-color); border-radius: 10px; padding: 10px; font-family: inherit; }
+        .ann-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
     </style>
 </asp:Content>
 
@@ -378,6 +419,17 @@
             </div>
         </div>
     </div>
+    <div id="announcementActionModal" class="ann-modal">
+        <div class="ann-modal-content">
+            <h3 id="annModalTitle" class="ann-modal-title">Edit Announcement</h3>
+            <div id="annModalMessage" style="color:#6B4545; margin-bottom:10px; display:none;"></div>
+            <textarea id="annModalTextarea" class="ann-modal-text"></textarea>
+            <div class="ann-modal-actions">
+                <button type="button" class="btn-mini" onclick="closeAnnouncementModal()">Cancel</button>
+                <button type="button" class="btn-mini" id="annModalConfirmBtn" onclick="confirmAnnouncementModal()">Save</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         const API_URL = '<%= ResolveUrl("~/webpage/api/Announcements.ashx") %>';
@@ -386,6 +438,8 @@
         let isPinned = false;
         let allAnnouncements = [];
         let currentFilter = 'all';
+        let modalMode = null;
+        let modalAnnouncementId = null;
 
         function togglePinState() {
             isPinned = !isPinned;
@@ -462,6 +516,86 @@
             }
         }
 
+        async function updateAnnouncement(id, content) {
+            const formData = new FormData();
+            formData.append('action', 'update');
+            formData.append('id', id);
+            formData.append('content', content);
+            const res = await fetch(API_URL, { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('Failed to update');
+        }
+
+        async function deleteAnnouncement(id) {
+            const formData = new FormData();
+            formData.append('action', 'delete');
+            formData.append('id', id);
+            const res = await fetch(API_URL, { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('Failed to delete');
+        }
+
+        async function setAnnouncementPinned(id, isPinnedValue) {
+            const formData = new FormData();
+            formData.append('action', 'pin');
+            formData.append('id', id);
+            formData.append('isPinned', String(isPinnedValue));
+            const res = await fetch(API_URL, { method: 'POST', body: formData });
+            if (!res.ok) throw new Error('Failed to pin/unpin');
+        }
+
+        function onEditAnnouncement(id, currentContent) {
+            modalMode = 'edit';
+            modalAnnouncementId = id;
+            document.getElementById('annModalTitle').textContent = 'Edit Announcement';
+            document.getElementById('annModalMessage').style.display = 'none';
+            document.getElementById('annModalTextarea').style.display = 'block';
+            document.getElementById('annModalTextarea').value = currentContent || '';
+            document.getElementById('annModalConfirmBtn').textContent = 'Save';
+            document.getElementById('announcementActionModal').style.display = 'flex';
+        }
+
+        function onDeleteAnnouncement(id) {
+            modalMode = 'delete';
+            modalAnnouncementId = id;
+            document.getElementById('annModalTitle').textContent = 'Delete Announcement';
+            document.getElementById('annModalMessage').style.display = 'block';
+            document.getElementById('annModalMessage').textContent = 'Delete this announcement?';
+            document.getElementById('annModalTextarea').style.display = 'none';
+            document.getElementById('annModalConfirmBtn').textContent = 'Delete';
+            document.getElementById('announcementActionModal').style.display = 'flex';
+        }
+
+        function closeAnnouncementModal() {
+            document.getElementById('announcementActionModal').style.display = 'none';
+            modalMode = null;
+            modalAnnouncementId = null;
+        }
+
+        async function confirmAnnouncementModal() {
+            if (!modalMode || !modalAnnouncementId) return;
+            try {
+                if (modalMode === 'edit') {
+                    const value = (document.getElementById('annModalTextarea').value || '').trim();
+                    if (!value) { alert('Content cannot be empty.'); return; }
+                    await updateAnnouncement(modalAnnouncementId, value);
+                } else if (modalMode === 'delete') {
+                    await deleteAnnouncement(modalAnnouncementId);
+                }
+                closeAnnouncementModal();
+                await loadAnnouncements();
+            } catch {
+                alert('Failed to update announcement.');
+            }
+        }
+
+        async function onTogglePin(id, currentlyPinned) {
+            try {
+                await setAnnouncementPinned(id, !currentlyPinned);
+                await loadAnnouncements();
+            } catch {
+                alert('Failed to update pin.');
+            }
+        }
+
         async function loadAnnouncements() {
             const res = await fetch(API_URL);
             allAnnouncements = await res.json();
@@ -510,20 +644,30 @@
             container.innerHTML = filtered.map(ann => {
                     const img = ann.ImagePath || ann.imagePath || '';
                     const vid = ann.VideoPath || ann.videoPath || '';
+                    const id = ann.Id || ann.id;
+                    const postedBy = ann.PostedBy || ann.postedBy || 'Admin';
+                    const content = ann.Content || ann.content || '';
+                    const isPinnedNow = !!(ann.IsPinned || ann.isPinned);
+                    const escapedContent = content.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\r?\n/g, '\\n');
 
                     return `
-                <div class="announcement-card ${ann.IsPinned ? 'pinned-mode' : ''}">
-                    ${ann.IsPinned ? '<div class="pin-badge"><i class="fas fa-thumbtack"></i> Pinned</div>' : ''}
+                <div class="announcement-card ${isPinnedNow ? 'pinned-mode' : ''}">
+                    ${isPinnedNow ? '<div class="pin-badge"><i class="fas fa-thumbtack"></i> Pinned</div>' : ''}
                     <div class="card-header">
-                        <div class="poster-avatar">${(ann.PostedBy || 'A').charAt(0)}</div>
+                        <div class="poster-avatar">${postedBy.charAt(0)}</div>
                         <div class="poster-info">
-                            <h4>${ann.PostedBy || 'Admin'}</h4>
+                            <h4>${postedBy}</h4>
                             <span>${ann.Department || 'General'} • ${formatWhen(ann.PostedDate || ann.postedDate)}</span>
                         </div>
                     </div>
-                    <div class="card-body">${ann.Content || ann.content}</div>
+                    <div class="card-body">${content}</div>
                     ${img ? `<img src="${img}" style="width:100%; border-radius:12px; margin-top:16px; border:1px solid #eee;" />` : ''}
                     ${vid ? `<div style="margin-top:16px;"><video controls style="width:100%; border-radius:12px;"><source src="${vid}" /></video></div>` : ''}
+                    <div class="announcement-actions">
+                        <button class="btn-mini" type="button" onclick="onEditAnnouncement('${id}', '${escapedContent}')"><i class="fas fa-pen"></i> Edit</button>
+                        <button class="btn-mini" type="button" onclick="onDeleteAnnouncement('${id}')"><i class="fas fa-trash"></i> Delete</button>
+                        <button class="btn-mini" type="button" onclick="onTogglePin('${id}', ${isPinnedNow})"><i class="fas fa-thumbtack"></i> ${isPinnedNow ? 'Unpin' : 'Pin'}</button>
+                    </div>
                     <button class="btn-gmail" onclick="window.open('https://mail.google.com/mail/?view=cm&fs=1&su=Announcement: ${encodeURIComponent((ann.Content || '').substring(0,50))}&body=${encodeURIComponent(ann.Content || '')}', '_blank')">
                         <i class="fas fa-envelope"></i> Compose in Gmail
                     </button>

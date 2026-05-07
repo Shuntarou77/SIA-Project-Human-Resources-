@@ -189,8 +189,12 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 var leaves = await leaveService.GetLeavesByEmployeeIdAsync(employee.EmployeeId);
                 var approvedLeaves = leaves?.Where(l => l.Status == "Approved").ToList() ?? new List<Leave>();
 
-                // Calculate statistics
-                CalculateAttendanceStatistics(approvedLeaves);
+                // UNIFIED LOGIC: Use centralized AttendanceService for consistent stats
+                var stats = await _attendanceService.GetMonthlyAttendanceStatsAsync(employee.EmployeeId, employee.HiredDate);
+                var yearlyStats = await _attendanceService.GetYearlyAttendanceStatsAsync(employee.EmployeeId, employee.HiredDate);
+
+                // Calculate trends and other dashboard-specific metrics
+                CalculateAttendanceStatistics(approvedLeaves, stats, yearlyStats);
             }
             catch (Exception ex)
             {
@@ -200,9 +204,9 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
             }
         }
 
-        private void CalculateAttendanceStatistics(List<Leave> approvedLeaves)
+        private void CalculateAttendanceStatistics(List<Leave> approvedLeaves, AttendanceStats monthlyStats, AttendanceStats yearlyStats)
         {
-            if (_employeeAttendanceRecords == null || _employeeAttendanceRecords.Count == 0)
+            if (_employeeAttendanceRecords == null)
             {
                 _attendanceStats = GetDefaultStats();
                 return;
@@ -212,119 +216,35 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
             var today = now.Date;
             var currentMonth = new DateTime(now.Year, now.Month, 1);
             var lastMonth = currentMonth.AddMonths(-1);
-            var currentYear = now.Year;
-            var yearStart = new DateTime(currentYear, 1, 1);
 
-            // System-wide start date for attendance tracking
-            var trackingStart = AttendanceService.TRACKING_START_DATE;
-            // Get employee hired date
-            var employee = CurrentEmployee;
-            var hiredDate = (employee?.HiredDate ?? trackingStart).ToLocalTime().Date;
-            var effectiveStart = hiredDate > yearStart ? hiredDate : yearStart;
-            if (effectiveStart < trackingStart) effectiveStart = trackingStart;
+            // Use unified stats for current display
+            var currentMonthPresent = monthlyStats.PresentCount;
+            var currentMonthAbsent = monthlyStats.AbsentCount;
+            var currentMonthLate = monthlyStats.LateCount;
+            var currentMonthAttendancePercent = (int)Math.Round(monthlyStats.AttendanceRate);
+            var remainingAbsences = yearlyStats.RemainingAbsences;
 
-            // Current month records - filter by local time
-            var currentMonthRecords = _employeeAttendanceRecords
-                .Where(a => a.TimeIn.HasValue)
-                .Select(a => new { Record = a, LocalTime = a.TimeIn.Value.ToLocalTime() })
-                .Where(x => x.LocalTime >= currentMonth && x.LocalTime < currentMonth.AddMonths(1))
-                .ToList();
-
-            // Last month records - filter by local time
+            // Calculate historical stats for trends (using last month's range)
             var lastMonthRecords = _employeeAttendanceRecords
                 .Where(a => a.TimeIn.HasValue)
                 .Select(a => new { Record = a, LocalTime = a.TimeIn.Value.ToLocalTime() })
                 .Where(x => x.LocalTime >= lastMonth && x.LocalTime < currentMonth)
                 .ToList();
 
-            // Calculate current month stats - count UNIQUE days
-            var currentMonthPresentDays = currentMonthRecords
-                .Select(x => x.LocalTime.Date)
-                .Distinct()
-                .ToList();
-            var currentMonthPresent = currentMonthPresentDays.Count;
-
-            // Count past workdays (Mon-Sat) only (exclude Sundays and future days)
-            var monthTrackingStart = currentMonth > effectiveStart ? currentMonth : effectiveStart;
-            var pastWeekdays = 0;
-            if (monthTrackingStart <= today)
-            {
-                pastWeekdays = Enumerable.Range(0, (today - monthTrackingStart).Days + 1)
-                    .Select(i => monthTrackingStart.AddDays(i))
-                    .Where(d => d <= today && d.DayOfWeek != DayOfWeek.Sunday)
-                    .Count();
-            }
-            var currentMonthAbsent = Math.Max(0, pastWeekdays - currentMonthPresent);
-
-            // Calculate late count - use first time-in per day (8:00 AM cutoff)
-            var currentMonthLate = currentMonthRecords
-                .GroupBy(x => x.LocalTime.Date)
-                .Count(g => {
-                    var firstIn = g.OrderBy(x => x.LocalTime).First().LocalTime;
-                    return firstIn.Hour > 8 || (firstIn.Hour == 8 && (firstIn.Minute > 0 || firstIn.Second > 0));
-                });
-
-            var currentMonthOnTime = currentMonthPresent - currentMonthLate;
-            var currentMonthAttendancePercent = pastWeekdays > 0 
-                ? (int)Math.Round((double)currentMonthPresent / pastWeekdays * 100) 
-                : 0;
-
-            var yearlyRecords = _employeeAttendanceRecords
-                .Where(a => a.TimeIn.HasValue)
-                .Select(a => a.TimeIn.Value.ToLocalTime())
-                .Where(t => t.Year == currentYear && t.Date >= effectiveStart)
-                .ToList();
-
-            // Only count FINALIZED present days (before today)
-            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count(d => d < today);
-            
-            // FINALIZED past working days up to YESTERDAY only (never count today)
-            var yesterday = today.AddDays(-1);
-            int pastYearWeekdays = 0;
-            if (effectiveStart <= yesterday)
-            {
-                pastYearWeekdays = Enumerable.Range(0, (yesterday - effectiveStart).Days + 1)
-                    .Select(i => effectiveStart.AddDays(i))
-                    .Count(d => d.DayOfWeek != DayOfWeek.Sunday);
-            }
-
-            int yearlyLeaveDays = 0;
-            foreach (var leave in approvedLeaves)
-            {
-                for (var d = leave.StartDate.ToLocalTime().Date; d <= leave.EndDate.ToLocalTime().Date; d = d.AddDays(1))
-                {
-                    if (d.Year == currentYear && d >= effectiveStart && d < today && d.DayOfWeek != DayOfWeek.Sunday)
-                    {
-                        yearlyLeaveDays++;
-                    }
-                }
-            }
-            
-            var yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent - yearlyLeaveDays);
-            var remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
-
-            // Calculate last month stats - count UNIQUE days
-            var lastMonthPresentDays = lastMonthRecords
-                .Select(x => x.LocalTime.Date)
-                .Distinct()
-                .ToList();
-            var lastMonthPresent = lastMonthPresentDays.Count;
-
             // Count weekdays in last month
             var lastMonthEnd = currentMonth.AddDays(-1);
             var lastMonthWeekdays = Enumerable.Range(0, (lastMonthEnd - lastMonth).Days + 1)
                 .Select(i => lastMonth.AddDays(i))
-                .Count(d => d.DayOfWeek != DayOfWeek.Saturday && d.DayOfWeek != DayOfWeek.Sunday);
+                .Count(d => d.DayOfWeek != DayOfWeek.Sunday); // Consistent with GetWorkingDaysCount
+            
+            var lastMonthPresent = lastMonthRecords.Select(x => x.LocalTime.Date).Distinct().Count();
             var lastMonthAbsent = Math.Max(0, lastMonthWeekdays - lastMonthPresent);
-
-            // Calculate late count for last month - use first time-in per day (8:00 AM cutoff)
             var lastMonthLate = lastMonthRecords
                 .GroupBy(x => x.LocalTime.Date)
                 .Count(g => {
                     var firstIn = g.OrderBy(x => x.LocalTime).First().LocalTime;
-                    return firstIn.Hour > 8 || (firstIn.Hour == 8 && (firstIn.Minute > 0 || firstIn.Second > 0));
+                    return firstIn.Hour >= 9 || (firstIn.Hour == 8 && firstIn.Minute > 15);
                 });
-
             var lastMonthAttendancePercent = lastMonthWeekdays > 0 
                 ? (int)Math.Round((double)lastMonthPresent / lastMonthWeekdays * 100) 
                 : 0;
@@ -351,12 +271,12 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 .Distinct()
                 .Count();
             
-            // Count on-time days (first time-in at or before 8:00 AM)
+            // Count on-time days (consistent 8:15 AM cutoff)
             var weekOnTimeDays = weekRecords
                 .GroupBy(x => x.LocalTime.Date)
                 .Count(g => {
                     var firstIn = g.OrderBy(x => x.LocalTime).First().LocalTime;
-                    return !(firstIn.Hour > 8 || (firstIn.Hour == 8 && (firstIn.Minute > 0 || firstIn.Second > 0)));
+                    return !(firstIn.Hour >= 9 || (firstIn.Hour == 8 && firstIn.Minute > 15));
                 });
             
             var weekOnTimePercent = weekPresentDays > 0 ? (int)Math.Round((double)weekOnTimeDays / weekPresentDays * 100) : 0;

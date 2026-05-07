@@ -16,6 +16,13 @@ namespace ExWebAppSia.LoginFolder
             if (!IsPostBack)
             {
                 pnlMessage.Visible = false;
+
+                // Pre-fill email from query string if available
+                string emailParam = Request.QueryString["email"];
+                if (!string.IsNullOrEmpty(emailParam))
+                {
+                    txtEmail.Text = emailParam;
+                }
             }
         }
 
@@ -31,23 +38,29 @@ namespace ExWebAppSia.LoginFolder
 
             try
             {
-                // Check if user exists
+                // Check if user exists (checking both Email and Username fields for flexibility)
                 var user = await _userService.GetUserByEmailAsync(email);
-                
                 if (user == null)
                 {
-                    // For security reasons, don't reveal if user exists or not
-                    ShowMessage("If an account exists with this email, you will receive a reset link shortly.", false);
-                    pnlForm.Visible = false;
+                    user = await _userService.GetUserByUsernameAsync(email);
+                }
+                
+                if (user == null || !user.IsActive)
+                {
+                    // USER REQUEST: Only recognize registered emails
+                    ShowMessage("This email address is not registered in our system. Please check and try again.", true);
                     return;
                 }
 
+                // Use the primary email from the record if found, otherwise the input
+                string targetEmail = !string.IsNullOrEmpty(user.Email) ? user.Email : email;
+                
                 // Generate reset token
                 string token = Guid.NewGuid().ToString("N");
                 DateTime expiration = DateTime.UtcNow.AddHours(2);
 
                 // Update user with reset token
-                bool updated = await _userService.UpdateResetTokenAsync(email, token, expiration);
+                bool updated = await _userService.UpdateResetTokenByIdAsync(user.Id, token, expiration);
 
                 if (updated)
                 {
@@ -56,7 +69,7 @@ namespace ExWebAppSia.LoginFolder
                     string resetLink = $"{baseUrl}/LoginFolder/ResetPassword.aspx?token={token}";
 
                     // Send email
-                    bool emailSent = await _emailService.SendPasswordResetEmailAsync(email, user.FirstName ?? user.Username, resetLink);
+                    bool emailSent = await _emailService.SendPasswordResetEmailAsync(targetEmail, user.FirstName ?? user.Username, resetLink);
 
                     if (emailSent)
                     {

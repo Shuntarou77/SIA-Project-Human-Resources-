@@ -38,18 +38,20 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
             {
                 var applicants = await _applicantService.GetAllApplicantsAsync();
                 
-                // Stats
-                litTotalApplied.Text = applicants.Count.ToString();
-                litInterviewing.Text = applicants.Count(a => a.Status == "Interviewing" || a.Status == "Schedules").ToString();
-                litHired.Text = applicants.Count(a => a.Status == "Hired").ToString();
-                litRejected.Text = applicants.Count(a => a.Status == "Rejected").ToString();
+                // Define pipeline early to avoid declaration scope errors
+                var applicantsInPipeline = applicants.Where(a => a.Status != "Hired" && a.Status != "Rejected").ToList();
 
-                // List
-                rptApplicants.DataSource = applicants.OrderByDescending(a => a.AppliedDate).Take(15).ToList();
+                // Stats - Updated to reflect only active pipeline data
+                litTotalApplied.Text = applicantsInPipeline.Count.ToString();
+                litInterviewing.Text = applicantsInPipeline.Count(a => a.Status == "Interviewing" || a.Status == "Schedules" || a.Status == "For Viewing").ToString();
+                litHired.Text = "0"; 
+                litRejected.Text = "0"; 
+
+                // List - Show only active candidates in the pipeline
+                rptApplicants.DataSource = applicantsInPipeline.OrderByDescending(a => a.AppliedDate).Take(15).ToList();
                 rptApplicants.DataBind();
 
                 // Aggregate Job Postings
-                var applicantsInPipeline = applicants.Where(a => a.Status != "Hired" && a.Status != "Rejected").ToList();
                 var applicantCounts = applicantsInPipeline.GroupBy(a => a.Role)
                     .ToDictionary(g => g.Key ?? "", g => g.Count(), StringComparer.OrdinalIgnoreCase);
 

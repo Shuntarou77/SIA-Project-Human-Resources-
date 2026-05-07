@@ -1,4 +1,4 @@
-<%@ Page Title="Account" Language="C#" MasterPageFile="~/webpage(PresidentViewpoint)/President.Master"
+<%@ Page Title="Profile" Language="C#" MasterPageFile="~/webpage(PresidentViewpoint)/President.Master"
     AutoEventWireup="true" Async="true" CodeBehind="Account.aspx.cs"
     Inherits="ExWebAppSia.webpage_PresidentViewpoint_.Account" %>
     <asp:Content ID="Content1" ContentPlaceHolderID="head" runat="server">
@@ -705,7 +705,7 @@
                             </div>
                             <div class="stat-box">
                                 <div class="stat-value" style="color: var(--success-color);"><%= GetTargetWorkingDays() %></div>
-                                <div class="stat-label">Working Days (To Date)</div>
+                                <div class="stat-label">Working Days (Monthly)</div>
                             </div>
                         </div>
 
@@ -746,12 +746,77 @@
                     <button type="button" class="action-button" onclick="event.stopPropagation(); document.getElementById('concernModal').style.display='block';">Submit Concern</button>
                 </div>
 
+                <div class="action-card" onclick="openConcernHistoryModal()">
+                    <div class="action-icon">🧾</div>
+                    <h3 class="action-title">Concern History</h3>
+                    <p class="action-description">Review your submitted employee concerns and track their status updates.</p>
+                    <button type="button" class="action-button" onclick="openConcernHistoryModal(); return false;">View History</button>
+                </div>
+
                 <div class="action-card" style="border-color: #fca5a5;" onclick="requestResignation();">
                     <div class="action-icon" style="background: linear-gradient(135deg, #ef4444, #fca5a5);">👋</div>
                     <h3 class="action-title">Request Resignation</h3>
                     <p class="action-description" id="resignationDesc">Officially submit your intent to resign. This will require HR approval before processing.</p>
                     <button type="button" class="action-button" style="background: linear-gradient(135deg, #ef4444, #fca5a5);" onclick="event.stopPropagation(); requestResignation();" id="btnResign">Request Resignation</button>
                     <p id="resignationStatusMsg" style="display:none; color: #ef4444; font-weight: bold; margin-top: 10px;"></p>
+                </div>
+
+                <div class="action-card" onclick="openOvertimeModal()">
+                    <div class="action-icon" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">⏱️</div>
+                    <h3 class="action-title">Overtime Request</h3>
+                    <p class="action-description">Submit your overtime request for review and approval by HR/Admin.</p>
+                    <button type="button" class="action-button" onclick="openOvertimeModal(); return false;" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">Request Overtime</button>
+                </div>
+
+                <div class="action-card" onclick="openGovLoanFormsModal()">
+                    <div class="action-icon">📥</div>
+                    <h3 class="action-title">Downloadable Forms</h3>
+                    <p class="action-description">Download official government loan forms (SSS, Pag-IBIG) for filing.</p>
+                    <button type="button" class="action-button" onclick="openGovLoanFormsModal(); return false;" style="background: #4f46e5;">Choose Form</button>
+                </div>
+
+                <div class="action-card" onclick="openOngoingRequestsModal()">
+                    <div class="action-icon">⏳</div>
+                    <h3 class="action-title">On Going Requests</h3>
+                    <p class="action-description">Monitor your currently pending and under-review requests.</p>
+                    <button type="button" class="action-button" onclick="openOngoingRequestsModal(); return false;" style="margin-top:auto; background: linear-gradient(135deg, #8b5cf6, #7c3aed);">View Ongoing</button>
+                </div>
+                <div class="action-card" onclick="openRequestHistoryModal()">
+                    <div class="action-icon">🗂️</div>
+                    <h3 class="action-title">Request History</h3>
+                    <p class="action-description">Review your recent request submissions and their final statuses.</p>
+                    <button type="button" class="action-button" onclick="openRequestHistoryModal(); return false;" style="margin-top:auto;">View History</button>
+                </div>
+        </div>
+
+        <div id="ongoingRequestsModal" class="custom-modal-v2">
+            <div class="custom-modal-v2-content" style="max-width: 700px;">
+                <div class="custom-modal-v2-header" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                    <button type="button" onclick="window.closeCustomModal('ongoingRequestsModal'); return false;" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.25);border:none;color:white;font-size:22px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:bold;z-index:10001;">&times;</button>
+                    <h2 class="custom-modal-v2-title">⏳ On Going Requests</h2>
+                </div>
+                <div class="custom-modal-v2-body">
+                    <div id="ongoingRequestsList" style="display:flex; flex-direction:column; gap:10px;"></div>
+                </div>
+                <div class="custom-modal-v2-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('ongoingRequestsModal')">Close</button>
+                    <button type="button" class="btn-submit" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);" onclick="loadRequestMonitor()">Refresh List</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="requestHistoryModal" class="custom-modal-v2">
+            <div class="custom-modal-v2-content" style="max-width: 700px;">
+                <div class="custom-modal-v2-header">
+                    <button type="button" onclick="window.closeCustomModal('requestHistoryModal'); return false;" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.25);border:none;color:white;font-size:22px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:bold;z-index:10001;">&times;</button>
+                    <h2 class="custom-modal-v2-title">🗂️ Request History</h2>
+                </div>
+                <div class="custom-modal-v2-body">
+                    <div id="requestHistoryList" style="display:flex; flex-direction:column; gap:10px;"></div>
+                </div>
+                <div class="custom-modal-v2-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('requestHistoryModal')">Close</button>
+                    <button type="button" class="btn-submit" onclick="loadRequestMonitor()">Refresh History</button>
                 </div>
             </div>
         </div>
@@ -923,9 +988,97 @@
                     </div>
                 </div>
                 <div class="custom-modal-v2-footer">
+                    <button type="button" class="btn-cancel" onclick="openConcernHistoryModal()">View Concern History</button>
                     <button class="btn-cancel" onclick="closeModal('concernModal')">Cancel</button>
                     <asp:Button ID="btnSubmitConcern" runat="server" CssClass="btn-submit" Text="Submit Concern"
                         OnClick="btnSubmitConcern_Click" />
+                </div>
+            </div>
+        </div>
+
+        <div id="concernHistoryModal" class="custom-modal-v2">
+            <div class="custom-modal-v2-content" style="max-width: 700px;">
+                <div class="custom-modal-v2-header">
+                    <button type="button" onclick="window.closeCustomModal('concernHistoryModal'); return false;" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.25);border:none;color:white;font-size:22px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:bold;z-index:10001;">&times;</button>
+                    <h2 class="custom-modal-v2-title">🧾 Employee Concern History</h2>
+                </div>
+                <div class="custom-modal-v2-body">
+                    <div id="concernHistoryList" style="display:flex; flex-direction:column; gap:10px;"></div>
+                </div>
+                <div class="custom-modal-v2-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('concernHistoryModal')">Close</button>
+                    <button type="button" class="btn-submit" onclick="loadConcernHistory()">Refresh</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="govLoanFormsModal" class="custom-modal-v2">
+            <div class="custom-modal-v2-content" style="max-width: 800px;">
+                <div class="custom-modal-v2-header">
+                    <button type="button" onclick="window.closeCustomModal('govLoanFormsModal'); return false;" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.25);border:none;color:white;font-size:22px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:bold;z-index:10001;">&times;</button>
+                    <h2 class="custom-modal-v2-title">📥 Government Loan Forms</h2>
+                </div>
+                <div class="custom-modal-v2-body">
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
+                        <div style="border:1px solid var(--border-color); border-radius:14px; padding:16px;">
+                            <h3 style="margin:0 0 6px 0; color:var(--text-primary);">SSS</h3>
+                            <p style="margin:0 0 12px 0; color:var(--text-secondary); font-size:13px;">Official SSS loan application PDFs.</p>
+                            <button type="button" class="action-button" style="background:#8b5cf6;" onclick="openGovForm('https://www.sss.gov.ph/wp-content/uploads/2022/03/mlp_01287.pdf')">Member Loan Application (MLP-01287)</button>
+                            <div style="height:10px;"></div>
+                            <button type="button" class="action-button" onclick="openGovForm('https://www.sss.gov.ph/wp-content/uploads/2022/03/calamity-loan-assistance-application.pdf')">Calamity Loan Assistance Application</button>
+                        </div>
+                        <div style="border:1px solid var(--border-color); border-radius:14px; padding:16px;">
+                            <h3 style="margin:0 0 6px 0; color:var(--text-primary);">Pag-IBIG</h3>
+                            <p style="margin:0 0 12px 0; color:var(--text-secondary); font-size:13px;">Official Pag-IBIG downloadable forms (Direct PDF).</p>
+                            <button type="button" class="action-button" style="background:#0ea5e9;" onclick="openGovForm('<%= ResolveUrl("~/webpage/forms/PAG-iBIG-MPL.pdf") %>')">Multi-Purpose Loan (MPL - 09-2023)</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="custom-modal-v2-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('govLoanFormsModal')">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Overtime Modal -->
+        <div id="overtimeModal" class="custom-modal-v2">
+            <div class="custom-modal-v2-content" style="max-width: 450px;">
+                <div class="custom-modal-v2-header" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">
+                    <button type="button" onclick="window.closeCustomModal('overtimeModal'); return false;" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.25);border:none;color:white;font-size:22px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:bold;z-index:10001;">&times;</button>
+                    <h2 class="custom-modal-v2-title">⏱️ Request Overtime</h2>
+                </div>
+                <div class="custom-modal-v2-body" style="padding: 30px;">
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label class="form-label" style="display: block; margin-bottom: 5px; font-weight: 600;">Date of Overtime *</label>
+                        <input type="date" id="txtOvertimeDate" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;" />
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div class="form-group">
+                            <label class="form-label" style="display: block; margin-bottom: 5px; font-weight: 600;">Start Time *</label>
+                            <input type="time" id="txtOvertimeStart" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;" onchange="calculateOTHours()" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label" style="display: block; margin-bottom: 5px; font-weight: 600;">End Time *</label>
+                            <input type="time" id="txtOvertimeEnd" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;" onchange="calculateOTHours()" />
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label class="form-label" style="display: block; margin-bottom: 5px; font-weight: 600;">Total Hours Requested *</label>
+                        <input type="number" id="txtOvertimeHours" step="0.1" min="0" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;" placeholder="Calculated hours..." />
+                    </div>
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label class="form-label" style="display: block; margin-bottom: 5px; font-weight: 600;">Detailed Justification *</label>
+                        <textarea id="txtOvertimeReason" class="form-textarea" style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; resize: none;" placeholder="Provide a detailed justification for the work..."></textarea>
+                    </div>
+                    <div style="background: #F5F3FF; border-left: 4px solid #8b5cf6; padding: 15px; border-radius: 0 8px 8px 0;">
+                        <p style="color: #5b21b6; font-size: 13px; font-weight: 600;">
+                            Note: Your request will be sent to Admin for approval.
+                        </p>
+                    </div>
+                </div>
+                <div class="custom-modal-v2-footer">
+                    <button type="button" class="btn-cancel" onclick="closeModal('overtimeModal')">Cancel</button>
+                    <button type="button" class="btn-submit" style="background: #8b5cf6;" onclick="submitOvertimeRequest()">Submit Request</button>
                 </div>
             </div>
         </div>
@@ -968,28 +1121,156 @@
             </div>
         </div>
 
-        <div id="pageData"
-            data-employee-id="<%= GetEmployeeId() %>"
-            data-employee-name="<%= System.Web.HttpUtility.HtmlAttributeEncode(GetEmployeeName()) %>"
-            data-employee-dept="<%= System.Web.HttpUtility.HtmlAttributeEncode(GetEmployeeDepartment()) %>"
-            data-handler-url="<%= ResolveUrl("~/webpage/api/AttendanceHandler.ashx") %>"
-            data-attendance='<%= GetAttendanceStatusJsonString() %>'
-            data-resignation-status="<%= GetResignationStatus() %>"
-            style="display:none;"></div>
+        <!-- Custom Confirm Modal -->
+        <div id="confirmModal" class="custom-modal-v2" style="display:none;">
+            <div class="custom-modal-v2-content" style="max-width: 440px;">
+                <div class="custom-modal-v2-header" style="background: linear-gradient(135deg, #ef4444, #dc2626); border: none;">
+                    <span onclick="closeConfirmModal()" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.25);border:none;color:white;font-size:22px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:bold;z-index:10001;">&times;</span>
+                    <h2 id="confirmModalTitle" class="custom-modal-v2-title" style="color: white;">Confirm Action</h2>
+                </div>
+                <div class="custom-modal-v2-body" style="text-align: center; padding: 40px 30px;">
+                    <div id="confirmModalIcon" style="font-size: 60px; margin-bottom: 20px;">⚠️</div>
+                    <p id="confirmModalMessage" style="color: var(--text-primary); font-size: 15px; font-weight: 500; line-height: 1.6;"></p>
+                </div>
+                <div class="custom-modal-v2-footer" style="justify-content: center; gap: 15px; padding-bottom: 30px;">
+                    <button type="button" class="btn-cancel" onclick="closeConfirmModal()">Cancel</button>
+                    <button type="button" id="confirmModalOkBtn" class="btn-submit" style="background: #ef4444; min-width: 120px;">Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Undertime Modal -->
+        <div id="undertimeModal" style="display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(5px);">
+            <div style="background: white; margin: 100px auto; border-radius: 20px; width: 90%; max-width: 450px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5); overflow: hidden; font-family: 'Poppins', sans-serif;">
+                <div style="background: #ef4444; padding: 20px; color: white; text-align: center; position: relative;">
+                    <span onclick="closeUndertimeModal()" style="position: absolute; left: 20px; top: 15px; font-size: 24px; cursor: pointer;">&times;</span>
+                    <h3 style="margin: 0; font-size: 18px; font-weight: 700;">⚠️ Early Time Out</h3>
+                </div>
+                
+                <!-- Question Body -->
+                <div id="undertimeQuestionBody" style="padding: 40px 30px; text-align: center;">
+                    <div style="background: #f3f4f6; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; font-size: 32px;">🕒</div>
+                    <h2 style="color: #111; font-size: 22px; font-weight: 800; margin-bottom: 12px;">Early Departure Detected</h2>
+                    <p style="color: #4b5563; line-height: 1.6; margin-bottom: 30px; font-size: 15px;">
+                        It's not yet 5:00 PM. Please select the type of undertime you are filing:
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
+                        <button type="button" style="background: #ef4444; color: white; width: 100%; border: none; font-weight: 700; padding: 15px; border-radius: 12px; cursor: pointer; text-transform: uppercase;" onclick="emergencyQuickNotify()">🚨 EMERGENCY UT QUICK NOTIFY</button>
+                        <button type="button" style="background: #3b82f6; color: white; width: 100%; border: none; font-weight: 700; padding: 15px; border-radius: 12px; cursor: pointer; text-transform: uppercase;" onclick="showRegularUndertimeForm()">📝 REGULAR UT REQUEST</button>
+                    </div>
+                    <div style="margin-top: 20px; font-size: 13px; color: #6b7280;">
+                        Already have an approved request? <a href="javascript:void(0)" onclick="undertimeYes()" style="color: #3b82f6; font-weight: 600; text-decoration: none;">Check status here</a>
+                    </div>
+                </div>
+
+                <!-- Form Body -->
+                <div id="undertimeFormBody" style="display: none; padding: 30px;">
+                    <button type="button" onclick="showUndertimeQuestion()" style="background:none; border:none; color:#6b7280; cursor:pointer; margin-bottom:15px; display:flex; align-items:center; gap:5px; font-weight:600; font-size: 14px;">
+                        <span>← Back</span>
+                    </button>
+                    <h3 style="color: #111; margin-bottom: 15px; text-align: center; font-size: 20px;">Regular Undertime Request</h3>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #4b5563; margin-bottom: 5px;">Departure Date *</label>
+                            <input type="date" id="utDate" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; font-size: 13px;" />
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 13px; font-weight: 600; color: #4b5563; margin-bottom: 5px;">Departure Time *</label>
+                            <input type="time" id="utTime" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 10px; font-size: 13px;" />
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 14px; font-weight: 600; color: #4b5563; margin-bottom: 8px;">Departure Reason *</label>
+                        <textarea id="txtUndertimeReason" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 14px; min-height: 80px; outline: none; transition: border 0.3s; resize: none;" placeholder="e.g., Medical appointment, Personal errands..."></textarea>
+                    </div>
+                    <div style="background: #F0F9FF; border-left: 4px solid #3b82f6; padding: 12px; border-radius: 4px; margin-bottom: 25px;">
+                        <p style="color: #1e3a8a; font-size: 13px; font-weight: 600; margin: 0;">
+                            Note: Requires HR STAFF approval before timing out.
+                        </p>
+                    </div>
+                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                        <button type="button" style="padding: 10px 20px; border: none; border-radius: 10px; background: #f3f4f6; color: #4b5563; font-weight: 600; cursor: pointer;" onclick="closeUndertimeModal()">Cancel</button>
+                        <button type="button" style="padding: 10px 20px; border: none; border-radius: 10px; background: #3b82f6; color: white; font-weight: 600; cursor: pointer;" onclick="submitRegularUndertime()">Submit Request</button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <script>
-            // Read server values from data attributes safely
-            var pageData = document.getElementById('pageData');
-            var employeeId = pageData.getAttribute('data-employee-id');
-            var employeeName = pageData.getAttribute('data-employee-name');
-            var employeeDepartment = pageData.getAttribute('data-employee-dept');
-            var handlerUrl = pageData.getAttribute('data-handler-url');
-            var attendanceStatus = {};
-            try { attendanceStatus = JSON.parse(pageData.getAttribute('data-attendance')); } catch(e) { attendanceStatus = {}; }
-            var resStatus = pageData.getAttribute('data-resignation-status');
+            // Read server values directly from ASP.NET tags
+            var employeeId = '<%= GetEmployeeId() %>';
+            var employeeName = '<%= GetEmployeeName() %>';
+            var employeeDepartment = '<%= GetEmployeeDepartment() %>';
+            var handlerUrl = '<%= ResolveUrl("~/webpage/api/AttendanceHandler.ashx") %>';
+            var attendanceStatus = JSON.parse('<%= GetAttendanceStatusJsonString() %>');
+            var resStatus = '<%= GetResignationStatus() %>';
 
             var hasTimedInSync = attendanceStatus.hasTimedIn || false;
             var hasTimedOutSync = attendanceStatus.hasTimedOut || false;
+
+            // -------- Custom Modal Helpers --------
+            function openModal(modalId) {
+                const modal = document.getElementById(modalId);
+                if (modal) modal.style.display = 'block';
+            }
+
+            function closeModal(modalId) {
+                const modal = document.getElementById(modalId);
+                if (modal) modal.style.display = 'none';
+            }
+
+            function showAlert(title, message, type = 'success') {
+                const modal = document.getElementById('alertModal');
+                if (!modal) {
+                    alert(title + ": " + message);
+                    return;
+                }
+
+                const titleEl = document.getElementById('alertModalTitle');
+                const msgEl = document.getElementById('alertModalMessage');
+                const statusEl = document.getElementById('alertModalStatus');
+                const iconEl = document.getElementById('alertModalIcon');
+
+                if (titleEl) titleEl.textContent = title;
+                if (msgEl) msgEl.textContent = message;
+                if (statusEl) statusEl.textContent = type.toUpperCase();
+
+                if (iconEl) {
+                    if (type === 'error') {
+                        iconEl.innerHTML = '❌';
+                        iconEl.style.color = '#ef4444';
+                    } else {
+                        iconEl.innerHTML = '✅';
+                        iconEl.style.color = '#10b981';
+                    }
+                }
+
+                modal.style.display = 'block';
+            }
+            // --------------------------------------
+
+            let _confirmCallback = null;
+
+            function showConfirm(title, message, icon, onConfirm) {
+                document.getElementById('confirmModalTitle').textContent = title;
+                document.getElementById('confirmModalMessage').textContent = message;
+                document.getElementById('confirmModalIcon').textContent = icon || '⚠️';
+                _confirmCallback = onConfirm;
+                document.getElementById('confirmModalOkBtn').onclick = function () {
+                    if (_confirmCallback) _confirmCallback();
+                    closeConfirmModal();
+                };
+                const modal = document.getElementById('confirmModal');
+                modal.style.display = 'flex';
+            }
+
+            function closeConfirmModal() {
+                document.getElementById('confirmModal').style.display = 'none';
+                _confirmCallback = null;
+            }
+            // ---------------------------------------------
 
             function updateDateTime() {
                 const now = new Date();
@@ -1035,7 +1316,149 @@
             }
 
             function timeOut() {
-                handleAttendance('TimeOut');
+                const now = new Date();
+                if (now.getHours() < 17) {
+                    document.getElementById('undertimeModal').style.display = 'block';
+                    
+                    // Set defaults and min date
+                    const today = now.toISOString().split('T')[0];
+                    const h = String(now.getHours()).padStart(2, '0');
+                    const m = String(now.getMinutes()).padStart(2, '0');
+                    const dateInput = document.getElementById('utDate');
+                    if (dateInput) {
+                        dateInput.min = today;
+                        dateInput.value = today;
+                    }
+                    if (document.getElementById('utTime')) document.getElementById('utTime').value = `${h}:${m}`;
+                    
+                    showUndertimeQuestion();
+                } else {
+                    handleAttendance('TimeOut');
+                }
+            }
+
+            function closeUndertimeModal() {
+                document.getElementById('undertimeModal').style.display = 'none';
+            }
+
+            function showUndertimeQuestion() {
+                document.getElementById('undertimeQuestionBody').style.display = 'block';
+                document.getElementById('undertimeFormBody').style.display = 'none';
+            }
+
+            function showRegularUndertimeForm() {
+                document.getElementById('undertimeQuestionBody').style.display = 'none';
+                document.getElementById('undertimeFormBody').style.display = 'block';
+            }
+
+            async function emergencyQuickNotify() {
+                showConfirm(
+                    '🚨 Emergency Notification',
+                    'This will immediately notify HR of your emergency departure and record your undertime. Are you sure?',
+                    '🚨',
+                    async function () {
+                        try {
+                            const params = new URLSearchParams({
+                                action: 'emergencyundertime',
+                                employeeId: employeeId
+                            });
+
+                            const response = await fetch(handlerUrl + '?' + params.toString());
+                            const result = await response.json();
+
+                            if (result.success) {
+                                showAlert('Sent', 'Emergency notification sent! You have been timed out.', 'success');
+                                setTimeout(() => location.reload(), 1500);
+                            } else {
+                                showAlert('Error', result.message, 'error');
+                            }
+                        } catch (err) {
+                            showAlert('Error', 'Connection error', 'error');
+                        }
+                    }
+                );
+            }
+
+            async function undertimeYes() {
+                try {
+                    const response = await fetch(`${handlerUrl}?action=getstatus&employeeId=${employeeId}`);
+                    const status = await response.json();
+
+                    if (status.undertimeStatus === 'Approved') {
+                        handleAttendance('TimeOut');
+                    } else if (status.undertimeStatus === 'Pending') {
+                        showAlert('Pending', 'Your undertime request is still pending approval.', 'error');
+                    } else {
+                        showAlert('Not Found', 'No approved request found. Please submit a request.', 'error');
+                    }
+                } catch (err) {
+                    showAlert('Error', 'Connection error', 'error');
+                }
+            }
+
+            async function submitRegularUndertime() {
+                const reason = document.getElementById('txtUndertimeReason').value.trim();
+                const utDate = document.getElementById('utDate').value;
+                const utTime = document.getElementById('utTime').value;
+
+                if (!reason) {
+                        showAlert('Required', 'Please provide a reason.', 'error');
+                        return;
+                    }
+                    if (!utDate || !utTime) {
+                        showAlert('Required', 'Please provide both date and time.', 'error');
+                        return;
+                    }
+
+                // Date Validation: Current or Future
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const selectedDate = new Date(utDate);
+                if (selectedDate < today) {
+                    showAlert('Invalid Date', 'Undertime date cannot be in the past. Please select today or a future date.', 'error');
+                    return;
+                }
+
+                // Time Validation: Must be before 5:00 PM (17:00)
+                const depHour = parseInt(utTime.split(':')[0]);
+                if (depHour >= 17) {
+                    showAlert('Invalid Time', 'Undertime means leaving early. Your departure must be before the shift ends (5:00 PM).', 'error');
+                    return;
+                }
+
+                // Format time
+                let timeFormatted = utTime;
+                try {
+                    const [h, m] = utTime.split(':');
+                    const hrs = parseInt(h);
+                    const ampm = hrs >= 12 ? 'PM' : 'AM';
+                    const h12 = hrs % 12 || 12;
+                    timeFormatted = `${h12}:${m} ${ampm}`;
+                } catch (e) {}
+
+                const departureTime = `${utDate} ${timeFormatted}`;
+
+                try {
+                    const params = new URLSearchParams({
+                        action: 'requestundertime',
+                        employeeId: employeeId,
+                        reason: reason,
+                        type: 'Regular',
+                        departureTime: departureTime
+                    });
+
+                    const response = await fetch(handlerUrl + '?' + params.toString());
+                    const result = await response.json();
+
+                    if (result.success) {
+                        showAlert('Submitted', 'Undertime request submitted successfully!', 'success');
+                        closeUndertimeModal();
+                    } else {
+                        showAlert('Error', 'Error: ' + result.message, 'error');
+                    }
+                } catch (err) {
+                    showAlert('Error', 'Connection error', 'error');
+                }
             }
 
             function handleAttendance(action) {
@@ -1069,6 +1492,7 @@
             }
 
             document.addEventListener('DOMContentLoaded', loadStatus);
+            document.addEventListener('DOMContentLoaded', loadRequestMonitor);
 
             function closeModal(modalId) {
                 var el = document.getElementById(modalId);
@@ -1195,6 +1619,218 @@
                 document.getElementById('resignationModal').style.display = 'block';
             }
 
+            function openOvertimeModal() {
+                const modal = document.getElementById('overtimeModal');
+                if (modal) {
+                    modal.style.display = 'block';
+                    
+                    // Set min date to today to prevent past dates
+                    const today = new Date().toISOString().split('T')[0];
+                    const dateInput = document.getElementById('txtOvertimeDate');
+                    if (dateInput) {
+                        dateInput.min = today;
+                        dateInput.value = today;
+                    }
+                }
+            }
+
+            function calculateOTHours() {
+                const start = document.getElementById('txtOvertimeStart').value;
+                const end = document.getElementById('txtOvertimeEnd').value;
+                if (!start || !end) return;
+
+                const startDate = new Date(`2000-01-01T${start}`);
+                const endDate = new Date(`2000-01-01T${end}`);
+                
+                let diff = (endDate - startDate) / (1000 * 60 * 60);
+                if (diff < 0) diff += 24;
+
+                document.getElementById('txtOvertimeHours').value = diff.toFixed(1);
+            }
+
+            function submitOvertimeRequest() {
+                const reason = document.getElementById('txtOvertimeReason').value.trim();
+                const otDate = document.getElementById('txtOvertimeDate').value;
+                const startTime = document.getElementById('txtOvertimeStart').value;
+                const endTime = document.getElementById('txtOvertimeEnd').value;
+                const requestedHours = document.getElementById('txtOvertimeHours').value;
+
+                if (!reason || !otDate || !startTime || !endTime || !requestedHours) {
+                    showAlert('Required', 'Please fill in all required fields.', 'error');
+                    return;
+                }
+
+                // Date Validation: Current or Future
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const selectedDate = new Date(otDate);
+                if (selectedDate < today) {
+                    showAlert('Invalid Date', 'Overtime date cannot be in the past. Please select today or a future date.', 'error');
+                    return;
+                }
+
+                // Time Validation: Must be after 5:00 PM (17:00)
+                const startHour = parseInt(startTime.split(':')[0]);
+                if (startHour < 17 && startHour >= 8) {
+                    showAlert('Invalid Time', 'Overtime must be requested for hours after standard shift ends (5:00 PM).', 'error');
+                    return;
+                }
+
+                fetch(handlerUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `action=requestovertime&employeeId=${employeeId}&reason=${encodeURIComponent(reason)}&otDate=${otDate}&startTime=${startTime}&endTime=${endTime}&requestedHours=${requestedHours}`
+                })
+                .then(res => res.json())
+                .then(data => {
+                    closeModal('overtimeModal');
+                    if (data.success) {
+                        showAlert('Success', 'Overtime request submitted successfully!', 'success');
+                        setTimeout(() => location.reload(), 1500);
+                    } else {
+                        showAlert('Failed', data.message || 'Failed to submit request.', 'error');
+                    }
+                })
+                .catch(err => {
+                    closeModal('overtimeModal');
+                    showAlert('Error', 'Failed to submit request: ' + err.message, 'error');
+                });
+            }
+
+            function getRequestStatusColor(status) {
+                const normalized = (status || '').toLowerCase();
+                if (normalized.includes('approved')) return '#10b981';
+                if (normalized.includes('rejected')) return '#ef4444';
+                if (normalized.includes('pending') || normalized.includes('submitted') || normalized.includes('review')) return '#f59e0b';
+                return '#6b7280';
+            }
+
+            function renderRequestRows(containerId, items, emptyMessage) {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+
+                if (!items || items.length === 0) {
+                    container.innerHTML = `<div style="padding:12px; border:1px dashed var(--border-color); border-radius:10px; color:var(--text-secondary);">${emptyMessage}</div>`;
+                    return;
+                }
+
+                container.innerHTML = items.map(item => {
+                    const statusColor = getRequestStatusColor(item.status);
+                    const dateText = formatRequestDate(item.date);
+                    const summary = item.summary || item.type || 'Request';
+                    const reason = item.reason ? String(item.reason) : '';
+                    return `
+                        <div style="padding:12px; border:1px solid var(--border-color); border-radius:10px; background:#fff;">
+                            <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
+                                <strong style="color:var(--text-primary);">${summary}</strong>
+                                <span style="font-size:12px; font-weight:700; color:${statusColor};">${item.status || 'Unknown'}</span>
+                            </div>
+                            <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${dateText}</div>
+                            ${reason ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:6px;">${reason}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function formatRequestDate(rawDate) {
+                if (!rawDate) return '-';
+
+                if (typeof rawDate === 'string') {
+                    const msMatch = rawDate.match(/\/Date\((\d+)\)\//);
+                    if (msMatch) {
+                        const dt = new Date(parseInt(msMatch[1], 10));
+                        return isNaN(dt.getTime()) ? 'No date' : dt.toLocaleString();
+                    }
+                }
+
+                const dt = new Date(rawDate);
+                return isNaN(dt.getTime()) ? 'No date' : dt.toLocaleString();
+            }
+
+            function loadRequestMonitor() {
+                fetch(`${handlerUrl}?action=getrequesthistory&employeeId=${encodeURIComponent(employeeId)}`)
+                .then(res => res.json())
+                .then(result => {
+                    if (!result.success) {
+                        renderRequestRows('ongoingRequestsList', [], 'Unable to load ongoing requests.');
+                        renderRequestRows('requestHistoryList', [], 'Unable to load request history.');
+                        return;
+                    }
+                    renderRequestRows('ongoingRequestsList', result.ongoingRequests || [], 'No ongoing requests.');
+                    renderRequestRows('requestHistoryList', result.requestHistory || [], 'No request history found.');
+                })
+                .catch(() => {
+                    renderRequestRows('ongoingRequestsList', [], 'Unable to load ongoing requests.');
+                    renderRequestRows('requestHistoryList', [], 'Unable to load request history.');
+                });
+            }
+
+            function openOngoingRequestsModal() {
+                loadRequestMonitor();
+                document.getElementById('ongoingRequestsModal').style.display = 'block';
+            }
+
+            function openRequestHistoryModal() {
+                loadRequestMonitor();
+                document.getElementById('requestHistoryModal').style.display = 'block';
+            }
+
+            function renderConcernHistoryRows(items) {
+                const container = document.getElementById('concernHistoryList');
+                if (!container) return;
+
+                if (!items || items.length === 0) {
+                    container.innerHTML = `<div style="padding:12px; border:1px dashed var(--border-color); border-radius:10px; color:var(--text-secondary);">No concern history found.</div>`;
+                    return;
+                }
+
+                container.innerHTML = items.map(item => {
+                    const statusColor = getRequestStatusColor(item.status);
+                    const dt = formatRequestDate(item.submittedDate);
+                    const title = `${item.concernType || 'Concern'}: ${item.subject || 'No Subject'}`;
+                    const desc = item.description ? String(item.description) : '';
+                    return `
+                        <div style="padding:12px; border:1px solid var(--border-color); border-radius:10px; background:#fff;">
+                            <div style="display:flex; justify-content:space-between; gap:10px; align-items:center;">
+                                <strong style="color:var(--text-primary);">${title}</strong>
+                                <span style="font-size:12px; font-weight:700; color:${statusColor};">${item.status || 'Submitted'}</span>
+                            </div>
+                            <div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${dt}</div>
+                            ${desc ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:6px;">${desc}</div>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            function loadConcernHistory() {
+                fetch(`${handlerUrl}?action=getemployeeconcernhistory&employeeId=${encodeURIComponent(employeeId)}`)
+                .then(res => res.json())
+                .then(result => {
+                    if (!result.success) {
+                        renderConcernHistoryRows([]);
+                        return;
+                    }
+                    renderConcernHistoryRows(result.concernHistory || []);
+                })
+                .catch(() => {
+                    renderConcernHistoryRows([]);
+                });
+            }
+
+            function openConcernHistoryModal() {
+                loadConcernHistory();
+                document.getElementById('concernHistoryModal').style.display = 'block';
+            }
+
+            function openGovLoanFormsModal() {
+                document.getElementById('govLoanFormsModal').style.display = 'block';
+            }
+
+            function openGovForm(url) {
+                if (!url) return;
+                window.open(url, '_blank', 'noopener,noreferrer');
+            }
+
             function sendResignationRequest() {
                 const reason = document.getElementById('resignationReason').value.trim();
                 if (!reason) {
@@ -1227,6 +1863,96 @@
                     closeModal('resignationModal');
                     showAlert('Error', 'Failed to submit request: ' + err.message, 'error');
                 });
+            }
+
+            function downloadLoanForm() {
+                try {
+                    if (typeof html2pdf === 'undefined') {
+                        alert('PDF library is loading. Please wait...');
+                        return;
+                    }
+
+                    const name = "<%= GetEmployeeName() %>";
+                    const dept = "<%= GetEmployeeDepartment() %>";
+                    const id = "<%= GetEmployeeId() %>";
+
+                    const element = document.createElement('div');
+                    element.innerHTML = `
+                        <div style="padding: 45px; font-family: 'Arial', sans-serif; color: #333; width: 750px; margin: auto; border: 1px solid #eee;">
+                            <div style="text-align: center; border-bottom: 2px solid #A44F56; padding-bottom: 15px; margin-bottom: 30px;">
+                                <h1 style="color: #A44F56; margin: 0; font-size: 24px;">SHEESSENTIALS ESSENTIALS</h1>
+                                <p style="font-size: 14px; color: #666; margin: 5px 0;">LOAN APPLICATION FORM</p>
+                            </div>
+
+                            <table style="width: 100%; margin-bottom: 25px; font-size: 14px;">
+                                <tr>
+                                    <td style="width: 50%; padding: 8px;"><strong>Employee Name:</strong> ${name}</td>
+                                    <td style="padding: 8px;"><strong>Employee ID:</strong> ${id}</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 8px;"><strong>Department:</strong> ${dept}</td>
+                                    <td style="padding: 8px;"><strong>Date:</strong> ${new Date().toLocaleDateString()}</td>
+                                </tr>
+                            </table>
+
+                            <h3 style="background: #f9f9f9; padding: 10px; border-left: 4px solid #A44F56; font-size: 15px; margin: 0 0 10px 0;">LOAN DETAILS</h3>
+                            <table style="width: 100%; margin-bottom: 25px; border-collapse: collapse; font-size: 14px;">
+                                <tr>
+                                    <td style="border: 1px solid #ddd; padding: 12px; width: 40%;"><strong>Loan Type:</strong></td>
+                                    <td style="border: 1px solid #ddd; padding: 12px;">[ ] Government Loan  [ ] Personal Loan  [ ] Emergency</td>
+                                </tr>
+                                <tr>
+                                    <td style="border: 1px solid #ddd; padding: 12px;"><strong>Requested Amount:</strong></td>
+                                    <td style="border: 1px solid #ddd; padding: 12px;">₱ __________________________</td>
+                                </tr>
+                                <tr>
+                                    <td style="border: 1px solid #ddd; padding: 12px;"><strong>Purpose of Loan:</strong></td>
+                                    <td style="border: 1px solid #ddd; padding: 12px; height: 120px; vertical-align: top;"></td>
+                                </tr>
+                            </table>
+
+                            <h3 style="background: #f9f9f9; padding: 10px; border-left: 4px solid #A44F56; font-size: 15px; margin: 0 0 10px 0;">DECLARATION</h3>
+                            <p style="font-size: 12px; line-height: 1.5; color: #666; margin-bottom: 30px;">
+                                I hereby authorize the company to deduct the agreed installment amount from my monthly salary. I understand that any outstanding balance must be settled upon resignation or termination. I certify that the information provided is true and correct.
+                            </p>
+
+                            <table style="width: 100%; margin-top: 40px; font-size: 14px;">
+                                <tr>
+                                    <td style="width: 45%; text-align: center; border-top: 1px solid #333; padding-top: 10px;">
+                                        Employee Signature
+                                    </td>
+                                    <td style="width: 10%;"></td>
+                                    <td style="width: 45%; text-align: center; border-top: 1px solid #333; padding-top: 10px;">
+                                        Date Signed
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <div style="margin-top: 60px; border-top: 2px dashed #eee; padding-top: 20px;">
+                                <p style="font-size: 11px; color: #999; text-align: center; margin-bottom: 15px;">FOR HR USE ONLY</p>
+                                <table style="width: 100%; font-size: 12px;">
+                                    <tr>
+                                        <td style="border: 1px solid #eee; padding: 15px; width: 33%;">Approved By: ____________</td>
+                                        <td style="border: 1px solid #eee; padding: 15px; width: 33%;">Date: ____________</td>
+                                        <td style="border: 1px solid #eee; padding: 15px; width: 33%;">Status: [ ] Approved [ ] Declined</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+
+                    const opt = {
+                        margin: 10,
+                        filename: 'Loan_Application_Form_' + name.replace(/[^a-z0-9]/gi, '_') + '.pdf',
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, scrollY: 0, useCORS: true },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+
+                    html2pdf().from(element).set(opt).save();
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
             }
         </script>
     </asp:Content>

@@ -34,5 +34,8 @@ namespace ExWebAppSia.Models
 
         [BsonElement("relatedId")]
         public string RelatedId { get; set; } // ID of the Leave/OT/UT record
+
+        [BsonElement("priority")]
+        public string Priority { get; set; } = "Normal"; // "Normal", "High"
     }
 }

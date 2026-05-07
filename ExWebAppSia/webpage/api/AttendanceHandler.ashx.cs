@@ -52,8 +52,12 @@ namespace ExWebAppSia.webpage.api
                     employeeId = sessionEmployeeId;
                 }
                 
-                // If session is active, override param if mismatch to prevent accidental errors
-                if (!string.IsNullOrEmpty(sessionEmployeeId) && employeeId != sessionEmployeeId)
+                // If session is active, override param if mismatch to prevent accidental errors.
+                // NOTE: Some endpoints (e.g. HR/SuperAdmin viewer endpoints) intentionally fetch by a selected employeeId.
+                bool allowCrossEmployee = action.Equals("getrequesthistory", StringComparison.OrdinalIgnoreCase)
+                                       || action.Equals("getemployeeconcernhistory", StringComparison.OrdinalIgnoreCase);
+
+                if (!allowCrossEmployee && !string.IsNullOrEmpty(sessionEmployeeId) && employeeId != sessionEmployeeId)
                 {
                     System.Diagnostics.Debug.WriteLine($"[Security] Identity mismatch in Handler: Param={employeeId}, Session={sessionEmployeeId}. Using Session.");
                     employeeId = sessionEmployeeId;
@@ -106,14 +110,14 @@ namespace ExWebAppSia.webpage.api
                                 // Fetch employee once for all checks
                                 var empInfo = Task.Run(() => _employeeService.GetByEmployeeIdAsync(employeeId)).GetAwaiter().GetResult();
 
-                                if (nowLocal.TimeOfDay >= new TimeSpan(8, 16, 0) && (empInfo == null || (empInfo.Role != "President" && empInfo.Role != "CEO")))
+                                if (nowLocal.TimeOfDay >= new TimeSpan(8, 16, 0) && (empInfo == null || empInfo.Role != "President"))
                                 {
                                     result = false;
                                     message = "Time in is restricted after 8:16 AM. You are late by 16 minutes or more and cannot time in for today according to company policy. Please contact HR.";
                                     System.Diagnostics.Debug.WriteLine($"Blocked Late TimeIn for {employeeId}: {nowLocal:HH:mm:ss}");
                                 }
                                 else if (empInfo != null && empInfo.HiredDate.Date == DateTime.UtcNow.Date
-                                    && empInfo.Role != "President" && empInfo.Role != "CEO")
+                                    && empInfo.Role != "President")
                                 {
                                     result = false;
                                     message = "New employees are restricted from timing in on their first day of hiring. You may begin clocking in starting tomorrow. Welcome to the team!";
@@ -297,6 +301,7 @@ namespace ExWebAppSia.webpage.api
 
                     case "requestundertime":
                         string utReason = context.Request["reason"] ?? context.Request.QueryString["reason"] ?? "No reason provided";
+                        string utType = context.Request["type"] ?? context.Request.QueryString["type"] ?? "Regular";
                         if (string.IsNullOrEmpty(employeeId))
                         {
                             message = "Missing employee ID";
@@ -324,14 +329,72 @@ namespace ExWebAppSia.webpage.api
                                 var empUt = Task.Run(async () => await _employeeService.GetEmployeeByIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
                                 string empNameUt = empUt?.FullName ?? latestTodayAttendance.EmployeeName;
                                 string deptUt = empUt?.Department ?? latestTodayAttendance.Department;
-                                result = Task.Run(async () => await utService.RequestUndertimeAsync(latestTodayAttendance.Id, employeeId, empNameUt, deptUt, utReason).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                string departureTime = context.Request["departureTime"] ?? context.Request.QueryString["departureTime"];
+                                result = Task.Run(async () => await utService.RequestUndertimeAsync(latestTodayAttendance.Id, employeeId, empNameUt, deptUt, utReason, utType, departureTime).ConfigureAwait(false)).GetAwaiter().GetResult();
                                 message = result ? "Undertime request submitted successfully" : "Failed to submit undertime request.";
+                            }
+                        }
+                        break;
+
+                    case "emergencyundertime":
+                        if (string.IsNullOrEmpty(employeeId))
+                        {
+                            message = "Missing employee ID";
+                        }
+                        else
+                        {
+                            var attendanceRecords = Task.Run(async () => await _attendanceService.GetEmployeeAttendanceAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            var todayDate = DateTime.UtcNow.AddHours(8).Date;
+                            var latestTodayAttendance = attendanceRecords
+                                .Where(a => a.Date.Date == todayDate || (a.TimeIn.HasValue && a.TimeIn.Value.ToLocalTime().Date == todayDate))
+                                .OrderByDescending(a => a.TimeIn)
+                                .FirstOrDefault();
+
+                            if (latestTodayAttendance == null)
+                            {
+                                result = false;
+                                message = "No attendance record found for today. Please time in first.";
+                            }
+                            else
+                            {
+                                var utService = new UndertimeService();
+                                var empUt = Task.Run(async () => await _employeeService.GetEmployeeByIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                string empNameUt = empUt?.FullName ?? latestTodayAttendance.EmployeeName;
+                                string deptUt = empUt?.Department ?? latestTodayAttendance.Department;
+                                
+                                // Record Emergency UT immediately
+                                result = Task.Run(async () => await utService.RecordEmergencyUndertimeAsync(latestTodayAttendance.Id, employeeId, empNameUt, deptUt).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                
+                                if (result)
+                                {
+                                    // Also perform Time Out
+                                    result = Task.Run(async () => await _attendanceService.TimeOutAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                    message = result ? "Emergency undertime recorded and timed out successfully." : "Emergency recorded, but failed to time out.";
+                                }
+                                else
+                                {
+                                    message = "Failed to record emergency undertime.";
+                                }
                             }
                         }
                         break;
 
                     case "requestovertime":
                         string reason = context.Request["reason"] ?? context.Request.QueryString["reason"] ?? "No reason provided";
+                        string otDateStr = context.Request["otDate"] ?? context.Request.QueryString["otDate"] ?? "";
+                        string startTime = context.Request["startTime"] ?? context.Request.QueryString["startTime"] ?? "";
+                        string endTime = context.Request["endTime"] ?? context.Request.QueryString["endTime"] ?? "";
+                        string reqHoursStr = context.Request["requestedHours"] ?? context.Request.QueryString["requestedHours"] ?? "0";
+
+                        DateTime otDate;
+                        if (!DateTime.TryParse(otDateStr, out otDate))
+                        {
+                            otDate = DateTime.UtcNow.AddHours(8).Date;
+                        }
+
+                        decimal requestedHours;
+                        decimal.TryParse(reqHoursStr, out requestedHours);
+
                         if (string.IsNullOrEmpty(employeeId))
                         {
                             message = "Missing employee ID";
@@ -351,7 +414,7 @@ namespace ExWebAppSia.webpage.api
                                 var empOt = Task.Run(async () => await _employeeService.GetEmployeeByIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
                                 string empNameOt = empOt?.FullName ?? currentAttendance.EmployeeName;
                                 string deptOt = empOt?.Department ?? currentAttendance.Department;
-                                result = Task.Run(async () => await _overtimeService.RequestOvertimeAsync(currentAttendance.Id, employeeId, empNameOt, deptOt, reason).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                result = Task.Run(async () => await _overtimeService.RequestOvertimeAsync(currentAttendance.Id, employeeId, empNameOt, deptOt, reason, otDate, startTime, endTime, requestedHours).ConfigureAwait(false)).GetAwaiter().GetResult();
                                 message = result ? "Overtime request submitted successfully" : "Failed to submit overtime request. A request may already be pending.";
                             }
                         }
@@ -473,6 +536,146 @@ namespace ExWebAppSia.webpage.api
                         }
                         break;
 
+                    case "getrequesthistory":
+                        if (string.IsNullOrEmpty(employeeId))
+                        {
+                            message = "Missing employee ID";
+                        }
+                        else
+                        {
+                            try
+                            {
+                                var leaveService = new LeaveService();
+                                var undertimeService = new UndertimeService();
+                                var loanService = new LoanService();
+
+                                var requestItems = new System.Collections.Generic.List<System.Collections.Generic.Dictionary<string, object>>();
+
+                                var leaves = Task.Run(async () => await leaveService.GetLeavesByEmployeeIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                foreach (var leave in leaves)
+                                {
+                                    requestItems.Add(new System.Collections.Generic.Dictionary<string, object>
+                                    {
+                                        ["type"] = "Leave",
+                                        ["status"] = leave.Status ?? "Unknown",
+                                        ["date"] = leave.SubmittedDate,
+                                        ["reason"] = leave.Reason ?? "",
+                                        ["summary"] = $"{leave.LeaveType} ({leave.StartDate:MMM dd} - {leave.EndDate:MMM dd})"
+                                    });
+                                }
+
+                                // Faster: query employee-scoped recent OT/UT/Loans instead of fetching all
+                                var otRequests = Task.Run(async () => await _overtimeService.GetRecentRequestsByEmployeeIdAsync(employeeId, limit: 150, onlyActive: false).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                foreach (var ot in otRequests)
+                                {
+                                    requestItems.Add(new System.Collections.Generic.Dictionary<string, object>
+                                    {
+                                        ["type"] = "Overtime",
+                                        ["status"] = ot.Status ?? "Pending",
+                                        ["date"] = ot.RequestedAt,
+                                        ["reason"] = ot.Reason ?? "",
+                                        ["summary"] = $"OT request ({ot.Date:MMM dd, yyyy})"
+                                    });
+                                }
+
+                                var utRequests = Task.Run(async () => await undertimeService.GetRecentRequestsByEmployeeIdAsync(employeeId, limit: 150, onlyActive: false).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                foreach (var ut in utRequests)
+                                {
+                                    requestItems.Add(new System.Collections.Generic.Dictionary<string, object>
+                                    {
+                                        ["type"] = "Undertime",
+                                        ["status"] = ut.Status ?? "Pending",
+                                        ["date"] = ut.RequestedAt,
+                                        ["reason"] = ut.Reason ?? "",
+                                        ["summary"] = $"UT request ({ut.Date:MMM dd, yyyy})"
+                                    });
+                                }
+
+                                var loans = Task.Run(async () => await loanService.GetRecentLoansByEmployeeIdAsync(employeeId, limit: 150).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                foreach (var loan in loans)
+                                {
+                                    requestItems.Add(new System.Collections.Generic.Dictionary<string, object>
+                                    {
+                                        ["type"] = "Loan",
+                                        ["status"] = loan.Status ?? "Pending",
+                                        ["date"] = loan.RequestDate,
+                                        ["reason"] = loan.Remarks ?? "",
+                                        ["summary"] = $"{loan.Agency} - {loan.LoanType}"
+                                    });
+                                }
+
+                                var sorted = requestItems
+                                    .OrderByDescending(r => r.ContainsKey("date") ? (DateTime)r["date"] : DateTime.MinValue)
+                                    .ToList();
+
+                                var ongoing = sorted
+                                    .Where(r => IsOngoingStatus((r["status"] ?? "").ToString()))
+                                    .Take(20)
+                                    .ToList();
+
+                                var history = sorted.Take(50).ToList();
+
+                                var historyResponse = new
+                                {
+                                    success = true,
+                                    ongoingRequests = ongoing,
+                                    requestHistory = history
+                                };
+
+                                context.Response.Write(serializer.Serialize(historyResponse));
+                                return;
+                            }
+                            catch (Exception ex)
+                            {
+                                message = "Error: " + ex.Message;
+                                result = false;
+                            }
+                        }
+                        break;
+
+                    case "getemployeeconcernhistory":
+                        if (string.IsNullOrEmpty(employeeId))
+                        {
+                            message = "Missing employee ID";
+                        }
+                        else
+                        {
+                            try
+                            {
+                                var concernService = new EmployeeConcernService();
+                                var concerns = Task.Run(async () => await concernService.GetConcernsByEmployeeIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
+
+                                var concernItems = concerns
+                                    .Select(c => new
+                                    {
+                                        type = "Concern",
+                                        concernType = c.ConcernType ?? "General",
+                                        subject = c.Subject ?? "No Subject",
+                                        status = c.Status ?? "Submitted",
+                                        description = c.Description ?? "",
+                                        submittedDate = c.SubmittedDate
+                                    })
+                                    .OrderByDescending(c => c.submittedDate)
+                                    .Take(50)
+                                    .ToList();
+
+                                var concernHistoryResponse = new
+                                {
+                                    success = true,
+                                    concernHistory = concernItems
+                                };
+
+                                context.Response.Write(serializer.Serialize(concernHistoryResponse));
+                                return;
+                            }
+                            catch (Exception ex)
+                            {
+                                message = "Error: " + ex.Message;
+                                result = false;
+                            }
+                        }
+                        break;
+
                     default:
                         message = "Invalid action: " + action;
                         System.Diagnostics.Debug.WriteLine($"Invalid action: {action}");
@@ -513,6 +716,17 @@ namespace ExWebAppSia.webpage.api
         public bool IsReusable
         {
             get { return false; }
+        }
+
+        private static bool IsOngoingStatus(string status)
+        {
+            if (string.IsNullOrWhiteSpace(status)) return false;
+            var normalized = status.Trim().ToLowerInvariant();
+            return normalized == "pending" ||
+                   normalized == "submitted" ||
+                   normalized == "in progress" ||
+                   normalized == "in review" ||
+                   normalized == "processing";
         }
     }
 }

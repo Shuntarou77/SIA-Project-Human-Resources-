@@ -105,92 +105,27 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     return;
                 }
 
-                // Optimize: Only fetch attendance for the current year as that's all we display
-                var currentYear = DateTime.Now.Year;
-                var startDate = new DateTime(currentYear, 1, 1);
-                _employeeAttendanceRecords = await _attendanceService.GetEmployeeAttendanceAsync(employee.EmployeeId, startDate);
-                CalculatePersonalAttendanceStatistics();
+                // UNIFIED LOGIC: Use centralized AttendanceService for consistent MONTHLY stats
+                var stats = await _attendanceService.GetMonthlyAttendanceStatsAsync(employee.EmployeeId, employee.HiredDate);
+
+                _attendanceStats = new Dictionary<string, object>
+                {
+                    { "daysPresent", stats.PresentCount },
+                    { "daysAbsent", stats.AbsentCount },
+                    { "daysLate", stats.LateCount },
+                    { "attendanceRate", (int)Math.Round(stats.AttendanceRate) },
+                    { "remainingAbsences", stats.RemainingAbsences },
+                    { "targetWorkingDays", stats.WorkingDaysToDate }
+                };
             }
-            catch
+            catch (Exception ex)
             {
+                System.Diagnostics.Debug.WriteLine($"Error loading personal attendance stats: {ex.Message}");
                 _attendanceStats = GetDefaultStats();
             }
         }
 
-        private void CalculatePersonalAttendanceStatistics()
-        {
-            if (_employeeAttendanceRecords == null || _employeeAttendanceRecords.Count == 0)
-            {
-                _attendanceStats = GetDefaultStats();
-                return;
-            }
-
-            var now = DateTime.Now;
-            var today = now.Date;
-            var currentMonth = new DateTime(now.Year, now.Month, 1);
-
-            var currentMonthRecords = _employeeAttendanceRecords
-                .Where(a => a.TimeIn.HasValue)
-                .Select(a => new { Record = a, LocalTime = a.TimeIn.Value.ToLocalTime() })
-                .Where(x => x.LocalTime >= currentMonth && x.LocalTime < currentMonth.AddMonths(1))
-                .ToList();
-
-            var currentMonthPresent = currentMonthRecords.Select(x => x.LocalTime.Date).Distinct().Count();
-            
-            // System-wide start date for attendance tracking
-            var trackingStart = AttendanceService.TRACKING_START_DATE;
-            // Get employee hired date
-            var employee = CurrentEmployee;
-            var hireDate = (employee != null && employee.HiredDate != DateTime.MinValue) ? employee.HiredDate.ToLocalTime().Date : trackingStart;
-            var currentYear = now.Year;
-            var yearStart = new DateTime(currentYear, 1, 1);
-            var effectiveStart = hireDate > yearStart ? hireDate : yearStart;
-            if (effectiveStart < trackingStart) effectiveStart = trackingStart;
-
-            // Monthly workdays calculation
-            var monthTrackingStart = currentMonth > effectiveStart ? currentMonth : effectiveStart;
-            var pastWeekdays = 0;
-            if (monthTrackingStart <= today)
-            {
-                pastWeekdays = Enumerable.Range(0, (today - monthTrackingStart).Days + 1)
-                    .Select(i => monthTrackingStart.AddDays(i))
-                    .Count(d => d <= today && d.DayOfWeek != DayOfWeek.Sunday); // Include Saturdays
-            }
-            
-            var currentMonthAbsent = Math.Max(0, pastWeekdays - currentMonthPresent);
-            var currentMonthLate = currentMonthRecords.GroupBy(x => x.LocalTime.Date).Count(g => g.OrderBy(x => x.LocalTime).First().LocalTime.Hour >= 9);
-
-            // Yearly stats — delegate to centralized service (uses yesterday as finalized cutoff)
-            var yearlyAbsent = 0; // Placeholder; remaining absences come from service below
-            var remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
-
-            // Count finalized present days (before today) for yearly tracking
-            var yesterday = today.AddDays(-1);
-            var yearlyRecords = _employeeAttendanceRecords
-                .Where(a => a.TimeIn.HasValue)
-                .Select(a => a.TimeIn.Value.ToLocalTime())
-                .Where(t => t.Year == now.Year && t.Date >= effectiveStart)
-                .ToList();
-            var yearlyPresent = yearlyRecords.Select(t => t.Date).Distinct().Count(d => d < today);
-            int pastYearWeekdays = 0;
-            if (effectiveStart <= yesterday)
-            {
-                pastYearWeekdays = Enumerable.Range(0, (yesterday - effectiveStart).Days + 1)
-                    .Select(i => effectiveStart.AddDays(i))
-                    .Count(d => d.DayOfWeek != DayOfWeek.Sunday);
-            }
-            yearlyAbsent = Math.Max(0, pastYearWeekdays - yearlyPresent);
-            remainingAbsences = Math.Max(0, TOTAL_ALLOWED_ABSENCES_PER_YEAR - yearlyAbsent);
-
-            _attendanceStats = new Dictionary<string, object>
-            {
-                { "daysPresent", currentMonthPresent },
-                { "daysAbsent", currentMonthAbsent },
-                { "daysLate", currentMonthLate },
-                { "remainingAbsences", remainingAbsences },
-                { "targetWorkingDays", pastYearWeekdays }
-            };
-        }
+        // Removed legacy CalculatePersonalAttendanceStatistics as it is now handled by AttendanceService.GetYearlyAttendanceStatsAsync
 
         private Dictionary<string, object> GetDefaultStats() => new Dictionary<string, object> 
         { 
@@ -247,7 +182,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             try
             {
                 // Filter out Executive department from dashboard counts as requested
-                var countableEmployees = employees.Where(e => e.Department != "Executive").ToList();
+                var countableEmployees = employees.ToList();
 
                 int totalEmployees = countableEmployees.Count;
                 int femaleCount = countableEmployees.Count(e => !string.IsNullOrEmpty(e.Gender) && 
@@ -324,30 +259,13 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         {
             try
             {
-                var today = DateTime.Today;
-                var attendanceTask = _attendanceService.GetAttendanceByDateAsync(today);
-                var leavesTask = _leaveService.GetLeavesByDateAsync(today);
+                // UNIFIED LOGIC: Use monthly team stats for the dashboard
+                var monthlyTeamStats = await _attendanceService.GetMonthlyTeamStatsAsync();
 
-                await Task.WhenAll(attendanceTask, leavesTask);
-                
-                var allAttendanceRecords = attendanceTask.Result;
-                var attendanceRecords = allAttendanceRecords.Where(a => a.Department != "Executive").ToList();
-                var leavesToday = leavesTask.Result;
-
-                int totalActiveEmployees = allEmployees.Count(e => e.IsActive && e.Department != "Executive");
-                int onLeaveCount = leavesToday.Count(l => l.Status == "Approved" && l.Department != "Executive");
-                int presentCount = attendanceRecords.Count(a => a.TimeIn.HasValue);
-                int lateCount = attendanceRecords.Count(a => a.TimeIn.HasValue && 
-                    (a.TimeIn.Value.ToLocalTime().Hour > 8 || 
-                     (a.TimeIn.Value.ToLocalTime().Hour == 8 && a.TimeIn.Value.ToLocalTime().Minute > 0) ||
-                     (a.TimeIn.Value.ToLocalTime().Hour == 8 && a.TimeIn.Value.ToLocalTime().Second > 0)));
-                
-                int absentCount = 0;
-                if (today.DayOfWeek != DayOfWeek.Sunday)
-                {
-                    absentCount = totalActiveEmployees - presentCount - onLeaveCount;
-                    if (absentCount < 0) absentCount = 0;
-                }
+                int presentCount = monthlyTeamStats.PresentCount;
+                int absentCount = monthlyTeamStats.AbsentCount;
+                int onLeaveCount = monthlyTeamStats.OnLeaveCount;
+                int lateCount = monthlyTeamStats.LateCount;
 
                 if (litPresentCount != null) litPresentCount.Text = presentCount.ToString();
                 if (litAbsentCount != null) litAbsentCount.Text = absentCount.ToString();
@@ -361,7 +279,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error loading attendance data: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error loading dashboard attendance data: {ex.Message}");
             }
         }
 

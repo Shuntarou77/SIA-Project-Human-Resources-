@@ -201,7 +201,7 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
             try
             {
                 // Filter out Executive department from dashboard counts
-                var countableEmployees = employees.Where(e => e.Department != "Executive").ToList();
+                var countableEmployees = employees.ToList();
 
                 int totalEmployees = countableEmployees.Count;
                 int femaleCount = countableEmployees.Count(e => !string.IsNullOrEmpty(e.Gender) && 
@@ -249,25 +249,13 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
         {
             try
             {
-                var today = DateTime.Today;
-                var attendanceTask = _attendanceService.GetAttendanceByDateAsync(today);
-                var leavesTask = _leaveService.GetLeavesByDateAsync(today);
+                // UNIFIED LOGIC: Use monthly team stats for the dashboard
+                var monthlyTeamStats = await _attendanceService.GetMonthlyTeamStatsAsync();
 
-                await Task.WhenAll(attendanceTask, leavesTask);
-                
-                var allAttendanceRecords = attendanceTask.Result;
-                var attendanceRecords = allAttendanceRecords.Where(a => a.Department != "Executive").ToList();
-                var leavesToday = leavesTask.Result;
-
-                int totalActiveEmployees = allEmployees.Count(e => e.IsActive && e.Department != "Executive");
-                int onLeaveCount = leavesToday.Count(l => l.Status == "Approved" && l.Department != "Executive");
-                int presentCount = attendanceRecords.Count(a => a.TimeIn.HasValue);
-                int lateCount = attendanceRecords.Count(a => a.TimeIn.HasValue && 
-                    (a.TimeIn.Value.ToLocalTime().Hour > 8 || 
-                    (a.TimeIn.Value.ToLocalTime().Hour == 8 && a.TimeIn.Value.ToLocalTime().Minute > 0)));
-                
-                int absentCount = totalActiveEmployees - presentCount - onLeaveCount;
-                if (absentCount < 0) absentCount = 0;
+                int presentCount = monthlyTeamStats.PresentCount;
+                int absentCount = monthlyTeamStats.AbsentCount;
+                int onLeaveCount = monthlyTeamStats.OnLeaveCount;
+                int lateCount = monthlyTeamStats.LateCount;
 
                 if (litPresentCount != null) litPresentCount.Text = presentCount.ToString();
                 if (litAbsentCount != null) litAbsentCount.Text = absentCount.ToString();
@@ -276,7 +264,7 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error loading attendance data: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error loading dashboard attendance data: {ex.Message}");
             }
         }
 

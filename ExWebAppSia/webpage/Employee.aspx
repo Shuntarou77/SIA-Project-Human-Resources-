@@ -834,7 +834,7 @@
 
                         <!-- 10 Department Cards (2 rows x 5 columns) -->
                         <div class="department-filter">
-                            <div class="dept-card" data-dept="R&D">
+                            <div class="dept-card" data-dept="Research & Development">
                                 <div class="dept-stats">
                                     <span class="dept-count">
                                         <asp:Literal ID="litRDCount" runat="server" Text="0"></asp:Literal>
@@ -913,24 +913,11 @@
                             </div>
                             <div class="filter-group">
                                 <select id="statusFilter" class="form-control"
-                                    style="height: 48px; border-radius: 12px; border: 1.5px solid #e5e7eb; min-width: 180px; font-size: 14px; padding: 0 16px; background: #fff; cursor: pointer;"
-                                    onchange="applyFilter(currentSelectedDept)">
+                                    style="height: 48px; border-radius: 12px; border: 1.5px solid #e5e7eb; min-width: 180px; font-size: 14px; padding: 0 16px; background: #fff; cursor: pointer;">
                                     <option value="Active">Active Employees</option>
                                     <option value="On Leave">On Leave</option>
                                     <option value="Inactive">Resigned/Inactive</option>
                                     <option value="all">All Status</option>
-                                </select>
-                            </div>
-                            <div class="filter-group">
-                                <select id="govtFilter" class="form-control"
-                                    style="height: 48px; border-radius: 12px; border: 1.5px solid #e5e7eb; min-width: 220px; font-size: 14px; padding: 0 16px; background: #fff; cursor: pointer;"
-                                    onchange="applyFilter(currentSelectedDept)">
-                                    <option value="all">All Contributions</option>
-                                    <option value="complete">Complete (SSS, PH, PagIbig)</option>
-                                    <option value="incomplete">Incomplete</option>
-                                    <option value="sss">With SSS</option>
-                                    <option value="philhealth">With PhilHealth</option>
-                                    <option value="pagibig">With Pag-IBIG</option>
                                 </select>
                             </div>
                         </div>
@@ -962,12 +949,12 @@
         </div>
 
         <!-- Bottom Section: Tabs for Requests -->
-        <div class="bottom-section-container" style="margin-top: 30px;">
+        <div class="bottom-section-container" style="margin-top: 30px; display: none;">
             <!-- Tabs Navigation -->
             <div style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 2px solid #f1f5f9; padding-bottom: 2px;">
                 <button type="button" onclick="switchRequestTab('leave-tab')" class="tab-btn active" id="tab-leave">Leave Requests</button>
-                <button type="button" onclick="switchRequestTab('concerns-tab')" class="tab-btn" id="tab-concerns">Employee Concerns</button>
                 <button type="button" onclick="switchRequestTab('resignation-tab')" class="tab-btn" id="tab-resignation">Resignation Requests</button>
+                <button type="button" onclick="switchRequestTab('loan-tab')" class="tab-btn" id="tab-loan">Loan Monitoring</button>
             </div>
 
             <!-- Leave Requests Tab Content -->
@@ -997,41 +984,6 @@
                                 <tr>
                                     <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
                                         Loading leave requests...
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Employee Concerns Tab Content -->
-            <div id="concerns-tab" class="tab-content">
-                <div class="attendance-table-container">
-                    <h3 class="table-title">
-                        <svg style="width:20px;height:20px;vertical-align:middle;margin-right:8px;fill:#3b82f6;" viewBox="0 0 24 24">
-                            <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-7 12h-2v-2h2v2zm0-4h-2V7h2v3z"/>
-                        </svg>
-                        Employee Concerns &mdash; Pending Review
-                    </h3>
-                    <div class="table-scroll" style="max-height: 400px;">
-                        <table class="attendance-table">
-                            <thead>
-                                <tr>
-                                    <th>Employee</th>
-                                    <th>ID</th>
-                                    <th style="width: 15%;">Type</th>
-                                    <th style="width: 20%;">Subject</th>
-                                    <th style="width: 25%;">Description</th>
-                                    <th>Date Submitted</th>
-                                    <th>Priority</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="employeeConcernsBody">
-                                <tr>
-                                    <td colspan="8" style="text-align: center; padding: 40px; color: #999;">
-                                        Loading employee concerns...
                                     </td>
                                 </tr>
                             </tbody>
@@ -1073,15 +1025,46 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Loan Monitoring Tab Content -->
+            <div id="loan-tab" class="tab-content">
+                <div class="attendance-table-container">
+                    <h3 class="table-title">
+                        <svg style="width:20px;height:20px;vertical-align:middle;margin-right:8px;fill:#8b4755;" viewBox="0 0 24 24">
+                            <path d="M4 18h16c.55 0 1-.45 1-1s-.45-1-1-1H4c-.55 0-1 .45-1 1s.45 1 1 1zm0-5h16c.55 0 1-.45 1-1s-.45-1-1-1H4c-.55 0-1 .45-1 1s.45 1 1 1zM3 7c0 .55.45 1 1 1h16c.55 0 1-.45 1-1s-.45-1-1-1H4c-.55 0-1 .45-1 1z"/>
+                        </svg>
+                        Loan Monitoring &mdash; Active Records
+                    </h3>
+                    <div class="table-scroll" style="max-height: 400px;">
+                        <table class="attendance-table">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Loan Type</th>
+                                    <th>Agency</th>
+                                    <th>Date Requested</th>
+                                    <th>Status</th>
+                                    <th>Last Updated</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="loanMonitoringBody">
+                                <tr>
+                                    <td colspan="7" style="text-align: center; padding: 40px; color: #999;">
+                                        Loading loan records...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- JavaScript for Filtering -->
         <script>
             document.addEventListener('DOMContentLoaded', function () {
-                // Initialize request tabs
-                loadPendingLeaveRequests();
-                loadPendingConcerns();
-                loadPendingResignations();
+                // Request tabs hidden for HR staff
 
                 const deptCards = document.querySelectorAll('.dept-card');
                 // Get the actual table body element using the server-side ID
@@ -1093,34 +1076,27 @@
                     deptCards.forEach(card => card.classList.remove('active'));
                 }
 
+                function normalizeDepartment(value) {
+                    const v = (value || '').toString().trim().toLowerCase();
+                    if (v === 'r&d' || v === 'research and development' || v === 'research & development') {
+                        return 'research & development';
+                    }
+                    if (v === 'hr' || v === 'human resources') return 'human resources';
+                    if (v === 'finance' || v === 'finance/accounting') return 'finance/accounting';
+                    return v;
+                }
+
                 function applyFilter(selectedDept = null) {
                     const searchTerm = (searchInput.value || '').toLowerCase();
-                    const govtFilter = document.getElementById('govtFilter').value;
                     // Get all rows from the table body
                     const tableRows = tableBody ? tableBody.querySelectorAll('tr') : [];
 
                     tableRows.forEach(row => {
-                        const dept = row.getAttribute('data-dept');
+                        const dept = normalizeDepartment(row.getAttribute('data-dept'));
                         const text = row.textContent.toLowerCase();
-                        const sss = row.getAttribute('data-sss') === 'true';
-                        const ph = row.getAttribute('data-ph') === 'true';
-                        const pagibig = row.getAttribute('data-pi') === 'true';
 
-                        const matchesDept = selectedDept ? dept === selectedDept : true;
+                        const matchesDept = selectedDept ? dept === normalizeDepartment(selectedDept) : true;
                         const matchesSearch = text.includes(searchTerm);
-
-                        let matchesGovt = true;
-                        if (govtFilter === 'complete') {
-                            matchesGovt = sss && ph && pagibig;
-                        } else if (govtFilter === 'incomplete') {
-                            matchesGovt = !(sss && ph && pagibig);
-                        } else if (govtFilter === 'sss') {
-                            matchesGovt = sss;
-                        } else if (govtFilter === 'philhealth') {
-                            matchesGovt = ph;
-                        } else if (govtFilter === 'pagibig') {
-                            matchesGovt = pagibig;
-                        }
 
                         const statusFilter = document.getElementById('statusFilter').value;
                         const rowActive = row.getAttribute('data-active');
@@ -1140,7 +1116,7 @@
                             matchesStatus = rowActive === statusFilter;
                         }
 
-                        if (matchesDept && matchesSearch && matchesGovt && matchesStatus) {
+                        if (matchesDept && matchesSearch && matchesStatus) {
                             row.classList.remove('filtered-out');
                         } else {
                             row.classList.add('filtered-out');
@@ -1167,6 +1143,16 @@
                 // Fix search input listener
                 if (searchInput) {
                     searchInput.addEventListener('input', () => {
+                        const activeCard = document.querySelector('.dept-card.active');
+                        const selectedDept = activeCard ? activeCard.getAttribute('data-dept') : null;
+                        currentSelectedDept = selectedDept;
+                        applyFilter(selectedDept);
+                    });
+                }
+
+                const statusFilterEl = document.getElementById('statusFilter');
+                if (statusFilterEl) {
+                    statusFilterEl.addEventListener('change', () => {
                         const activeCard = document.querySelector('.dept-card.active');
                         const selectedDept = activeCard ? activeCard.getAttribute('data-dept') : null;
                         currentSelectedDept = selectedDept;
@@ -1299,12 +1285,12 @@
                     <button type="button" class="action-button">View Details</button>
                 </div>`;
 
-                // Card 2: Leave History (Still needs AJAX when clicked)
+                // Card 2: Request History (OT/UT/Leave/Loans)
                 html += `<div class='action-card' onclick='openLeaveHistoryModal("${id}")'>
                     <div class='action-icon'><i class='fas fa-calendar-alt'></i></div>
-                    <h3 class='action-title'>History Leave of Absence</h3>
-                    <p class='action-description'>View leave history including sick leave, vacation, and personal matters.</p>
-                    <button type="button" class="action-button">View History</button>
+                    <h3 class='action-title'>History of Requests</h3>
+                    <p class='action-description'>View OT, UT, Leave, and Loan request history for this employee.</p>
+                    <button type="button" class="action-button">View Requests</button>
                 </div>`;
 
                 // Card 3: Concern History (Still needs AJAX when clicked)
@@ -1313,6 +1299,14 @@
                     <h3 class='action-title'>History of Employee Concern</h3>
                     <p class='action-description'>View all workplace concerns, complaints, or suggestions submitted to HR.</p>
                     <button type="button" class="action-button">View History</button>
+                </div>`;
+                
+                // Add Loan Application Card
+                html += `<div class='action-card' onclick='openCreateLoanModal("${empId}", "${fname} ${lname}")'>
+                    <div class='action-icon'><i class='fas fa-hand-holding-usd'></i></div>
+                    <h3 class='action-title'>Create Loan</h3>
+                    <p class='action-description'>Initiate a new loan request for the employee.</p>
+                    <button type="button" class="action-button" style="background:#8b4755;">Apply Loan</button>
                 </div>`;
 
                 const resStatus = row.getAttribute('data-resignation-status');
@@ -1330,36 +1324,12 @@
                     }
                 }
 
-                // Add more action cards below if needed...
-
-
-                html += `<div class='action-card' onclick="openLeaveHistoryModal('${id}')">`;
-                html += `<div class='action-icon'>📝</div>`;
-                html += `<h3 class='action-title'>Leave History</h3>`;
-                html += `<p class='action-description'>View history of sick leave, vacation, and personal matters.</p>`;
-                html += `<button class='action-button'>View History</button>`;
-                html += `</div>`;
-
-                html += `<div class='action-card' onclick="openConcernHistoryModal('${id}')">`;
-                html += `<div class='action-icon'>💬</div>`;
-                html += `<h3 class='action-title'>Concern History</h3>`;
-                html += `<p class='action-description'>View all workplace concerns, complaints, or suggestions.</p>`;
-                html += `<button class='action-button'>View History</button>`;
-                html += `</div>`;
-
                 if (active === "Active" || active === "On Leave") {
                     html += `<div class='action-card' onclick="resignEmployee('${id}')">`;
                     html += `<div class='action-icon'>👋</div>`;
                     html += `<h3 class='action-title'>Resigned</h3>`;
                     html += `<p class='action-description'>Mark this employee as resigned and deactivate account.</p>`;
                     html += `<button class='action-button' style='background: #ef4444;'>Process Resignation</button>`;
-                    html += `</div>`;
-
-                    html += `<div class='action-card' onclick="openDeployModal('${id}', '${dept}')">`;
-                    html += `<div class='action-icon'>🔄</div>`;
-                    html += `<h3 class='action-title'>Deploy</h3>`;
-                    html += `<p class='action-description'>Transfer this employee to a different department.</p>`;
-                    html += `<button class='action-button' style='background: #3b82f6;'>Redeploy</button>`;
                     html += `</div>`;
 
                     // On Leave Toggle
@@ -1544,18 +1514,146 @@
                 document.getElementById('payslipModal').style.display = 'none';
             }
 
+            function escapeHtml(str) {
+                if (str === null || str === undefined) return '';
+                return String(str)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function parseDotNetDate(input) {
+                if (!input) return null;
+                if (input instanceof Date) return input;
+                if (typeof input === 'string') {
+                    const m = input.match(/\/Date\((\d+)\)\//);
+                    if (m && m[1]) {
+                        const ms = parseInt(m[1], 10);
+                        if (!Number.isNaN(ms)) return new Date(ms);
+                    }
+                    const d = new Date(input);
+                    if (!Number.isNaN(d.getTime())) return d;
+                }
+                if (typeof input === 'number') {
+                    const d = new Date(input);
+                    if (!Number.isNaN(d.getTime())) return d;
+                }
+                return null;
+            }
+
+            function formatRequestDateAny(input) {
+                const d = parseDotNetDate(input);
+                if (!d) return 'No date';
+                return d.toLocaleString('en-US', {
+                    month: 'short',
+                    day: '2-digit',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true
+                });
+            }
+
+            function renderRequestHistoryFromJson(payload) {
+                const ongoing = (payload && payload.ongoingRequests) ? payload.ongoingRequests : [];
+                const history = (payload && payload.requestHistory) ? payload.requestHistory : [];
+
+                const renderList = (items) => {
+                    if (!items || items.length === 0) {
+                        return '<div style="padding: 12px; color: #6b7280;">No records found.</div>';
+                    }
+
+                    let html = '<div style="display: grid; gap: 12px;">';
+                    items.forEach(r => {
+                        const type = escapeHtml(r.type || r.Type || 'Request');
+                        const status = escapeHtml(r.status || r.Status || 'Unknown');
+                        const summary = escapeHtml(r.summary || r.Summary || '');
+                        const reason = escapeHtml(r.reason || r.Reason || '');
+                        const dateRaw = r.date || r.Date || r.submittedDate || r.SubmittedDate || r.requestedAt || r.RequestedAt;
+                        const dateStr = formatRequestDateAny(dateRaw);
+
+                        const normalized = String(status || '').trim().toLowerCase();
+                        const color = normalized === 'approved' || normalized === 'resolved' ? '#10b981'
+                                    : normalized === 'rejected' || normalized === 'declined' ? '#ef4444'
+                                    : normalized === 'closed' ? '#6b7280'
+                                    : '#f59e0b';
+
+                        html += `
+                            <div style="background:#f9f9f9;border-radius:10px;padding:14px;border-left:4px solid #E8C4C4;">
+                                <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start;">
+                                    <div style="min-width:0;">
+                                        <div style="font-weight:700;color:#333;">${type}</div>
+                                        ${summary ? `<div style="color:#555;margin-top:4px;word-break:break-word;">${summary}</div>` : ''}
+                                        ${reason ? `<div style="color:#666;margin-top:6px;"><strong>Reason:</strong> ${reason}</div>` : ''}
+                                        <div style="color:#9ca3af;font-size:12px;margin-top:8px;"><strong>Date:</strong> ${dateStr}</div>
+                                    </div>
+                                    <div style="flex:0 0 auto;">
+                                        <span style="display:inline-block;padding:6px 10px;border-radius:999px;background:${color}1A;color:${color};font-weight:700;font-size:12px;">
+                                            ${status}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += '</div>';
+                    return html;
+                };
+
+                return `
+                    <div style="padding: 18px;">
+                        <h3 style="color:#8B4755;margin:0 0 12px 0;">Ongoing Requests</h3>
+                        ${renderList(ongoing)}
+                        <div style="height:18px;"></div>
+                        <h3 style="color:#8B4755;margin:0 0 12px 0;">Request History</h3>
+                        ${renderList(history)}
+                    </div>
+                `;
+            }
+
             function openLeaveHistoryModal(employeeId) {
                 const modal = document.getElementById('leaveHistoryModal');
                 const content = document.getElementById('<%= leaveHistoryContent.ClientID %>');
 
-                content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #A36A66;"></i><p style="margin-top: 10px;">Loading leave history...</p></div>';
+                content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #A36A66;"></i><p style="margin-top: 10px;">Loading request history...</p></div>';
                 modal.style.display = 'block';
 
-                PageMethods.GetLeaveHistory(employeeId, function (response) {
-                    content.innerHTML = response;
-                }, function (error) {
-                    content.innerHTML = '<div style="padding: 20px; color: #dc3545;">Error loading leave history.</div>';
-                });
+                const timeoutId = setTimeout(function () {
+                    content.innerHTML = '<div style="padding: 20px; color: #dc3545;">Request history is taking too long to load. Please try again.</div>';
+                }, 8000);
+
+                // Use fast JSON handler to avoid PageMethods blocking/timeouts
+                try {
+                    const row = document.querySelector(`.employee-row[data-id="${employeeId}"]`);
+                    const humanId = row ? row.getAttribute('data-emp-id') : null;
+                    if (!humanId) {
+                        clearTimeout(timeoutId);
+                        content.innerHTML = '<div style="padding: 20px; color: #dc3545;">Could not determine employee id for request history.</div>';
+                        return;
+                    }
+
+                    const url = '<%= ResolveUrl("~/webpage/api/AttendanceHandler.ashx") %>?action=getrequesthistory&employeeId=' + encodeURIComponent(humanId);
+                    fetch(url, { method: 'GET', credentials: 'same-origin' })
+                        .then(r => r.json())
+                        .then(res => {
+                            clearTimeout(timeoutId);
+                            if (!res || res.success !== true) {
+                                content.innerHTML = '<div style="padding: 20px; color: #dc3545;">' + escapeHtml((res && res.message) ? res.message : 'Failed to load request history.') + '</div>';
+                                return;
+                            }
+                            content.innerHTML = renderRequestHistoryFromJson(res);
+                        })
+                        .catch(err => {
+                            clearTimeout(timeoutId);
+                            content.innerHTML = '<div style="padding: 20px; color: #dc3545;">Error loading request history.</div>';
+                            console.error(err);
+                        });
+                } catch (e) {
+                    clearTimeout(timeoutId);
+                    content.innerHTML = '<div style="padding: 20px; color: #dc3545;">Error loading request history.</div>';
+                }
             }
 
             function closeLeaveHistoryModal() {
@@ -1608,7 +1706,6 @@
                 concerns.sort((a, b) => new Date(b.submittedDate || b.SubmittedDate) - new Date(a.submittedDate || b.SubmittedDate));
 
                 concerns.forEach(c => {
-                    const priority = c.priorityLevel || c.PriorityLevel || "Medium";
                     const status = c.status || c.Status || "Pending";
                     const subject = c.subject || c.Subject || "No Subject";
                     const desc = c.description || c.Description || "";
@@ -1616,7 +1713,6 @@
                     const dateRaw = c.submittedDate || c.SubmittedDate;
                     const dateStr = dateRaw ? new Date(dateRaw).toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : "";
 
-                    const priorityColor = priority === "Urgent" ? "#ef4444" : priority === "High" ? "#f59e0b" : priority === "Medium" ? "#3b82f6" : "#10b981";
                     const statusColor = status === "Resolved" ? "#10b981" : status === "Closed" ? "#6b7280" : status === "In Progress" ? "#3b82f6" : "#f59e0b";
 
                     html += `<div style="background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #E8C4C4;">`;
@@ -1688,51 +1784,15 @@
                 });
             }
 
-            function openDeployModal(id, currentDept) {
-                document.getElementById('hdnDeployId').value = id;
-                document.getElementById('ddlNewDept').value = currentDept;
-                document.getElementById('deployModal').style.display = 'block';
-            }
-
-            function closeDeployModal() {
-                document.getElementById('deployModal').style.display = 'none';
-            }
-
-            function submitDeployment() {
-                const id = document.getElementById('hdnDeployId').value;
-                const dept = document.getElementById('ddlNewDept').value;
-
-                if (!dept) {
-                    showAlert("Required", "Please select a department.", "info");
-                    return;
-                }
-
-                PageMethods.DeployEmployee(id, dept, function (r) {
-                    try {
-                        var result = (typeof r === 'string') ? JSON.parse(r) : r;
-                        closeEmployeeDetailsModal(); // Close details modal first
-                        closeDeployModal(); // Close deploy modal
-                        if (result.success) {
-                            showAlert("Success", result.message, "success");
-                            setTimeout(function () { window.location.reload(); }, 700);
-                        } else {
-                            showAlert("Process Failed", result.message, "error");
-                        }
-                    } catch (pe) {
-                        showAlert("Error", "Unexpected response from server.", "error");
-                    }
-                }, function (e) { showAlert("Error", e.get_message ? e.get_message() : "Server error.", "error"); });
-            }
-
             // Close modal when clicking outside
             window.onclick = function (event) {
                 var detailsModal = document.getElementById('viewEmployeeDetailsModal');
                 var payslipModal = document.getElementById('payslipModal');
                 var leaveHistoryModal = document.getElementById('leaveHistoryModal');
                 var concernHistoryModal = document.getElementById('concernHistoryModal');
-                var deployModal = document.getElementById('deployModal');
                 var confirmModal = document.getElementById('confirmActionModal');
                 var alertModal = document.getElementById('genericAlertModal');
+                var createLoanModal = document.getElementById('createLoanModal');
 
                 if (event.target == detailsModal) {
                     closeEmployeeDetailsModal();
@@ -1742,12 +1802,12 @@
                     closeLeaveHistoryModal();
                 } else if (event.target == concernHistoryModal) {
                     closeConcernHistoryModal();
-                } else if (event.target == deployModal) {
-                    closeDeployModal();
                 } else if (event.target == confirmModal) {
                     closeConfirmModal();
                 } else if (event.target == alertModal) {
                     closeAlertModal();
+                } else if (event.target == createLoanModal) {
+                    closeCreateLoanModal();
                 }
             }
 
@@ -1775,7 +1835,7 @@
                 // Force close other modals so alert is visible at the very top
                 try { closeEmployeeDetailsModal(); } catch (e) { }
                 try { closeConfirmModal(); } catch (e) { }
-                try { closeDeployModal(); } catch (e) { }
+                try { closeCreateLoanModal(); } catch (e) { }
 
                 const modal = document.getElementById('genericAlertModal');
                 document.getElementById('alertModalTitle').textContent = title;
@@ -1826,66 +1886,6 @@
                 // Set button as active
                 var btnId = 'tab-' + tabId.replace('-tab', '');
                 document.getElementById(btnId).classList.add('active');
-            }
-
-            function loadPendingConcerns() {
-                PageMethods.GetPendingConcerns(function (response) {
-                    var result = typeof response === 'string' ? JSON.parse(response) : response;
-                    var tbody = document.getElementById('employeeConcernsBody');
-
-                    if (!result.success || !result.data || result.data.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">No pending employee concerns.</td></tr>';
-                        return;
-                    }
-
-                    tbody.innerHTML = result.data.map(function (c) {
-                        var employeeName = c.employeeName || 'Unknown Employee';
-                        var initials = getInitials(employeeName);
-                        var priorityClass = c.priorityLevel === 'Urgent' ? 'status-declined' : 
-                                           c.priorityLevel === 'High' ? 'status-pending-res' : 'status-pending';
-                        
-                        var isSelf = (c.employeeId && result.currentAdminId && c.employeeId.toString().toLowerCase() === result.currentAdminId.toString().toLowerCase());
-                        var actionsHtml = isSelf 
-                            ? '<span class="status-badge status-pending-res" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; font-size: 10px; padding: 4px 8px;">SELF-REQUEST</span>'
-                            : '<button type="button" class="btn-outline" onclick="resolveConcern(\'' + c.id + '\', \'' + (employeeName.replace(/'/g, "\\'")) + '\', this)">' +
-                                '<svg style="width:14px;height:14px;vertical-align:middle;fill:#22C55E;margin-right:4px;" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>Mark Resolved' +
-                              '</button>';
-
-                        return '<tr>' +
-                            '<td><span class="avatar-initial">' + initials + '</span> ' + employeeName + '</td>' +
-                            '<td>' + (c.employeeId || '—') + '</td>' +
-                            '<td>' + c.concernType + '</td>' +
-                            '<td>' + (c.subject || '—') + '</td>' +
-                            '<td title="' + c.description + '">' + (c.description.length > 60 ? c.description.substring(0, 57) + '...' : c.description) + '</td>' +
-                            '<td>' + c.submittedDate + '</td>' +
-                            '<td><span class="leave-status ' + priorityClass + '">' + c.priorityLevel + '</span></td>' +
-                            '<td>' + actionsHtml + '</td>' +
-                        '</tr>';
-                    }).join('');
-                }, function (error) {
-                    console.error('Error loading employee concerns:', error);
-                    document.getElementById('employeeConcernsBody').innerHTML =
-                        '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #999;">Error loading employee concerns.</td></tr>';
-                });
-            }
-
-            function resolveConcern(id, name, btn) {
-                showConfirm('Resolve Concern', 'Mark this concern from ' + name + ' as resolved?', function () {
-                    btn.disabled = true;
-                    PageMethods.ResolveConcern(id, function (r) {
-                        var result = typeof r === 'string' ? JSON.parse(r) : r;
-                        if (result.success) {
-                            showAlert('Resolved', 'The concern has been marked as resolved.', 'success');
-                            loadPendingConcerns(); // Reload data
-                        } else {
-                            showAlert('Failed', result.message, 'error');
-                            btn.disabled = false;
-                        }
-                    }, function (e) {
-                        showAlert('Error', e.get_message ? e.get_message() : 'Server error.', 'error');
-                        btn.disabled = false;
-                    });
-                });
             }
 
             function loadPendingResignations() {
@@ -2112,9 +2112,9 @@
 
         <!-- Hidden fields and buttons for postback -->
         <asp:HiddenField ID="hdnEmployeeId" runat="server" />
+        <asp:HiddenField ID="hdnCurrentAdminId" runat="server" ClientIDMode="Static" />
         <asp:HiddenField ID="hdnConcernsJson" runat="server" />
         <input type="hidden" id="hdnDeployId" />
-        <input type="hidden" id="hdnSelectedEmployeeName" />
         <asp:Button ID="btnViewEmployeeDetails" runat="server" OnClick="btnViewEmployeeDetails_Click"
             Style="display:none;" />
         <asp:Button ID="btnViewLeaveHistory" runat="server" OnClick="btnViewLeaveHistory_Click" Style="display:none;" />
@@ -2137,33 +2137,6 @@
                 </div>
             </ContentTemplate>
         </asp:UpdatePanel>
-
-        <!-- Deploy to Department Modal -->
-        <div id="deployModal" class="page-modal">
-            <div class="modal-content" style="max-width: 500px;">
-                <div class="modal-header">
-                    <h2 class="modal-title">Deploy to Department</h2>
-                    <span class="close" onclick="closeDeployModal()">&times;</span>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label class="form-label">Select Department</label>
-                        <select id="ddlNewDept" class="form-select">
-                            <option value="Human Resources">Human Resources</option>
-                            <option value="Operations">Operations</option>
-                            <option value="Marketing">Marketing</option>
-                            <option value="Finance/Accounting">Finance/Accounting</option>
-                            <option value="Inventory">Inventory</option>
-                            <option value="R&D">R&D</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="closeDeployModal()">Cancel</button>
-                    <button type="button" class="btn-submit" onclick="submitDeployment()">Confirm Deployment</button>
-                </div>
-            </div>
-        </div>
 
         <!-- Payslip Modal -->
         <div id="payslipModal" class="page-modal">
@@ -2254,7 +2227,7 @@
                             viewBox="0 0 24 24">
                             <path
                                 d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z" />
-                        </svg> History Leave of Absence</h2>
+                        </svg> History of Requests</h2>
                     <span class="close" onclick="closeLeaveHistoryModal()">&times;</span>
                 </div>
                 <div id="leaveHistoryContent" runat="server" style="max-height: 80vh; overflow-y: auto;">
@@ -2307,6 +2280,49 @@
             </div>
         </div>
 
+        <!-- Loan Request Modal -->
+        <div id="createLoanModal" class="page-modal">
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header">
+                    <h2 class="modal-title">New Loan Application</h2>
+                    <span class="close" onclick="closeCreateLoanModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label class="form-label">Employee Name</label>
+                        <input type="text" id="loanEmployeeName" class="form-input" readonly style="background: #f3f4f6;" />
+                        <input type="hidden" id="loanEmployeeId" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Loan Type</label>
+                        <select id="loanType" class="form-select">
+                            <option value="Salary Loan">Salary Loan</option>
+                            <option value="Calamity Loan">Calamity Loan</option>
+                            <option value="Housing Loan">Housing Loan</option>
+                            <option value="Educational Loan">Educational Loan</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Government Agency</label>
+                        <select id="loanAgency" class="form-select">
+                            <option value="SSS">SSS</option>
+                            <option value="Pag-IBIG">Pag-IBIG</option>
+                            <option value="GSIS">GSIS</option>
+                            <option value="PhilHealth">PhilHealth</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Remarks/Additional Details</label>
+                        <textarea id="loanRemarks" class="form-textarea" placeholder="e.g. Employee submitted paper form for 24 months term..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-cancel" onclick="closeCreateLoanModal()">Cancel</button>
+                    <button type="button" class="btn-submit" onclick="submitLoanRequest()">Create Record</button>
+                </div>
+            </div>
+        </div>
+
         <!-- Generic Alert Modal -->
         <div id="genericAlertModal" class="page-modal" style="z-index: 5001;">
             <div class="modal-content" style="max-width: 450px; margin-top: 15vh;">
@@ -2328,4 +2344,137 @@
         </div>
         <!-- Generate PDF Library -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+        
+        <script>
+            // Loan Management JS
+            function loadLoanRecords() {
+                const currentUserId = document.getElementById('hdnCurrentAdminId')?.value || "";
+                const handler = '<%= ResolveUrl("~/Handler/LoanHandler.ashx") %>?action=getall';
+                fetch(handler)
+                    .then(r => r.json())
+                    .then(res => {
+                        const tbody = document.getElementById('loanMonitoringBody');
+                        if (!res.success || !res.data || res.data.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 40px; color: #999;">No active loan records found.</td></tr>';
+                            return;
+                        }
+                        tbody.innerHTML = res.data.map(l => {
+                            const statusClass = l.Status === 'PENDING' ? 'status-pending' : (l.Status === 'APPROVED' ? 'status-active-emp' : 'status-declined');
+                            const dateCreated = new Date(l.RequestDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                            const lastUpdated = new Date(l.LastUpdated).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                            
+                            let actions = '';
+                            if (l.Status === 'PENDING') {
+                                if (l.EmployeeId === currentUserId) {
+                                    actions = `<span class="status-badge" style="background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; font-size: 10px; padding: 4px 8px; border-radius: 4px; display: inline-block;">SELF-REQUEST</span>`;
+                                } else {
+                                    actions = `
+                                        <button onclick="updateLoanStatus('${l.Id}', 'APPROVED')" class="btn-submit" style="padding: 6px 12px; font-size: 11px; background: #10b981;">Approve</button>
+                                        <button onclick="updateLoanStatus('${l.Id}', 'DECLINED')" class="btn-submit" style="padding: 6px 12px; font-size: 11px; background: #ef4444;">Decline</button>
+                                    `;
+                                }
+                            } else {
+                                actions = `<span style="color: #94a3b8; font-size: 11px;">Completed</span>`;
+                            }
+
+                            return `<tr>
+                                <td>
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <div class="avatar-initial">${l.EmployeeName.substring(0,2).toUpperCase()}</div>
+                                        <div>
+                                            <div style="font-weight:600;">${l.EmployeeName}</div>
+                                            <div style="font-size:11px; color:#6b7280;">ID: ${l.EmployeeId}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td><span style="font-weight:600; color:#4b5563;">${l.LoanType}</span></td>
+                                <td><span class="leave-status status-approved" style="background:#f1f5f9; color:#475569;">${l.Agency}</span></td>
+                                <td>${dateCreated}</td>
+                                <td><span class="leave-status ${statusClass}">${l.Status}</span></td>
+                                <td><div style="font-size:11px; color:#6b7280;">${lastUpdated}</div></td>
+                                <td><div style="display:flex; gap:6px;">${actions}</div></td>
+                            </tr>`;
+                        }).join('');
+                    });
+            }
+
+            function openCreateLoanModal(empId, empName) {
+                document.getElementById('loanEmployeeId').value = empId;
+                document.getElementById('loanEmployeeName').value = empName;
+                document.getElementById('createLoanModal').style.display = 'block';
+            }
+
+            function closeCreateLoanModal() {
+                document.getElementById('createLoanModal').style.display = 'none';
+            }
+
+            function submitLoanRequest() {
+                const empId = document.getElementById('loanEmployeeId').value;
+                const empName = document.getElementById('loanEmployeeName').value;
+                const type = document.getElementById('loanType').value;
+                const agency = document.getElementById('loanAgency').value;
+                const remarks = document.getElementById('loanRemarks').value;
+
+                if (!type || !agency) return alert('Please select loan type and agency.');
+
+                const formData = new FormData();
+                formData.append('employeeId', empId);
+                formData.append('employeeName', empName);
+                formData.append('loanType', type);
+                formData.append('agency', agency);
+                formData.append('remarks', remarks);
+
+                fetch('<%= ResolveUrl("~/Handler/LoanHandler.ashx") %>?action=create', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        alert('Loan record created successfully! Status set to PENDING.');
+                        closeCreateLoanModal();
+                        closeEmployeeDetailsModal();
+                        loadLoanRecords();
+                        // Switch to loan tab
+                        switchRequestTab('loan-tab');
+                    } else {
+                        alert('Error: ' + res.message);
+                    }
+                });
+            }
+
+            function updateLoanStatus(id, status) {
+                if (!confirm(`Are you sure you want to mark this loan as ${status}?`)) return;
+
+                const formData = new FormData();
+                formData.append('id', id);
+                formData.append('status', status);
+
+                fetch('<%= ResolveUrl("~/Handler/LoanHandler.ashx") %>?action=updatestatus', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.success) {
+                        loadLoanRecords();
+                    } else {
+                        alert('Error: ' + res.message);
+                    }
+                });
+            }
+
+            // Hook into existing switchRequestTab to load loans
+            const originalSwitchRequestTab = window.switchRequestTab;
+            window.switchRequestTab = function(tabId) {
+                if (tabId === 'loan-tab') loadLoanRecords();
+                if (originalSwitchRequestTab) originalSwitchRequestTab(tabId);
+            };
+
+            // Initial load check
+            document.addEventListener('DOMContentLoaded', function() {
+                // If by any chance we are already on loan tab
+                if (document.getElementById('loan-tab').classList.contains('active')) loadLoanRecords();
+            });
+        </script>
     </asp:Content>

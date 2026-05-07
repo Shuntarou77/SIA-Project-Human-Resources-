@@ -2,36 +2,21 @@
 
 using System;
 using System.Web;
-using ExWebAppSia.Models;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using ExWebAppSia.Models;
 
-public class OrgChartHandler : IHttpAsyncHandler, IHttpHandler
+public class OrgChartHandler : HttpTaskAsyncHandler
 {
-    public IAsyncResult BeginProcessRequest(HttpContext context, AsyncCallback cb, object extraData)
-    {
-        var task = ProcessRequestAsync(context);
-        return ((Task)task).ContinueWith(t => cb?.Invoke(t));
-    }
-
-    public void EndProcessRequest(IAsyncResult result)
-    {
-        ((Task)result).Wait();
-    }
-
-    public void ProcessRequest(HttpContext context)
-    {
-        ProcessRequestAsync(context).Wait();
-    }
-
-    private async Task ProcessRequestAsync(HttpContext context)
+    public override async Task ProcessRequestAsync(HttpContext context)
     {
         context.Response.ContentType = "application/json";
+        context.Response.AddHeader("Cache-Control", "no-cache, no-store");
         
         try
         {
             var employeeService = new EmployeeService();
-            var data = await employeeService.GetOrgChartDataAsync();
+            var data = await employeeService.GetOrgChartDataAsync().ConfigureAwait(false);
             
             if (data == null)
             {
@@ -43,9 +28,12 @@ public class OrgChartHandler : IHttpAsyncHandler, IHttpHandler
         }
         catch (Exception ex)
         {
-            context.Response.Write(JsonConvert.SerializeObject(new { error = ex.Message }));
+            // Log the error for server-side debugging if needed
+            System.Diagnostics.Debug.WriteLine($"[OrgChartHandler] Error: {ex.Message}");
+            
+            context.Response.StatusCode = 500;
+            context.Response.Write(JsonConvert.SerializeObject(new { error = "Internal Server Error: " + ex.Message }));
         }
     }
-
-    public bool IsReusable => false;
 }
+

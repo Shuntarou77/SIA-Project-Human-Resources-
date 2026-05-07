@@ -13,9 +13,9 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
     
     <!-- Modern Theme CSS -->
-    <link href="~/webpage(SuperAdminViewpoint)/css/modern-theme.css" rel="stylesheet" type="text/css" />
+    <link href="<%= ResolveUrl("~/webpage/css/modern-theme.css") %>" rel="stylesheet" type="text/css" />
     <!-- Custom Sidebar CSS -->
-    <link href="<%= ResolveUrl("~/webpage(SuperAdminViewpoint)/custom-css/mainsidebar.css") %>" rel="stylesheet" type="text/css" />
+    <link href="<%= ResolveUrl("~/webpage/custom-css/mainsidebar.css") %>" rel="stylesheet" type="text/css" />
     <link href="<%= ResolveUrl("~/webpage/css/notifications.css") %>" rel="stylesheet" type="text/css" />
 
     <!-- Font Awesome Icons -->
@@ -66,7 +66,7 @@
             <aside class="sidebar" id="sidebar">
                 <div class="sidebar-header">
                     <div class="sidebar-logo">
-                        <img src="../images/shessentials-logo.png" alt="Essentials Logo" class="logo-icon" />
+                        <img src="<%= ResolveUrl("~/images/shessentials-logo.png") %>" alt="Essentials Logo" class="logo-icon" />
                     </div>
                 </div>
 

@@ -3,8 +3,10 @@ using System.IO;
 using System.Web;
 using System.Web.Script.Serialization;
 using System.Collections.Generic;
+using System.Linq;
 using ExWebAppSia.Models;
 using MongoDB.Driver;
+using MongoDB.Bson;
 
 namespace ExWebAppSia.webpage.api
 {
@@ -12,6 +14,7 @@ namespace ExWebAppSia.webpage.api
 	{
 		private static readonly JavaScriptSerializer _json = new JavaScriptSerializer();
 		private static readonly IMongoCollection<Announcement> _col = MongoDBHelper.GetAnnouncementsCollection();
+		private static readonly IMongoCollection<Employee> _employees = MongoDBHelper.GetEmployeesCollection();
 
 		public void ProcessRequest(HttpContext ctx)
 		{
@@ -34,14 +37,53 @@ namespace ExWebAppSia.webpage.api
 
 		private void HandleGet(HttpContext ctx)
 		{
-	var filter = MongoDB.Driver.Builders<Announcement>.Filter.Eq(x => x.IsActive, true);
-	var list = _col.Find(filter).SortByDescending(x => x.PostedDate).Limit(200).ToList();
-	ctx.Response.ContentType = "application/json";
-	ctx.Response.Write(_json.Serialize(list)); // returns [] if empty
-}
+			var filter = Builders<Announcement>.Filter.Eq(x => x.IsActive, true);
+			var list = _col.Find(filter)
+				.SortByDescending(x => x.IsPinned)
+				.ThenByDescending(x => x.PostedDate)
+				.Limit(200)
+				.ToList();
+
+			var response = list.Select(a => new
+			{
+				a.Id,
+				a.Content,
+				PostedBy = ResolveDisplayName(a.PostedBy),
+				PostedByRaw = a.PostedBy,
+				a.Department,
+				a.PostedDate,
+				a.IsActive,
+				a.IsPinned,
+				a.HasImage,
+				a.ImagePath,
+				a.HasVideo,
+				a.VideoPath,
+				a.MediaUrls
+			}).ToList();
+
+			ctx.Response.ContentType = "application/json";
+			ctx.Response.Write(_json.Serialize(response));
+		}
 
 		private void HandlePost(HttpContext ctx)
 		{
+			var action = (ctx.Request["action"] ?? "").Trim().ToLowerInvariant();
+			if (action == "delete")
+			{
+				HandleDelete(ctx);
+				return;
+			}
+			if (action == "update")
+			{
+				HandleUpdate(ctx);
+				return;
+			}
+			if (action == "pin")
+			{
+				HandlePin(ctx);
+				return;
+			}
+
 			string content = "";
 			string imagePath = null;
 			string videoPath = null;
@@ -104,7 +146,16 @@ namespace ExWebAppSia.webpage.api
 				return;
 			}
 
-			var postedBy = (ctx.Session["Username"] != null ? ctx.Session["Username"].ToString() : "HR Admin");
+			var postedBy = "HR Admin";
+			var sessionEmp = ctx.Session["Employee"] as Employee;
+			if (sessionEmp != null && !string.IsNullOrWhiteSpace(sessionEmp.FullName))
+			{
+				postedBy = sessionEmp.FullName;
+			}
+			else if (ctx.Session["Username"] != null)
+			{
+				postedBy = ctx.Session["Username"].ToString();
+			}
 			var role = (ctx.Session["Role"] != null ? ctx.Session["Role"].ToString() : "Admin");
 
 			if (string.IsNullOrEmpty(targetDepartment) || targetDepartment == "General")
@@ -171,5 +222,126 @@ namespace ExWebAppSia.webpage.api
 		}
 
 		public bool IsReusable { get { return false; } }
+
+		private void HandleDelete(HttpContext ctx)
+		{
+			var id = (ctx.Request["id"] ?? "").Trim();
+			if (string.IsNullOrEmpty(id))
+			{
+				ctx.Response.StatusCode = 400;
+				ctx.Response.Write("{\"error\":\"id is required\"}");
+				return;
+			}
+
+			var filter = Builders<Announcement>.Filter.And(
+				Builders<Announcement>.Filter.Eq(x => x.Id, id),
+				Builders<Announcement>.Filter.Eq(x => x.IsActive, true)
+			);
+			var update = Builders<Announcement>.Update.Set(x => x.IsActive, false);
+			var result = _col.UpdateOne(filter, update);
+
+			if (result.ModifiedCount == 0)
+			{
+				ctx.Response.StatusCode = 404;
+				ctx.Response.Write("{\"error\":\"Announcement not found\"}");
+				return;
+			}
+			ctx.Response.Write("{\"success\":true}");
+		}
+
+		private void HandleUpdate(HttpContext ctx)
+		{
+			var id = (ctx.Request["id"] ?? "").Trim();
+			var content = (ctx.Request["content"] ?? "").Trim();
+			var department = (ctx.Request["department"] ?? "").Trim();
+
+			if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(content))
+			{
+				ctx.Response.StatusCode = 400;
+				ctx.Response.Write("{\"error\":\"id and content are required\"}");
+				return;
+			}
+
+			var updates = new List<UpdateDefinition<Announcement>>
+			{
+				Builders<Announcement>.Update.Set(x => x.Content, content)
+			};
+			if (!string.IsNullOrEmpty(department))
+			{
+				updates.Add(Builders<Announcement>.Update.Set(x => x.Department, department));
+			}
+
+			var result = _col.UpdateOne(
+				Builders<Announcement>.Filter.And(
+					Builders<Announcement>.Filter.Eq(x => x.Id, id),
+					Builders<Announcement>.Filter.Eq(x => x.IsActive, true)),
+				Builders<Announcement>.Update.Combine(updates));
+
+			if (result.ModifiedCount == 0)
+			{
+				ctx.Response.StatusCode = 404;
+				ctx.Response.Write("{\"error\":\"Announcement not found or unchanged\"}");
+				return;
+			}
+			ctx.Response.Write("{\"success\":true}");
+		}
+
+		private void HandlePin(HttpContext ctx)
+		{
+			var id = (ctx.Request["id"] ?? "").Trim();
+			var isPinnedRaw = (ctx.Request["isPinned"] ?? "false").Trim();
+			bool isPinned;
+			bool.TryParse(isPinnedRaw, out isPinned);
+
+			if (string.IsNullOrEmpty(id))
+			{
+				ctx.Response.StatusCode = 400;
+				ctx.Response.Write("{\"error\":\"id is required\"}");
+				return;
+			}
+
+			var result = _col.UpdateOne(
+				Builders<Announcement>.Filter.And(
+					Builders<Announcement>.Filter.Eq(x => x.Id, id),
+					Builders<Announcement>.Filter.Eq(x => x.IsActive, true)),
+				Builders<Announcement>.Update.Set(x => x.IsPinned, isPinned));
+
+			if (result.ModifiedCount == 0)
+			{
+				ctx.Response.StatusCode = 404;
+				ctx.Response.Write("{\"error\":\"Announcement not found or unchanged\"}");
+				return;
+			}
+			ctx.Response.Write(_json.Serialize(new { success = true, isPinned }));
+		}
+
+		private static string ResolveDisplayName(string postedBy)
+		{
+			if (string.IsNullOrWhiteSpace(postedBy)) return "Admin";
+			var value = postedBy.Trim();
+
+			if (!value.Contains("@")) return value;
+
+			try
+			{
+				var escaped = RegexEscape(value);
+				var emailFilter = Builders<Employee>.Filter.Regex(
+					x => x.Email,
+					new BsonRegularExpression("^" + escaped + "$", "i"));
+				var emp = _employees.Find(emailFilter).FirstOrDefault();
+				if (emp != null && !string.IsNullOrWhiteSpace(emp.FullName))
+				{
+					return emp.FullName;
+				}
+			}
+			catch { }
+
+			return value;
+		}
+
+		private static string RegexEscape(string value)
+		{
+			return System.Text.RegularExpressions.Regex.Escape(value ?? "");
+		}
 	}
 }

@@ -37,3 +37,5 @@ packages/
 /App_Data/logs/
 /ExWebAppSia/App_Data/logs/
 /ExWebAppSia/tmp/
+/ExWebAppSia/brain/
+/ExWebAppSia/scratch/

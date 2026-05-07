@@ -100,6 +100,9 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 // Speed optimization: Store ALL concerns in a hidden field for instant client-side history lookup
                 hdnConcernsJson.Value = JsonConvert.SerializeObject(concerns);
 
+                var hdnCurr = Master.FindControl("ContentPlaceHolder1").FindControl("hdnCurrentAdminId") as HiddenField;
+                if (hdnCurr != null) hdnCurr.Value = CurrentAdminId;
+
                 // Ensure maintenance tasks finish
                 await scrubTask.ConfigureAwait(false);
             }
@@ -112,18 +115,28 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         private void UpdateDepartmentCounts(Dictionary<string, int> counts)
         {
             // Update the literal controls for each department
-            if (litRDCount != null) litRDCount.Text = GetCount(counts, "R&D").ToString();
-            if (litHRCount != null) litHRCount.Text = GetCount(counts, "Human Resources").ToString();
-            if (litFinanceCount != null) litFinanceCount.Text = GetCount(counts, "Finance/Accounting").ToString();
-            if (litMarketingCount != null) litMarketingCount.Text = GetCount(counts, "Marketing").ToString();
-            if (litOperationsCount != null) litOperationsCount.Text = GetCount(counts, "Operations").ToString();
-            if (litInventoryCount != null) litInventoryCount.Text = GetCount(counts, "Inventory").ToString();
-            if (litExecutiveCount != null) litExecutiveCount.Text = GetCount(counts, "Executive").ToString();
+            if (litRDCount != null) litRDCount.Text = GetCountByAliases(counts, "Research & Development", "R&D").ToString();
+            if (litHRCount != null) litHRCount.Text = GetCountByAliases(counts, "Human Resources", "HR").ToString();
+            if (litFinanceCount != null) litFinanceCount.Text = GetCountByAliases(counts, "Finance/Accounting", "Finance").ToString();
+            if (litMarketingCount != null) litMarketingCount.Text = GetCountByAliases(counts, "Marketing").ToString();
+            if (litOperationsCount != null) litOperationsCount.Text = GetCountByAliases(counts, "Operations").ToString();
+            if (litInventoryCount != null) litInventoryCount.Text = GetCountByAliases(counts, "Inventory").ToString();
+            if (litExecutiveCount != null) litExecutiveCount.Text = GetCountByAliases(counts, "Executive").ToString();
         }
 
-        private int GetCount(Dictionary<string, int> counts, string key)
+        private int GetCountByAliases(Dictionary<string, int> counts, params string[] aliases)
         {
-            return counts.ContainsKey(key) ? counts[key] : 0;
+            if (counts == null || aliases == null) return 0;
+            var total = 0;
+            foreach (var alias in aliases)
+            {
+                if (string.IsNullOrWhiteSpace(alias)) continue;
+                if (counts.TryGetValue(alias, out var value))
+                {
+                    total += value;
+                }
+            }
+            return total;
         }
 
         /*
@@ -449,16 +462,16 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
 
                 sb.AppendFormat("<div class='action-card' onclick='openLeaveHistoryModal(\"{0}\")'>", HttpUtility.HtmlEncode(employee.Id));
                 sb.Append("<div class='action-icon'>ðŸ“</div>");
-                sb.Append("<h3 class='action-title'>History Leave of Absence</h3>");
-                sb.Append("<p class='action-description'>View the leave history including sick leave, vacation, and personal matters.</p>");
-                sb.Append("<button class='action-button'>View History</button>");
+                sb.Append("<h3 class='action-title'>History of Requests</h3>");
+                sb.Append("<p class='action-description'>View OT, UT, Leave, and Loan request history for this employee.</p>");
+                sb.Append("<button class='action-button'>View Requests</button>");
                 sb.Append("</div>");
 
-                sb.AppendFormat("<div class='action-card' onclick='openConcernHistoryModal(\"{0}\")'>", HttpUtility.HtmlEncode(employee.Id));
-                sb.Append("<div class='action-icon'>ðŸ’¬</div>");
-                sb.Append("<h3 class='action-title'>History of Employee Concern</h3>");
-                sb.Append("<p class='action-description'>View all workplace concerns, complaints, or suggestions submitted to HR.</p>");
-                sb.Append("<button class='action-button'>View History</button>");
+                sb.AppendFormat("<div class='action-card' onclick='openCreateLoanModal(\"{0}\", \"{1}\")'>", HttpUtility.HtmlEncode(employee.EmployeeId ?? employee.Id), HttpUtility.HtmlEncode(employee.FirstName + " " + employee.LastName));
+                sb.Append("<div class='action-icon'>💵</div>");
+                sb.Append("<h3 class='action-title'>Create Loan</h3>");
+                sb.Append("<p class='action-description'>Create a loan request record for this employee.</p>");
+                sb.Append("<button class='action-button' style='background: #8B4755;'>Create Record</button>");
                 sb.Append("</div>");
 
                 // New Action Cards: Resigned, Rehired, Deploy
@@ -469,13 +482,6 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     sb.Append("<h3 class='action-title'>Resigned</h3>");
                     sb.Append("<p class='action-description'>Mark this employee as resigned and deactivate their account.</p>");
                     sb.Append("<button class='action-button' style='background: #ef4444;'>Process Resignation</button>");
-                    sb.Append("</div>");
-
-                    sb.AppendFormat("<div class='action-card' onclick='openDeployModal(\"{0}\", \"{1}\")'>", HttpUtility.HtmlEncode(employee.Id), HttpUtility.HtmlEncode(employee.Department ?? ""));
-                    sb.Append("<div class='action-icon'>ðŸ”„</div>");
-                    sb.Append("<h3 class='action-title'>Deploy to Department</h3>");
-                    sb.Append("<p class='action-description'>Transfer this employee to a different department or team.</p>");
-                    sb.Append("<button class='action-button' style='background: #3b82f6;'>Redeploy</button>");
                     sb.Append("</div>");
 
                     // Mark as On Leave Toggle
@@ -577,6 +583,129 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         }
 
         [System.Web.Services.WebMethod]
+        public static string GetRequestHistory(string id)
+        {
+            try
+            {
+                var employeeService = new EmployeeService();
+                var employee = employeeService.GetEmployeeByIdAsync(id).ConfigureAwait(false).GetAwaiter().GetResult();
+                if (employee == null) return "<div style='padding: 20px;'>Employee not found.</div>";
+
+                var leaveService = new LeaveService();
+                var undertimeService = new UndertimeService();
+                var overtimeService = new OvertimeService();
+                var loanService = new LoanService();
+
+                var items = new System.Collections.Generic.List<dynamic>();
+
+                var leaves = leaveService.GetLeavesByEmployeeIdAsync(employee.EmployeeId).ConfigureAwait(false).GetAwaiter().GetResult();
+                foreach (var leave in leaves ?? new System.Collections.Generic.List<Leave>())
+                {
+                    items.Add(new
+                    {
+                        Type = "Leave",
+                        Summary = $"{leave.LeaveType} ({leave.StartDate:MMM dd, yyyy} - {leave.EndDate:MMM dd, yyyy})",
+                        Status = leave.Status ?? "Pending",
+                        Date = leave.SubmittedDate,
+                        Reason = leave.Reason ?? ""
+                    });
+                }
+
+                var ots = overtimeService.GetRecentRequestsByEmployeeIdAsync(employee.EmployeeId, 100).ConfigureAwait(false).GetAwaiter().GetResult();
+                foreach (var ot in (ots ?? new System.Collections.Generic.List<OvertimeRequest>()))
+                {
+                    items.Add(new
+                    {
+                        Type = "OT",
+                        Summary = $"Overtime ({ot.Date:MMM dd, yyyy}) - {ot.RequestedHours} hr(s)",
+                        Status = ot.Status ?? "Pending",
+                        Date = ot.RequestedAt,
+                        Reason = ot.Reason ?? ""
+                    });
+                }
+
+                var uts = undertimeService.GetRecentRequestsByEmployeeIdAsync(employee.EmployeeId, 100).ConfigureAwait(false).GetAwaiter().GetResult();
+                foreach (var ut in (uts ?? new System.Collections.Generic.List<UndertimeRequest>()))
+                {
+                    items.Add(new
+                    {
+                        Type = "UT",
+                        Summary = $"Undertime ({ut.Date:MMM dd, yyyy})",
+                        Status = ut.Status ?? "Pending",
+                        Date = ut.RequestedAt,
+                        Reason = ut.Reason ?? ""
+                    });
+                }
+
+                var loans = loanService.GetRecentLoansByEmployeeIdAsync(employee.EmployeeId, 100).ConfigureAwait(false).GetAwaiter().GetResult();
+                foreach (var loan in loans ?? new System.Collections.Generic.List<LoanRequest>())
+                {
+                    items.Add(new
+                    {
+                        Type = "Loan",
+                        Summary = $"{loan.Agency} - {loan.LoanType}",
+                        Status = loan.Status ?? "PENDING",
+                        Date = loan.RequestDate,
+                        Reason = loan.Remarks ?? ""
+                    });
+                }
+
+                var sorted = items
+                    .OrderByDescending(x => x.Date is DateTime dt ? dt : DateTime.MinValue)
+                    .ToList();
+
+                var sb = new StringBuilder();
+                sb.Append("<div style='padding: 20px;'>");
+                sb.Append("<h3 style='color: #8B4755; margin-bottom: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px;'>Request History</h3>");
+
+                if (sorted.Count == 0)
+                {
+                    sb.Append("<div style='text-align:center; padding:40px; color:#9ca3af;'>No request history found.</div>");
+                    sb.Append("</div>");
+                    return sb.ToString();
+                }
+
+                sb.Append("<div style='overflow:auto;'>");
+                sb.Append("<table style='width:100%; border-collapse: collapse;'>");
+                sb.Append("<thead><tr style='background:#f8fafc;'>");
+                sb.Append("<th style='text-align:left; padding:12px; font-size:12px; color:#64748b;'>TYPE</th>");
+                sb.Append("<th style='text-align:left; padding:12px; font-size:12px; color:#64748b;'>SUMMARY</th>");
+                sb.Append("<th style='text-align:left; padding:12px; font-size:12px; color:#64748b;'>STATUS</th>");
+                sb.Append("<th style='text-align:left; padding:12px; font-size:12px; color:#64748b;'>DATE</th>");
+                sb.Append("<th style='text-align:left; padding:12px; font-size:12px; color:#64748b;'>REASON / REMARKS</th>");
+                sb.Append("</tr></thead><tbody>");
+
+                foreach (var it in sorted.Take(100))
+                {
+                    string status = (it.Status ?? "").ToString();
+                    string statusLower = status.ToLowerInvariant();
+                    string badgeBg = statusLower.Contains("approve") ? "#10b981" :
+                                     statusLower.Contains("decline") || statusLower.Contains("reject") ? "#ef4444" :
+                                     statusLower.Contains("pending") ? "#f59e0b" :
+                                     "#64748b";
+                    string dateStr = "";
+                    try { dateStr = ((DateTime)it.Date).ToLocalTime().ToString("MMM dd, yyyy"); } catch { }
+
+                    sb.Append("<tr style='border-bottom:1px solid #f1f5f9;'>");
+                    sb.AppendFormat("<td style='padding:12px; font-weight:800; color:#334155;'>{0}</td>", HttpUtility.HtmlEncode((it.Type ?? "").ToString()));
+                    sb.AppendFormat("<td style='padding:12px; color:#334155;'>{0}</td>", HttpUtility.HtmlEncode((it.Summary ?? "").ToString()));
+                    sb.AppendFormat("<td style='padding:12px;'><span style='background:{0}; color:white; padding:4px 10px; border-radius:999px; font-size:11px; font-weight:800;'>{1}</span></td>",
+                        badgeBg, HttpUtility.HtmlEncode(status));
+                    sb.AppendFormat("<td style='padding:12px; color:#64748b;'>{0}</td>", HttpUtility.HtmlEncode(dateStr));
+                    sb.AppendFormat("<td style='padding:12px; color:#475569;'>{0}</td>", HttpUtility.HtmlEncode((it.Reason ?? "").ToString()));
+                    sb.Append("</tr>");
+                }
+
+                sb.Append("</tbody></table></div></div>");
+                return sb.ToString();
+            }
+            catch (Exception ex)
+            {
+                return "<div style='padding: 20px; color:#dc2626;'>Error loading request history: " + HttpUtility.HtmlEncode(ex.Message) + "</div>";
+            }
+        }
+
+        [System.Web.Services.WebMethod]
         public static string GetConcernHistory(string id)
         {
             try
@@ -603,18 +732,14 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     sb.Append("<h3 style='color: #8B4755; margin-bottom: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px;'>Concern History</h3>");
                     foreach (var concern in concerns)
                     {
-                        string priorityColor = concern.PriorityLevel == "Urgent" ? "#ef4444" : 
-                                              concern.PriorityLevel == "High" ? "#f59e0b" : "#10b981";
-                        
                         string statusColor = concern.Status == "Resolved" ? "#10b981" : 
                                             concern.Status == "Closed" ? "#6b7280" : 
                                             concern.Status == "In Progress" ? "#3b82f6" : "#f59e0b"; // Submitted
                         
-                        sb.Append("<div style='background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid " + priorityColor + ";'>");
+                        sb.Append("<div style='background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #f0f0f0;'>");
                         sb.Append("<div style='display: flex; justify-content: space-between; align-items: start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;'>");
                         sb.AppendFormat("<div><strong style='color: #333; font-size: 16px;'>{0}</strong></div>", HttpUtility.HtmlEncode(concern.Subject ?? ""));
                         sb.Append("<div style='display: flex; gap: 8px; flex-wrap: wrap;'>");
-                        sb.AppendFormat("<span style='background: {0}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;'>{1}</span>", priorityColor, HttpUtility.HtmlEncode(concern.PriorityLevel ?? ""));
                         sb.AppendFormat("<span style='background: {0}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600;'>{1}</span>", statusColor, HttpUtility.HtmlEncode(concern.Status ?? ""));
                         sb.Append("</div></div>");
                         sb.AppendFormat("<div style='margin-bottom: 8px; color: #666;'><strong>Type:</strong> {0}</div>", HttpUtility.HtmlEncode(concern.ConcernType ?? ""));
