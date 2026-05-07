@@ -43,7 +43,7 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                 var allEmployees = await _employeeService.GetAllEmployeesAsync();
                 
                 // Filter out Executive department to exclude the President from general management metrics/lists
-                var employees = allEmployees.ToList();
+                var employees = allEmployees.Where(e => e.Role != "President" && e.Department != "Executive").ToList();
                 
                 var filtered = employees.OrderBy(e => e.LastName).ToList();
 

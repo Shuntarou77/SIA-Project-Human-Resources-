@@ -91,7 +91,7 @@ namespace ExWebAppSia.webpage
                 foreach (var l in leavesToday) if (l.EmployeeId != null) onLeaveIds.Add(l.EmployeeId);
                 
                 // Filter out Executive department from management list and counts as requested
-                var employees = allEmployees.ToList();
+                var employees = allEmployees.Where(e => e.Role != "President" && e.Department != "Executive").ToList();
 
                 var concerns = concernsTask.Result ?? new List<EmployeeConcern>();
                 var managers = managersTask.Result ?? new List<Manager>();

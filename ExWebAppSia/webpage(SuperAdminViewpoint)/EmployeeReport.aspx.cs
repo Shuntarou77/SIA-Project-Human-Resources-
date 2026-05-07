@@ -151,7 +151,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             DateTime endDate)
         {
             // Filter out Executive department for reporting counts as requested
-            var employees = allEmployees.ToList();
+            var employees = allEmployees.Where(e => e.Role != "President" && e.Department != "Executive").ToList();
 
             var sb = new StringBuilder();
             sb.Append("{");

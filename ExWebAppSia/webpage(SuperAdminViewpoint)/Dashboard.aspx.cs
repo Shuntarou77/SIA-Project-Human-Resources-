@@ -182,7 +182,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             try
             {
                 // Filter out Executive department from dashboard counts as requested
-                var countableEmployees = employees.ToList();
+                var countableEmployees = employees.Where(e => e.Role != "President" && e.Department != "Executive").ToList();
 
                 int totalEmployees = countableEmployees.Count;
                 int femaleCount = countableEmployees.Count(e => !string.IsNullOrEmpty(e.Gender) && 
