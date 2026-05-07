@@ -26,6 +26,10 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
         protected global::System.Web.UI.WebControls.Literal litFemaleCount;
         protected global::System.Web.UI.WebControls.Literal litCompletedApplicants;
         protected global::System.Web.UI.WebControls.Literal litAbsentCount;
+        protected global::System.Web.UI.WebControls.Literal litPresentCountJS;
+        protected global::System.Web.UI.WebControls.Literal litAbsentCountJS;
+        protected global::System.Web.UI.WebControls.Literal litOnLeaveCountJS;
+        protected global::System.Web.UI.WebControls.Literal litLateCountJS;
         protected global::System.Web.UI.WebControls.Repeater rptPendingApprovals;
         private readonly AttendanceService _attendanceService = new AttendanceService();
         private readonly EmployeeService _employeeService = new EmployeeService();
