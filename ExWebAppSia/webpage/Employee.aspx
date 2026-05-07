@@ -354,10 +354,12 @@
                 background: white;
                 border-radius: 12px;
                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-                padding: 20px;
+                padding: 24px;
                 transition: all 0.3s ease;
                 cursor: pointer;
                 border: 2px solid transparent;
+                display: flex;
+                flex-direction: column;
             }
 
             .action-card:hover {
@@ -395,9 +397,8 @@
 
             .action-button {
                 width: 100%;
-                padding: 10px 20px;
+                padding: 12px 20px;
                 background: linear-gradient(135deg, #905A57 0%, #A36A66 100%);
-                /* slightly darker ? standard */
                 color: white;
                 border: none;
                 border-radius: 8px;
@@ -405,6 +406,7 @@
                 font-weight: 600;
                 cursor: pointer;
                 transition: all 0.3s ease;
+                margin-top: auto;
             }
 
             .action-button:hover {
@@ -834,7 +836,7 @@
 
                         <!-- 10 Department Cards (2 rows x 5 columns) -->
                         <div class="department-filter">
-                            <div class="dept-card" data-dept="Research & Development">
+                            <div class="dept-card" data-dept="R&D">
                                 <div class="dept-stats">
                                     <span class="dept-count">
                                         <asp:Literal ID="litRDCount" runat="server" Text="0"></asp:Literal>
@@ -1162,16 +1164,13 @@
 
                 window.exportSelectedDepartmentReport = function () {
                     const activeCard = document.querySelector('.dept-card.active');
-                    const dept = activeCard ? activeCard.getAttribute('data-dept') : null;
-                    if (!dept) {
-                        showAlert('Required', 'Please select a department first.', 'info');
-                        return;
-                    }
+                    const dept = activeCard ? activeCard.getAttribute('data-dept') : 'All';
 
                     const encoded = encodeURIComponent(dept);
                     const url = '<%= ResolveUrl("~/Handler/ExportDepartmentReport.ashx") %>?department=' + encoded + '&format=html';
                     window.open(url, '_blank');
                 };
+
 
                 window.toggleLeaveStatus = function(id) {
                     if (!confirm('Are you sure you want to change this employee\'s leave status?')) return;
@@ -1306,53 +1305,8 @@
                     <div class='action-icon'><i class='fas fa-hand-holding-usd'></i></div>
                     <h3 class='action-title'>Create Loan</h3>
                     <p class='action-description'>Initiate a new loan request for the employee.</p>
-                    <button type="button" class="action-button" style="background:#8b4755;">Apply Loan</button>
+                    <button type="button" class="action-button">Apply Loan</button>
                 </div>`;
-
-                const resStatus = row.getAttribute('data-resignation-status');
-
-                // Add Resign/Rehire/Deploy Cards
-                if (active === "Active") {
-                    if (resStatus === "Pending") {
-                        html += `
-                        <div class='action-card' onclick='resignEmployee("${id}")'>
-                            <div class='action-icon'><i class='fas fa-user-check'></i></div>
-                            <h3 class='action-title'>Approve Resignation</h3>
-                            <p class='action-description'>This employee has requested to resign. Review and approve to finalize.</p>
-                            <button type="button" class="action-button" style="background: #10b981;">Approve Now</button>
-                        </div>`;
-                    }
-                }
-
-                if (active === "Active" || active === "On Leave") {
-                    html += `<div class='action-card' onclick="resignEmployee('${id}')">`;
-                    html += `<div class='action-icon'>👋</div>`;
-                    html += `<h3 class='action-title'>Resigned</h3>`;
-                    html += `<p class='action-description'>Mark this employee as resigned and deactivate account.</p>`;
-                    html += `<button class='action-button' style='background: #ef4444;'>Process Resignation</button>`;
-                    html += `</div>`;
-
-                    // On Leave Toggle
-                    const isOnLeave = active === "On Leave";
-                    const leaveAction = isOnLeave ? "End Leave" : "Mark On Leave";
-                    const leaveDesc = isOnLeave ? "Mark as returned and available for work." : "Set status to On Leave for temporary replacement.";
-                    const leaveIcon = isOnLeave ? "☀️" : "🌙";
-                    const leaveBtnColor = isOnLeave ? "#10b981" : "#f59e0b";
-                    
-                    html += `<div class='action-card' onclick="toggleLeaveStatus('${id}')">`;
-                    html += `<div class='action-icon'>${leaveIcon}</div>`;
-                    html += `<h3 class='action-title'>${leaveAction}</h3>`;
-                    html += `<p class='action-description'>${leaveDesc}</p>`;
-                    html += `<button class='action-button' style='background: ${leaveBtnColor};'>${leaveAction}</button>`;
-                    html += `</div>`;
-                } else if (active === "Resigned" || active === "Inactive") {
-                    html += `<div class='action-card' onclick="rehireEmployee('${id}')">`;
-                    html += `<div class='action-icon'>🤝</div>`;
-                    html += `<h3 class='action-title'>Rehired</h3>`;
-                    html += `<p class='action-description'>Reactivate this employee's account for active duty.</p>`;
-                    html += `<button class='action-button' style='background: #10b981;'>Process Rehire</button>`;
-                    html += `</div>`;
-                }
 
                 html += `</div>`;
                 content.innerHTML = html;

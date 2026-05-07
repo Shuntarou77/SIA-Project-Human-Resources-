@@ -283,5 +283,40 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         /// To modify move field declaration from designer file to code-behind file.
         /// </remarks>
         protected global::System.Web.UI.HtmlControls.HtmlGenericControl concernHistoryContent;
+
+        /// <summary>
+        /// litLeaveCount control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litLeaveCount;
+
+        /// <summary>
+        /// litOTCount control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litOTCount;
+
+        /// <summary>
+        /// litUTCount control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litUTCount;
+
+        /// <summary>
+        /// litResignCount control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litResignCount;
+
+        /// <summary>
+        /// litConcernCount control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.Literal litConcernCount;
+
+        /// <summary>
+        /// btnLeaveBalanceReport control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.LinkButton btnLeaveBalanceReport;
+
+        /// <summary>
+        /// btnLeaveHistoryReport control.
+        /// </summary>
+        protected global::System.Web.UI.WebControls.LinkButton btnLeaveHistoryReport;
     }
 }

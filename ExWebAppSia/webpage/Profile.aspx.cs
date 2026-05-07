@@ -230,6 +230,11 @@ namespace ExWebAppSia.webpage
         protected string GetPreviousPosition() => CurrentEmployee?.PreviousPosition ?? "N/A";
         protected string GetYearsOfExperience() => CurrentEmployee?.YearsOfExperience.ToString() ?? "0";
 
+        protected string GetResignationStatus()
+        {
+            return CurrentEmployee?.ResignationStatus ?? "None";
+        }
+
         private async Task LoadAttendanceStatusAsync()
         {
             try

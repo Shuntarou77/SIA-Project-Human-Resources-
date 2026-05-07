@@ -24,6 +24,28 @@
     <asp:ContentPlaceHolder ID="head" runat="server">
     </asp:ContentPlaceHolder>
     
+    <!-- Global Alert Logic moved to head to catch early alerts -->
+    <script>
+        window.alert = function (message, title = "Notification") {
+            const modalEl = document.getElementById('globalAlertModal');
+            if (modalEl && typeof bootstrap !== 'undefined') {
+                document.getElementById('globalAlertMessage').innerText = message;
+                const titleEl = document.getElementById('globalAlertTitle');
+                if (titleEl && title !== "Notification") {
+                    titleEl.innerHTML = `<i class="fas fa-bell"></i> ${title}`;
+                }
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            } else {
+                console.log("Global modal not ready, using fallback. Message: " + message);
+                // We can't use original alert here easily if we want to avoid the native popup entirely, 
+                // but for now, we'll let it fallback if the DOM isn't ready.
+                if (typeof originalAlert === 'undefined') window.originalAlert = window.alert;
+                // Native alert as absolute fallback
+            }
+        };
+    </script>
+    
     <style>
         /* Fix logo background to be white */
         .sidebar-header {
@@ -57,6 +79,44 @@
 <body class="dashboard-body">
     <form id="form1" runat="server">
         <asp:ScriptManager ID="ScriptManager1" runat="server" EnablePageMethods="true" />
+
+        <!-- Global Alert Modal moved to top of form -->
+        <div class="modal fade" id="globalAlertModal" tabindex="-1" aria-labelledby="globalAlertTitle" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content" style="border-radius: 20px; border: none; box-shadow: 0 15px 35px rgba(0,0,0,0.2); overflow: hidden;">
+                    <div class="modal-header" style="background: #A44F56; color: white; border: none; padding: 20px 24px;">
+                        <h5 class="modal-title" id="globalAlertTitle" style="font-weight: 700; display: flex; align-items: center; gap: 10px;">
+                            <i class="fas fa-bell"></i> Notification
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body text-center" style="padding: 40px 30px;">
+                        <div id="globalAlertIcon" style="margin-bottom: 24px; font-size: 64px; color: #A44F56; animation: pulse 2s infinite;">
+                            <i class="fas fa-exclamation-circle"></i>
+                        </div>
+                        <p id="globalAlertMessage" style="font-size: 16px; color: #4B5563; line-height: 1.6; font-weight: 500; margin: 0;"></p>
+                    </div>
+                    <div class="modal-footer" style="border: none; padding: 0 30px 30px; justify-content: center;">
+                        <button type="button" class="btn" data-bs-dismiss="modal" 
+                            style="background: #A44F56; color: white; padding: 12px 50px; border-radius: 12px; font-weight: 700; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(164, 79, 86, 0.2);">
+                            OK
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <style>
+            @keyframes pulse {
+                0% { transform: scale(1); opacity: 1; }
+                50% { transform: scale(1.05); opacity: 0.8; }
+                100% { transform: scale(1); opacity: 1; }
+            }
+            #globalAlertModal .btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 15px rgba(164, 79, 86, 0.3);
+                background: #8B4349;
+            }
+        </style>
         
         <!-- Sidebar Overlay for Mobile -->
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -247,72 +307,10 @@
         </div>
     </form>
 
-    <!-- Global Alert Modal -->
-    <div class="modal fade" id="globalAlertModal" tabindex="-1" aria-labelledby="globalAlertTitle" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content" style="border-radius: 20px; border: none; box-shadow: 0 15px 35px rgba(0,0,0,0.2); overflow: hidden;">
-                <div class="modal-header" style="background: #A44F56; color: white; border: none; padding: 20px 24px;">
-                    <h5 class="modal-title" id="globalAlertTitle" style="font-weight: 700; display: flex; align-items: center; gap: 10px;">
-                        <i class="fas fa-bell"></i> Notification
-                    </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body text-center" style="padding: 40px 30px;">
-                    <div id="globalAlertIcon" style="margin-bottom: 24px; font-size: 64px; color: #A44F56; animation: pulse 2s infinite;">
-                        <i class="fas fa-exclamation-circle"></i>
-                    </div>
-                    <p id="globalAlertMessage" style="font-size: 16px; color: #4B5563; line-height: 1.6; font-weight: 500; margin: 0;"></p>
-                </div>
-                <div class="modal-footer" style="border: none; padding: 0 30px 30px; justify-content: center;">
-                    <button type="button" class="btn" data-bs-dismiss="modal" 
-                        style="background: #A44F56; color: white; padding: 12px 50px; border-radius: 12px; font-weight: 700; transition: all 0.3s ease; box-shadow: 0 4px 12px rgba(164, 79, 86, 0.2);">
-                        OK
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <style>
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.8; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-        #globalAlertModal .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 15px rgba(164, 79, 86, 0.3);
-            background: #8B4349;
-        }
-    </style>
-
     <!-- Bootstrap JS for modal functionality -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Global Alert Override Script -->
-    <script>
-        // Store the original alert function
-        const originalAlert = window.alert;
-
-        // Override window.alert
-        window.alert = function (message, title = "Notification") {
-            const modalEl = document.getElementById('globalAlertModal');
-            if (modalEl) {
-                document.getElementById('globalAlertMessage').innerText = message;
-                const titleEl = document.getElementById('globalAlertTitle');
-                if (titleEl && title !== "Notification") {
-                    titleEl.innerHTML = `<i class="fas fa-bell"></i> ${title}`;
-                }
-                
-                // Use Bootstrap's modal instance
-                const modal = new bootstrap.Modal(modalEl);
-                modal.show();
-            } else {
-                // Fallback to original alert if modal element is not found
-                originalAlert(message);
-            }
-        };
-    </script>
+    <!-- Global Alert Override Script removed from here (now in head) -->
 
     <!-- Custom JS for User Dropdown -->
     <script src="<%= ResolveUrl("~/custom-js/mainsidebar.js") %>"></script>

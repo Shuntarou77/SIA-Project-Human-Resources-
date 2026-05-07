@@ -425,6 +425,21 @@
                 <h3 id="annModalTitle" class="ann-modal-title">Edit Announcement</h3>
                 <div id="annModalMessage" style="color:#6B4545; margin-bottom:10px; display:none;"></div>
                 <textarea id="annModalTextarea" class="ann-modal-text"></textarea>
+                
+                <div id="editMediaOptions" style="margin-top: 15px; display: none;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <button type="button" class="btn-mini" onclick="document.getElementById('editImageUpload').click()">
+                            <i class="fas fa-image"></i> Replace Photo
+                        </button>
+                        <button type="button" class="btn-mini" onclick="document.getElementById('editVideoUpload').click()">
+                            <i class="fas fa-video"></i> Replace Video
+                        </button>
+                    </div>
+                    <div id="editMediaPreview" style="font-size: 12px; color: var(--primary-color); font-weight: 600;"></div>
+                    <input type="file" id="editImageUpload" accept="image/*" style="display: none;" onchange="handleEditMediaSelect(event, 'image')" />
+                    <input type="file" id="editVideoUpload" accept="video/*" style="display: none;" onchange="handleEditMediaSelect(event, 'video')" />
+                </div>
+
                 <div class="ann-modal-actions">
                     <button type="button" class="btn-mini" onclick="closeAnnouncementModal()">Cancel</button>
                     <button type="button" class="btn-mini" id="annModalConfirmBtn" onclick="confirmAnnouncementModal()">Save</button>
@@ -441,6 +456,21 @@
             let currentFilter = 'all';
             let modalMode = null;
             let modalAnnouncementId = null;
+            let editSelectedImage = null;
+            let editSelectedVideo = null;
+
+            function handleEditMediaSelect(e, type) {
+                const file = e.target.files[0];
+                if (!file) return;
+                if (type === 'image') {
+                    editSelectedImage = file;
+                    editSelectedVideo = null;
+                } else {
+                    editSelectedVideo = file;
+                    editSelectedImage = null;
+                }
+                document.getElementById('editMediaPreview').textContent = "Selected: " + file.name;
+            }
 
             function togglePinState() {
                 isPinned = !isPinned;
@@ -517,11 +547,14 @@
                 }
             }
 
-            async function updateAnnouncement(id, content) {
+            async function updateAnnouncement(id, content, image, video) {
                 const formData = new FormData();
                 formData.append('action', 'update');
                 formData.append('id', id);
                 formData.append('content', content);
+                if (image) formData.append('image', image);
+                if (video) formData.append('video', video);
+                
                 const res = await fetch(API_URL, { method: 'POST', body: formData });
                 if (!res.ok) throw new Error('Failed to update');
             }
@@ -546,10 +579,17 @@
             function onEditAnnouncement(id, currentContent) {
                 modalMode = 'edit';
                 modalAnnouncementId = id;
+                editSelectedImage = null;
+                editSelectedVideo = null;
+                document.getElementById('editMediaPreview').textContent = '';
+                document.getElementById('editImageUpload').value = '';
+                document.getElementById('editVideoUpload').value = '';
+
                 document.getElementById('annModalTitle').textContent = 'Edit Announcement';
                 document.getElementById('annModalMessage').style.display = 'none';
                 document.getElementById('annModalTextarea').style.display = 'block';
                 document.getElementById('annModalTextarea').value = currentContent || '';
+                document.getElementById('editMediaOptions').style.display = 'block';
                 document.getElementById('annModalConfirmBtn').textContent = 'Save';
                 document.getElementById('announcementActionModal').style.display = 'flex';
             }
@@ -561,6 +601,7 @@
                 document.getElementById('annModalMessage').style.display = 'block';
                 document.getElementById('annModalMessage').textContent = 'Delete this announcement?';
                 document.getElementById('annModalTextarea').style.display = 'none';
+                document.getElementById('editMediaOptions').style.display = 'none';
                 document.getElementById('annModalConfirmBtn').textContent = 'Delete';
                 document.getElementById('announcementActionModal').style.display = 'flex';
             }
@@ -577,7 +618,7 @@
                     if (modalMode === 'edit') {
                         const value = (document.getElementById('annModalTextarea').value || '').trim();
                         if (!value) { alert('Content cannot be empty.'); return; }
-                        await updateAnnouncement(modalAnnouncementId, value);
+                        await updateAnnouncement(modalAnnouncementId, value, editSelectedImage, editSelectedVideo);
                     } else if (modalMode === 'delete') {
                         await deleteAnnouncement(modalAnnouncementId);
                     }

@@ -304,6 +304,28 @@ namespace ExWebAppSia.Models
             }
         }
 
+        // Get attendance records for all employees within a date range
+        public async Task<List<Attendance>> GetAllAttendanceAsync(DateTime startDate, DateTime endDate)
+        {
+            try
+            {
+                var filterBuilder = Builders<Attendance>.Filter;
+                var filter = filterBuilder.Gte(a => a.Date, startDate.Date) &
+                            filterBuilder.Lte(a => a.Date, endDate.Date) &
+                            filterBuilder.Eq(a => a.IsActive, true);
+
+                return await _attendance
+                    .Find(filter)
+                    .SortByDescending(a => a.Date)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting all attendance records: {ex.Message}");
+                return new List<Attendance>();
+            }
+        }
+
         // Get attendance records for a local date (handles timezone conversion)
         public async Task<List<Attendance>> GetAttendanceByLocalDateAsync(DateTime localDate)
         {

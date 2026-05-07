@@ -143,6 +143,21 @@ namespace ExWebAppSia.Models
         [BsonElement("resignationDate")]
         public DateTime? ResignationDate { get; set; }
 
+        [BsonElement("resignationLastDay")]
+        public DateTime? ResignationLastDay { get; set; }
+
+        [BsonElement("resignationNoticeDays")]
+        public int ResignationNoticeDays { get; set; }
+
+        [BsonElement("resignationShortfallDays")]
+        public int ResignationShortfallDays { get; set; }
+
+        [BsonElement("resignationReasonCode")]
+        public string ResignationReasonCode { get; set; }
+
+        [BsonElement("resignationLetterPath")]
+        public string ResignationLetterPath { get; set; }
+
         [BsonElement("resignationReason")]
         public string ResignationReason { get; set; }
 

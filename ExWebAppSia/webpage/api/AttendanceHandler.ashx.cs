@@ -3,6 +3,7 @@ using System.Linq;
 using System.Web;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
+using System.IO;
 using ExWebAppSia.Models;
 
 using System.Web.SessionState;
@@ -515,18 +516,46 @@ namespace ExWebAppSia.webpage.api
                         break;
                     
                     case "requestresignation":
-                        string resignReason = context.Request["reason"] ?? context.Request.QueryString["reason"] ?? "";
+                        string resignReason = context.Request["reason"] ?? "";
+                        string lastDayStr = context.Request["lastDay"] ?? "";
+                        string noticeDaysStr = context.Request["noticeDays"] ?? "30";
+                        string shortfallDaysStr = context.Request["shortfallDays"] ?? "0";
+                        string reasonCode = context.Request["reasonCode"] ?? "";
+                        
+                        DateTime? lastDay = null;
+                        if (DateTime.TryParse(lastDayStr, out DateTime ld)) lastDay = ld;
+                        
+                        int noticeDays = 30;
+                        int.TryParse(noticeDaysStr, out noticeDays);
+                        
+                        int shortfallDays = 0;
+                        int.TryParse(shortfallDaysStr, out shortfallDays);
+
                         if (string.IsNullOrEmpty(employeeId))
                         {
                             message = "Missing employee ID";
                         }
                         else
                         {
-                            // Need to handle Mongodb _id if passed, or convert EmployeeId to Mongodb _id
                             var empResign = Task.Run(async () => await _employeeService.GetByEmployeeIdAsync(employeeId).ConfigureAwait(false)).GetAwaiter().GetResult();
                             if (empResign != null)
                             {
-                                result = Task.Run(async () => await _employeeService.RequestResignationAsync(empResign.Id, resignReason).ConfigureAwait(false)).GetAwaiter().GetResult();
+                                string letterPath = "";
+                                if (context.Request.Files.Count > 0)
+                                {
+                                    var file = context.Request.Files[0];
+                                    if (file != null && file.ContentLength > 0)
+                                    {
+                                        string uploadDir = context.Server.MapPath("~/Uploads/Resignations/");
+                                        if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
+                                        
+                                        string fileName = $"Resignation_{empResign.EmployeeId}_{DateTime.Now:yyyyMMddHHmmss}{Path.GetExtension(file.FileName)}";
+                                        letterPath = "/Uploads/Resignations/" + fileName;
+                                        file.SaveAs(Path.Combine(uploadDir, fileName));
+                                    }
+                                }
+
+                                result = Task.Run(async () => await _employeeService.RequestResignationAsync(empResign.Id, resignReason, lastDay, noticeDays, shortfallDays, reasonCode, letterPath).ConfigureAwait(false)).GetAwaiter().GetResult();
                                 message = result ? "Resignation request submitted" : "Failed to submit resignation request";
                             }
                             else

@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Web;
 using System.Web.UI;
 
 namespace ExWebAppSia.webpage_SuperAdminViewpoint_
@@ -21,6 +22,13 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
 
             if (!IsPostBack)
             {
+                // Only Super Admin can see the Export button
+                string userRole = Session["Role"] as string;
+                if (btnExport != null)
+                {
+                    btnExport.Visible = (userRole == "Super Admin");
+                }
+
                 RegisterAsyncTask(new PageAsyncTask(LoadActivityLogsAsync));
             }
         }
@@ -80,6 +88,12 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     string localTime = log.Timestamp.ToLocalTime().ToString("hh:mm tt");
                     string localDate = log.Timestamp.ToLocalTime().ToString("MMM dd, yyyy");
 
+                    string displayModule = log.Module ?? "System";
+                    if (displayModule == "Approvals" && actionLower.Contains("leave"))
+                    {
+                        displayModule = "Leave Management";
+                    }
+
                     sb.Append($@"
                     <tr>
                         <td>
@@ -88,7 +102,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                                 <span class='hr-email'>{Server.HtmlEncode(displayUser)}</span>
                             </div>
                         </td>
-                        <td><span class='log-module'>{Server.HtmlEncode(log.Module ?? "System")}</span></td>
+                        <td><span class='log-module'>{Server.HtmlEncode(displayModule)}</span></td>
                         <td>
                             <span class='action-badge {actionClass}'>
                                 {Server.HtmlEncode(log.Action ?? "Action")}
@@ -111,5 +125,38 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 phActivityLogs.Controls.Add(new LiteralControl(sb.ToString()));
             }
         }
+        protected void btnExport_Click(object sender, EventArgs e)
+        {
+            string userRole = Session["Role"] as string;
+            if (userRole != "Super Admin")
+            {
+                ScriptManager.RegisterStartupScript(this, GetType(), "alert", "alert('Access Denied: Only Super Admin can export activity logs.');", true);
+                return;
+            }
+
+            try
+            {
+                var logs = Task.Run(async () => await _activityLogService.GetAllLogsAsync()).Result;
+                var pdfService = new ActivityLogPdfService();
+                byte[] pdfBytes = pdfService.GenerateActivityLogPdf(logs);
+
+                if (pdfBytes != null)
+                {
+                    Response.Clear();
+                    Response.ContentType = "application/pdf";
+                    Response.AddHeader("content-disposition", "attachment;filename=ActivityLog_Report_" + DateTime.Now.ToString("yyyyMMdd_HHmm") + ".pdf");
+                    Response.Buffer = true;
+                    Response.BinaryWrite(pdfBytes);
+                    Response.Flush();
+                    Response.SuppressContent = true;
+                    HttpContext.Current.ApplicationInstance.CompleteRequest();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Export error: {ex.Message}");
+            }
+        }
+
     }
 }

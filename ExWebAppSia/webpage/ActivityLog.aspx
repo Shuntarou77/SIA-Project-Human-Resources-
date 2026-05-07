@@ -209,6 +209,29 @@
                 font-size: 12px;
                 color: #8898aa;
             }
+
+            .export-btn {
+                background: #10b981;
+                color: white !important;
+                padding: 10px 20px;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: 700;
+                text-decoration: none !important;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                transition: all 0.2s;
+                border: none;
+                cursor: pointer;
+                box-shadow: 0 4px 6px rgba(16, 185, 129, 0.2);
+            }
+
+            .export-btn:hover {
+                background: #059669;
+                transform: translateY(-1px);
+                box-shadow: 0 6px 12px rgba(16, 185, 129, 0.3);
+            }
         </style>
     </asp:Content>
 
@@ -236,7 +259,11 @@
                     <option value="Announcements">Announcements</option>
                     <option value="Recruitment">Recruitment</option>
                     <option value="Employee">Employee Management</option>
+                    <option value="Leave">Leave Management</option>
                 </select>
+                <asp:LinkButton ID="btnExport" runat="server" OnClick="btnExport_Click" CssClass="export-btn">
+                    <i class="fas fa-file-pdf"></i> Export to PDF
+                </asp:LinkButton>
             </div>
 
             <div class="activity-card">

@@ -421,7 +421,7 @@ namespace ExWebAppSia.Models
             catch { return false; }
         }
 
-        public async Task<bool> RequestResignationAsync(string id, string reason = "")
+        public async Task<bool> RequestResignationAsync(string id, string reason, DateTime? lastDay, int noticeDays, int shortfallDays, string reasonCode, string letterPath)
         {
             if (_employees == null) return false;
             try
@@ -429,7 +429,12 @@ namespace ExWebAppSia.Models
                 var update = Builders<Employee>.Update
                     .Set(e => e.ResignationStatus, "Pending")
                     .Set(e => e.ResignationDate, DateTime.UtcNow)
-                    .Set(e => e.ResignationReason, reason);
+                    .Set(e => e.ResignationReason, reason)
+                    .Set(e => e.ResignationLastDay, lastDay)
+                    .Set(e => e.ResignationNoticeDays, noticeDays)
+                    .Set(e => e.ResignationShortfallDays, shortfallDays)
+                    .Set(e => e.ResignationReasonCode, reasonCode)
+                    .Set(e => e.ResignationLetterPath, letterPath);
                 var result = await _employees.UpdateOneAsync(e => e.Id == id, update);
                 return result.ModifiedCount > 0;
             }
@@ -1108,6 +1113,58 @@ namespace ExWebAppSia.Models
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"Error deleting employee: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Updates an employee's details in both Employees and Users collections.
+        /// </summary>
+        public async Task<bool> UpdateEmployeeDetailsAsync(string id, Employee updatedData)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(id) || updatedData == null) return false;
+
+                // 1. Update Employee record
+                var filter = Builders<Employee>.Filter.Eq(e => e.Id, id);
+                var update = Builders<Employee>.Update
+                    .Set(e => e.FirstName, updatedData.FirstName)
+                    .Set(e => e.LastName, updatedData.LastName)
+                    .Set(e => e.Email, updatedData.Email)
+                    .Set(e => e.ContactNo, updatedData.ContactNo)
+                    .Set(e => e.Address, updatedData.Address)
+                    .Set(e => e.Department, updatedData.Department)
+                    .Set(e => e.Role, updatedData.Role)
+                    .Set(e => e.ContractType, updatedData.ContractType)
+                    .Set(e => e.BaseSalary, updatedData.BaseSalary);
+
+                var empResult = await _employees.UpdateOneAsync(filter, update);
+
+                // 2. Update User record (syncing key fields)
+                // We need to find the EmployeeId first to link to the User
+                var employee = await GetEmployeeByIdAsync(id);
+                if (employee != null && !string.IsNullOrEmpty(employee.EmployeeId))
+                {
+                    var userFilter = Builders<User>.Filter.Eq(u => u.EmployeeId, employee.EmployeeId);
+                    var userUpdate = Builders<User>.Update
+                        .Set(u => u.FirstName, updatedData.FirstName)
+                        .Set(u => u.LastName, updatedData.LastName)
+                        .Set(u => u.Email, updatedData.Email)
+                        .Set(u => u.ContactNo, updatedData.ContactNo)
+                        .Set(u => u.Address, updatedData.Address)
+                        .Set(u => u.Department, updatedData.Department)
+                        .Set(u => u.Position, updatedData.Role) // Sync role to position
+                        .Set(u => u.ContractType, updatedData.ContractType);
+                    
+                    await _users.UpdateOneAsync(userFilter, userUpdate);
+                }
+
+                return empResult.ModifiedCount > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating employee: {ex.Message}");
                 return false;
             }
         }

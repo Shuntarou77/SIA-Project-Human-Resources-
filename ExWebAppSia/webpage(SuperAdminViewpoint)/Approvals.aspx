@@ -102,6 +102,37 @@
 
         .empty-visual { padding: 80px 0; text-align: center; color: var(--text-muted); }
         .empty-visual i { font-size: 48px; margin-bottom: 20px; opacity: 0.2; }
+
+        /* Report Buttons Style */
+        .report-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fffcfb;
+            border-radius: 16px;
+            border: 1px solid var(--border-soft);
+        }
+        
+        .btn-report {
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            box-shadow: 0 4px 10px rgba(163, 106, 102, 0.1);
+        }
+        
+        .btn-report-primary { background: #A36A66; color: white; }
+        .btn-report-primary:hover { background: #8B4755; transform: translateY(-2px); box-shadow: 0 6px 15px rgba(163, 106, 102, 0.2); }
+        
+        .btn-report-secondary { background: white; color: #A36A66; border: 1px solid #fceceb; }
+        .btn-report-secondary:hover { background: #fff1f0; transform: translateY(-2px); }
     </style>
 </asp:Content>
 
@@ -193,6 +224,16 @@
             <div class="portal-body">
                 <!-- LEAVE TAB -->
                 <div id="pane-leave" class="tab-pane active">
+                    <!-- Reports Section -->
+                    <div class="report-controls">
+                        <asp:LinkButton ID="btnLeaveBalanceReport" runat="server" OnClick="btnLeaveBalanceReport_Click" CssClass="btn-report btn-report-primary">
+                            <i class="fas fa-file-invoice"></i> Leave Balance Report
+                        </asp:LinkButton>
+                        <asp:LinkButton ID="btnLeaveHistoryReport" runat="server" OnClick="btnLeaveHistoryReport_Click" CssClass="btn-report btn-report-secondary">
+                            <i class="fas fa-history"></i> Leave Request History
+                        </asp:LinkButton>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="premium-table">
                             <thead>

@@ -232,6 +232,11 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
             return employee?.Department ?? "N/A";
         }
 
+        protected string GetResignationStatus()
+        {
+            return CurrentEmployee?.ResignationStatus ?? "None";
+        }
+
         protected string GetEmployeeBirthdate()
         {
             var employee = CurrentEmployee;
@@ -302,11 +307,6 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
         protected string GetSSSNumber() => FormatGovNumber(CurrentEmployee?.SSSNumber, "SSS");
         protected string GetPhilHealthNumber() => FormatGovNumber(CurrentEmployee?.PhilHealthNumber, "PhilHealth");
         protected string GetPagIbigNumber() => FormatGovNumber(CurrentEmployee?.PagIbigNumber, "Pag-IBIG");
-
-        protected string GetResignationStatus()
-        {
-            return CurrentEmployee?.ResignationStatus ?? "None";
-        }
 
         private async Task LoadAttendanceStatusAsync()
         {

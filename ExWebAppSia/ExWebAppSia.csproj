@@ -334,6 +334,7 @@
     <Compile Include="Models\Interview.cs" />
     <Compile Include="Models\InterviewService.cs" />
     <Compile Include="Models\JournalEntry.cs" />
+    <Compile Include="Models\LeaveReportPdfService.cs" />
     <Compile Include="Models\Leave.cs" />
     <Compile Include="Models\LeaveService.cs" />
     <Compile Include="Models\Manager.cs" />
@@ -358,6 +359,7 @@
     <Compile Include="Models\PayScheduleService.cs" />
     <Compile Include="Models\Payslip.cs" />
     <Compile Include="Models\PayslipPdfService.cs" />
+    <Compile Include="Models\ActivityLogPdfService.cs" />
     <Compile Include="Models\PayslipService.cs" />
     <Compile Include="Models\UndertimeRequest.cs" />
     <Compile Include="Models\User.cs" />

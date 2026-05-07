@@ -838,7 +838,7 @@
 
                         <!-- 10 Department Cards (2 rows x 5 columns) -->
                         <div class="department-filter">
-                            <div class="dept-card" data-dept="Research & Development">
+                            <div class="dept-card" data-dept="R&D">
                                 <div class="dept-stats">
                                     <span class="dept-count">
                                         <asp:Literal ID="litRDCount" runat="server" Text="0"></asp:Literal>
@@ -1140,16 +1140,13 @@
 
                 window.exportSelectedDepartmentReport = function () {
                     const activeCard = document.querySelector('.dept-card.active');
-                    const dept = activeCard ? activeCard.getAttribute('data-dept') : null;
-                    if (!dept) {
-                        showAlert('Required', 'Please select a department first.', 'info');
-                        return;
-                    }
+                    const dept = activeCard ? activeCard.getAttribute('data-dept') : 'All';
 
                     const encoded = encodeURIComponent(dept);
                     const url = '<%= ResolveUrl("~/Handler/ExportDepartmentReport.ashx") %>?department=' + encoded + '&format=html';
                     window.open(url, '_blank');
                 };
+
 
                 window.downloadReportPdf = function () {
                     const activeCard = document.querySelector('.dept-card.active');
@@ -1254,46 +1251,35 @@
                     <button type="button" class="action-button">View Requests</button>
                 </div>`;
 
+                // Card 3: Concern History
+                html += `<div class='action-card' onclick='openConcernHistoryModal("${id}")'>
+                    <div class='action-icon'><i class='fas fa-exclamation-triangle'></i></div>
+                    <h3 class='action-title'>History of Employee Concern</h3>
+                    <p class='action-description'>View all workplace concerns, complaints, or suggestions submitted to HR.</p>
+                    <button type="button" class="action-button">View History</button>
+                </div>`;
+
                 html += `<div class='action-card' onclick='openCreateLoanModal("${empId}", "${fname} ${lname}")'>
                     <div class='action-icon'><i class='fas fa-hand-holding-usd'></i></div>
                     <h3 class='action-title'>Create Loan</h3>
                     <p class='action-description'>Initiate a new loan request for the employee.</p>
-                    <button type="button" class="action-button">Create Record</button>
+                    <button type="button" class="action-button">Apply Loan</button>
                 </div>`;
 
-                const resStatus = row.getAttribute('data-resignation-status');
-
-                // Add Resign/Rehire/Deploy Cards
-                if (active === "Active" || active === "On Leave") {
-                    if (resStatus === "Pending") {
-                        html += `<div class='action-card' onclick='resignEmployee("${id}")'>
-                            <div class='action-icon'><i class='fas fa-user-check'></i></div>
-                            <h3 class='action-title'>Approve Resignation</h3>
-                            <p class='action-description'>This employee has requested to resign. Review and approve to finalize.</p>
-                            <button type="button" class="action-button" style='background: #f59e0b;'>Approve Resignation</button>
-                        </div>`;
-                    } else {
-                        html += `<div class='action-card' onclick='resignEmployee("${id}")'>
-                            <div class='action-icon'><i class='fas fa-user-slash'></i></div>
-                            <h3 class='action-title'>Resigned</h3>
-                            <p class='action-description'>Mark this employee as resigned and deactivate their account.</p>
-                            <button type="button" class="action-button" style='background: #ef4444;'>Process Resignation</button>
-                        </div>`;
-                    }
-
-                    html += `<div class='action-card' onclick='toggleOnLeave("${id}", "${active === "On Leave" ? "Available" : "On Leave"}")'>
-                        <div class='action-icon'><i class='fas fa-plane-departure'></i></div>
-                        <h3 class='action-title'>${active === "On Leave" ? "Return from Leave" : "Mark as On Leave"}</h3>
-                        <p class='action-description'>${active === "On Leave" ? "Set employee back to active duty." : "Temporary status for employees on vacation or approved leave."}</p>
-                        <button type="button" class="action-button" style='background: #0ea5e9;'>${active === "On Leave" ? "Mark Active" : "Mark On Leave"}</button>
+                // Edit/Delete actions (Except for President)
+                if (role !== "President") {
+                    html += `<div class='action-card' onclick='editEmployee("${id}")'>
+                        <div class='action-icon' style='background: #3b82f6;'><i class='fas fa-edit'></i></div>
+                        <h3 class='action-title'>Edit Details</h3>
+                        <p class='action-description'>Modify employee's personal and employment information.</p>
+                        <button type="button" class="action-button" style='background: #3b82f6;'>Edit Employee</button>
                     </div>`;
 
-                } else {
-                    html += `<div class='action-card' onclick='rehireEmployee("${id}")'>
-                        <div class='action-icon'><i class='fas fa-user-plus'></i></div>
-                        <h3 class='action-title'>Rehired</h3>
-                        <p class='action-description'>Reactivate this employee's account for active duty.</p>
-                        <button type="button" class="action-button" style='background: #10b981;'>Process Rehire</button>
+                    html += `<div class='action-card' onclick='deleteEmployee("${id}")'>
+                        <div class='action-icon' style='background: #ef4444;'><i class='fas fa-trash-alt'></i></div>
+                        <h3 class='action-title'>Delete Account</h3>
+                        <p class='action-description'>Permanently remove this employee's records from the system.</p>
+                        <button type="button" class="action-button" style='background: #ef4444;'>Delete Permanently</button>
                     </div>`;
                 }
 
@@ -1306,6 +1292,165 @@
                 document.getElementById('hdnSelectedEmployeeName').value = `${lname}, ${fname}${mname ? ' ' + mname : ''}`;
                 document.getElementById('hdnSelectedEmployeeNum').value = empId;
             }
+
+            window.openConcernHistoryModal = function (employeeId) {
+                const modal = document.getElementById('viewEmployeeDetailsModal');
+                const content = document.getElementById('<%= employeeDetailsContent.ClientID %>');
+
+                // Speed optimization: Show modal instantly
+                modal.style.display = 'block';
+
+                // 1. Try to find the human-readable Employee ID (e.g., "26-2214") from the table row data
+                const row = document.querySelector(`.employee-row[data-id="${employeeId}"]`);
+                const humanId = row ? row.getAttribute('data-emp-id') : null;
+
+                // 2. See if we have the data already in our local cache
+                const json = document.getElementById('<%= hdnConcernsJson.ClientID %>').value;
+                if (json && humanId) {
+                    try {
+                        const allConcerns = JSON.parse(json);
+                        const filtered = allConcerns.filter(c => c.employeeId === humanId || c.EmployeeId === humanId);
+
+                        if (filtered.length > 0) {
+                            renderConcernsLocally(filtered, content);
+                            return; // Success! No server call needed.
+                        }
+                    } catch (e) {
+                        console.warn("Local concern lookup failed:", e);
+                    }
+                }
+
+                // Fallback: If local lookup fails, use the server (PageMethod)
+                content.innerHTML = '<div style="text-align: center; padding: 40px;"><i class="fas fa-spinner fa-spin" style="font-size: 24px; color: #A36A66;"></i><p style="margin-top: 10px;">Loading concern history...</p></div>';
+
+                PageMethods.GetConcernHistory(employeeId, function (response) {
+                    content.innerHTML = response;
+                }, function (error) {
+                    content.innerHTML = '<div style="padding: 20px; color: #dc3545;">Error loading concern history.</div>';
+                });
+            };
+
+            function renderConcernsLocally(concerns, container) {
+                let html = '<div style="padding: 20px;">';
+                html += '<h3 style="color: #8B4755; margin-bottom: 15px; border-bottom: 2px solid #f0f0f0; padding-bottom: 8px;">Concern History</h3>';
+
+                // Sort by date descending
+                concerns.sort((a, b) => new Date(b.submittedDate || b.SubmittedDate) - new Date(a.submittedDate || a.SubmittedDate));
+
+                concerns.forEach(c => {
+                    const status = c.status || c.Status || "Pending";
+                    const subject = c.subject || c.Subject || "No Subject";
+                    const desc = c.description || c.Description || "";
+                    const type = c.concernType || c.ConcernType || "Employee";
+                    const dateRaw = c.submittedDate || c.SubmittedDate;
+                    const dateStr = dateRaw ? new Date(dateRaw).toLocaleString('en-US', { month: 'short', day: '2-digit', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : "";
+
+                    const statusColor = status === "Resolved" ? "#10b981" : status === "Closed" ? "#6b7280" : status === "In Progress" ? "#3b82f6" : "#f59e0b";
+
+                    html += `<div style="background: #f9f9f9; border-radius: 10px; padding: 16px; margin-bottom: 16px; border-left: 4px solid #E8C4C4;">`;
+                    html += `  <div style="margin-bottom: 12px;"><strong style="color: #333; font-size: 16px;">${subject}</strong></div>`;
+                    html += `  <div style="margin-bottom: 8px; color: #666;"><strong>Type:</strong> ${type}</div>`;
+                    html += `  <div style="margin-bottom: 8px; color: #666;"><strong>Description:</strong> ${desc}</div>`;
+                    html += `  <div style="color: #999; font-size: 12px;"><strong>Submitted:</strong> ${dateStr}</div>`;
+                    html += `</div>`;
+                });
+
+                html += '</div>';
+                container.innerHTML = html;
+            }
+
+            window.deleteEmployee = function (id) {
+                // Find employee name for the confirmation message
+                const row = document.querySelector(`.employee-row[data-id="${id}"]`);
+                const name = row ? `${row.getAttribute('data-fname')} ${row.getAttribute('data-lname')}` : "this employee";
+
+                showConfirmModal(
+                    "Delete Employee Account",
+                    `Are you sure you want to PERMANENTLY delete <strong>${name}</strong>? This action cannot be undone and will remove all their records and system access.`,
+                    function () {
+                        // Show loading
+                        document.getElementById('btnConfirmAction').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+                        document.getElementById('btnConfirmAction').disabled = true;
+
+                        PageMethods.HardDeleteEmployee(id, function (response) {
+                            const res = JSON.parse(response);
+                            closeConfirmModal();
+                            
+                            if (res.success) {
+                                showAlertModal("Success", "Employee has been permanently deleted.", "success");
+                                // Refresh the page or remove the row
+                                setTimeout(() => window.location.reload(), 1500);
+                            } else {
+                                showAlertModal("Error", res.message || "Failed to delete employee.", "error");
+                            }
+                        }, function (err) {
+                            closeConfirmModal();
+                            showAlertModal("Error", "A server error occurred during deletion.", "error");
+                        });
+                    }
+                );
+            };
+
+            window.editEmployee = function (id) {
+                const row = document.querySelector(`.employee-row[data-id="${id}"]`);
+                if (!row) return;
+
+                // Populate form
+                document.getElementById('edit_id').value = id;
+                document.getElementById('edit_fname').value = row.getAttribute('data-fname') || "";
+                document.getElementById('edit_lname').value = row.getAttribute('data-lname') || "";
+                document.getElementById('edit_email').value = row.getAttribute('data-email') || "";
+                document.getElementById('edit_contact').value = row.getAttribute('data-contact') || "";
+                document.getElementById('edit_address').value = row.getAttribute('data-address') || "";
+                document.getElementById('edit_dept').value = row.getAttribute('data-dept') || "";
+                document.getElementById('edit_role').value = row.getAttribute('data-role') || "";
+                document.getElementById('edit_contract').value = row.getAttribute('data-contract') || "Regular";
+                document.getElementById('edit_salary').value = (row.getAttribute('data-salary') || "0").replace(/,/g, '');
+
+                document.getElementById('editEmployeeModal').style.display = 'block';
+            };
+
+            window.closeEditModal = function () {
+                document.getElementById('editEmployeeModal').style.display = 'none';
+            };
+
+            window.saveEmployeeChanges = function () {
+                const id = document.getElementById('edit_id').value;
+                const data = {
+                    FirstName: document.getElementById('edit_fname').value,
+                    LastName: document.getElementById('edit_lname').value,
+                    Email: document.getElementById('edit_email').value,
+                    ContactNo: document.getElementById('edit_contact').value,
+                    Address: document.getElementById('edit_address').value,
+                    Department: document.getElementById('edit_dept').value,
+                    Role: document.getElementById('edit_role').value,
+                    ContractType: document.getElementById('edit_contract').value,
+                    BaseSalary: parseFloat(document.getElementById('edit_salary').value || 0)
+                };
+
+                // Show loading on button
+                const btn = document.querySelector('#editEmployeeModal .btn-submit');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+                btn.disabled = true;
+
+                PageMethods.UpdateEmployeeDetails(id, JSON.stringify(data), function (response) {
+                    const res = JSON.parse(response);
+                    if (res.success) {
+                        showAlertModal("Success", "Employee details updated successfully.", "success");
+                        closeEditModal();
+                        setTimeout(() => window.location.reload(), 1500);
+                    } else {
+                        showAlertModal("Error", res.message || "Failed to update details.", "error");
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                }, function (err) {
+                    showAlertModal("Error", "A server error occurred.", "error");
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                });
+            };
 
             function closeEmployeeDetailsModal() {
                 document.getElementById('viewEmployeeDetailsModal').style.display = 'none';
@@ -2242,6 +2387,83 @@
                 </div>
                 <div class="modal-footer">
                     <button class="btn-cancel" onclick="closeLeaveHistoryModal()">Close</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Employee Modal -->
+        <div id="editEmployeeModal" class="page-modal">
+            <div class="modal-content" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h2 class="modal-title"><i class="fas fa-user-edit" style="margin-right: 10px;"></i> Edit Employee Details</h2>
+                    <span class="close" onclick="closeEditModal()">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="edit_id" />
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="form-label">First Name</label>
+                            <input type="text" id="edit_fname" class="form-input" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Last Name</label>
+                            <input type="text" id="edit_lname" class="form-input" />
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="form-label">Email Address</label>
+                            <input type="email" id="edit_email" class="form-input" />
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Contact Number</label>
+                            <input type="text" id="edit_contact" class="form-input" />
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Home Address</label>
+                        <textarea id="edit_address" class="form-textarea" rows="2"></textarea>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="form-label">Department</label>
+                            <select id="edit_dept" class="form-select">
+                                <option value="Research & Development">Research & Development</option>
+                                <option value="Human Resources">Human Resources</option>
+                                <option value="Finance/Accounting">Finance/Accounting</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Operations">Operations</option>
+                                <option value="Inventory">Inventory</option>
+                                <option value="Executive">Executive</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Position / Role</label>
+                            <input type="text" id="edit_role" class="form-input" />
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="form-group">
+                            <label class="form-label">Contract Type</label>
+                            <select id="edit_contract" class="form-select">
+                                <option value="Regular">Regular</option>
+                                <option value="Probationary">Probationary</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Base Salary</label>
+                            <input type="number" id="edit_salary" class="form-input" step="0.01" />
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeEditModal()">Cancel</button>
+                    <button type="button" class="btn-submit" onclick="saveEmployeeChanges()" style="background: #3b82f6;">Save Changes</button>
                 </div>
             </div>
         </div>

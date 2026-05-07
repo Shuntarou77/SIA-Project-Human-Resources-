@@ -1247,15 +1247,26 @@
                     <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px;">
                         <div style="border:1px solid var(--border-color); border-radius:14px; padding:16px;">
                             <h3 style="margin:0 0 6px 0; color:var(--text-primary);">SSS</h3>
-                            <p style="margin:0 0 12px 0; color:var(--text-secondary); font-size:13px;">Official SSS loan application PDFs.</p>
-                            <button type="button" class="action-button" style="background:#8b5cf6;" onclick="openGovForm('https://www.sss.gov.ph/wp-content/uploads/2022/03/mlp_01287.pdf')">Member Loan Application (MLP-01287)</button>
+                            <p style="margin:0 0 12px 0; color:var(--text-secondary); font-size:13px;">Official SSS loan and maternity application forms.</p>
+                            <button type="button" class="action-button" onclick="openGovForm('https://www.sss.gov.ph/wp-content/uploads/2022/03/mlp_01287.pdf')">Member Loan Application (MLP-01287)</button>
                             <div style="height:10px;"></div>
                             <button type="button" class="action-button" onclick="openGovForm('https://www.sss.gov.ph/wp-content/uploads/2022/03/calamity-loan-assistance-application.pdf')">Calamity Loan Assistance Application</button>
+                            <div style="height:10px;"></div>
+                            <button type="button" class="action-button" onclick="openGovForm('<%= ResolveUrl("~/webpage/forms/MAT-1.pdf") %>')">Maternity Notification (MAT-1)</button>
+                            <div style="height:10px;"></div>
+                            <button type="button" class="action-button" onclick="openGovForm('<%= ResolveUrl("~/webpage/forms/MAT-2.pdf") %>')">Maternity Reimbursement (MAT-2)</button>
                         </div>
                         <div style="border:1px solid var(--border-color); border-radius:14px; padding:16px;">
                             <h3 style="margin:0 0 6px 0; color:var(--text-primary);">Pag-IBIG</h3>
                             <p style="margin:0 0 12px 0; color:var(--text-secondary); font-size:13px;">Official Pag-IBIG downloadable forms (Direct PDF).</p>
-                            <button type="button" class="action-button" style="background:#0ea5e9;" onclick="openGovForm('<%= ResolveUrl("~/webpage/forms/PAG-iBIG-MPL.pdf") %>')">Multi-Purpose Loan (MPL - 09-2023)</button>
+                            <button type="button" class="action-button" onclick="openGovForm('<%= ResolveUrl("~/webpage/forms/PAG-iBIG-MPL.pdf") %>')">Multi-Purpose Loan (MPL - 09-2023)</button>
+                        </div>
+                        <div style="border:1px solid var(--border-color); border-radius:14px; padding:16px;">
+                            <h3 style="margin:0 0 6px 0; color:var(--text-primary);">Other Forms</h3>
+                            <p style="margin:0 0 12px 0; color:var(--text-secondary); font-size:13px;">Internal company forms and certifications.</p>
+                            <button type="button" class="action-button" onclick="downloadCOEForm()">Certificate of Employment (COE)</button>
+                            <div style="height:10px;"></div>
+                            <button type="button" class="action-button" onclick="downloadClearanceForm()">Employee Clearance Form</button>
                         </div>
                     </div>
                 </div>
@@ -1348,20 +1359,85 @@
         </div>
         <!-- Resignation Modal -->
         <div id="resignationModal" class="custom-modal-v2">
-            <div class="custom-modal-v2-content" style="max-width: 500px;">
+            <div class="custom-modal-v2-content" style="max-width: 650px;">
                 <div class="custom-modal-v2-header" style="background: linear-gradient(135deg, #ef4444, #fca5a5);">
                     <span class="close" onclick="closeModal('resignationModal')">&times;</span>
-                    <h2 class="custom-modal-v2-title">👋 Request Resignation</h2>
+                    <h2 class="custom-modal-v2-title">🔥 Request Resignation</h2>
                 </div>
                 <div class="custom-modal-v2-body" style="padding: 25px;">
-                    <p style="color: var(--text-secondary); margin-bottom: 20px; font-size: 15px;">
-                        We're sorry to see you go. Please provide a brief reason for your resignation to help us improve.
-                    </p>
-                    <div class="form-group">
-                        <label class="form-label" style="font-weight: 700;">Reason for Resignation *</label>
-                        <textarea id="resignationReason" class="form-textarea" style="width: 100%; height: 120px; padding: 12px; border-radius: 12px; border: 1.5px solid var(--border-color); font-family: inherit; resize: none;" placeholder="Tell us why you're leaving (e.g., career growth, relocation, personal reasons)"></textarea>
+                    <!-- Employee Data Section -->
+                    <div style="background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #e2e8f0;">
+                        <h3 style="font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-weight: 700;">
+                            👤 Employee Data
+                        </h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 14px;">
+                            <div><span style="font-weight: 600; color: #475569;">Name:</span> <span id="resign_empName" style="color: #1e293b;"><%= GetEmployeeName() %></span></div>
+                            <div><span style="font-weight: 600; color: #475569;">ID Number:</span> <span id="resign_empId" style="color: #1e293b;"><%= GetEmployeeId() %></span></div>
+                            <div><span style="font-weight: 600; color: #475569;">Position:</span> <span id="resign_empPosition" style="color: #1e293b;"><%= GetEmployeeRole() %></span></div>
+                            <div><span style="font-weight: 600; color: #475569;">Department:</span> <span id="resign_empDept" style="color: #1e293b;"><%= GetEmployeeDepartment() %></span></div>
+                        </div>
                     </div>
-                    <p style="color: #ef4444; font-size: 13px; margin-top: 15px; background: #fff1f2; padding: 10px; border-radius: 8px;">
+
+                    <!-- Separation Terms Section -->
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-weight: 700;">
+                            📅 Separation Terms
+                        </h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="form-group">
+                                <label class="form-label">Resignation Date</label>
+                                <input type="text" class="form-input" id="resign_date" value="<%= DateTime.Now.ToString("MM/dd/yyyy") %>" readonly style="background: #f1f5f9; color: #64748b;" />
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Effective Last Day *</label>
+                                <input type="date" class="form-input" id="resign_lastDay" onchange="calculateNoticePeriod()" style="border: 2px solid #ef4444;" />
+                            </div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                            <div class="form-group">
+                                <label class="form-label">Notice Period</label>
+                                <input type="text" class="form-input" id="resign_noticePeriod" value="30 Days (Standard)" readonly style="background: #f1f5f9; color: #64748b;" />
+                                <small id="notice_calc_msg" style="display: block; margin-top: 5px; font-weight: 600; min-height: 18px;"></small>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Reason Code *</label>
+                                <select id="resign_reasonCode" class="form-select">
+                                    <option value="">Select Reason...</option>
+                                    <option value="Voluntary - Career Advancement">Voluntary - Career Advancement</option>
+                                    <option value="Voluntary - Personal/Family Reasons">Voluntary - Personal/Family Reasons</option>
+                                    <option value="Voluntary - Relocation">Voluntary - Relocation</option>
+                                    <option value="Voluntary - Health Reasons">Voluntary - Health Reasons</option>
+                                    <option value="Voluntary - Further Education">Voluntary - Further Education</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comments Section -->
+                    <div class="form-group">
+                        <h3 style="font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-weight: 700;">
+                            💬 Submitted Comments
+                        </h3>
+                        <textarea id="resignationReason" class="form-textarea" style="height: 100px; border-radius: 12px; border: 1.5px solid var(--border-color); font-family: inherit; resize: none; padding: 12px;" placeholder="I am writing to formally resign from my position..."></textarea>
+                    </div>
+
+                    <!-- Attachments Section -->
+                    <div class="form-group">
+                        <h3 style="font-size: 13px; color: #64748b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; font-weight: 700;">
+                            📎 Attachments
+                        </h3>
+                        <div style="border: 2px dashed #e2e8f0; padding: 15px; border-radius: 12px; text-align: center; background: #fafafa;">
+                            <input type="file" id="resign_letter" accept=".pdf,.doc,.docx" style="display: none;" onchange="updateFileName(this)" />
+                            <label for="resign_letter" style="cursor: pointer; color: var(--primary-color); font-weight: 600; display: block;">
+                                <span style="font-size: 24px; display: block; margin-bottom: 5px;">📄</span>
+                                Upload Resignation Letter (PDF/DOC)
+                            </label>
+                            <div id="file_name_display" style="margin-top: 5px; font-size: 12px; color: #64748b; font-style: italic;">No file chosen</div>
+                        </div>
+                    </div>
+
+                    <p style="color: #ef4444; font-size: 13px; margin-top: 15px; background: #fff1f2; padding: 10px; border-radius: 8px; border-left: 4px solid #ef4444;">
                         <strong>Warning:</strong> This request will be sent to HR for approval. Account deactivation will occur once approved.
                     </p>
                 </div>
@@ -1805,44 +1881,218 @@
                 modal.style.display = 'block';
             }
 
+            function updateFileName(input) {
+                const display = document.getElementById('file_name_display');
+                if (input.files && input.files.length > 0) {
+                    display.textContent = input.files[0].name;
+                    display.style.color = '#10b981';
+                } else {
+                    display.textContent = 'No file chosen';
+                    display.style.color = '#64748b';
+                }
+            }
+
+            function calculateNoticePeriod() {
+                const lastDayInput = document.getElementById('resign_lastDay').value;
+                const msg = document.getElementById('notice_calc_msg');
+                
+                if (!lastDayInput) {
+                    msg.textContent = '';
+                    return;
+                }
+
+                const resignationDate = new Date(); // Today
+                const effectiveLastDay = new Date(lastDayInput);
+                
+                // Clear time part for accurate day calculation
+                resignationDate.setHours(0,0,0,0);
+                effectiveLastDay.setHours(0,0,0,0);
+
+                const diffTime = effectiveLastDay - resignationDate;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                
+                const standardNotice = 30;
+                
+                if (diffDays >= standardNotice) {
+                    msg.innerHTML = `<span style="color: #10b981;">✓ Notice period met (${diffDays} days provided)</span>`;
+                    window.resignationShortfall = 0;
+                } else {
+                    const shortfall = standardNotice - diffDays;
+                    msg.innerHTML = `<span style="color: #ef4444;">⚠ Shortfall: ${shortfall} day(s) (${diffDays} days provided)</span>`;
+                    window.resignationShortfall = shortfall;
+                }
+            }
+
             function requestResignation() {
                 document.getElementById('resignationModal').style.display = 'block';
             }
 
             function sendResignationRequest() {
                 const reason = document.getElementById('resignationReason').value.trim();
+                const lastDay = document.getElementById('resign_lastDay').value;
+                const reasonCode = document.getElementById('resign_reasonCode').value;
+                const fileInput = document.getElementById('resign_letter');
+                const shortfall = window.resignationShortfall || 0;
+
+                if (!lastDay) {
+                    showAlert('Required', 'Please select your effective last day.', 'error');
+                    return;
+                }
+                if (!reasonCode) {
+                    showAlert('Required', 'Please select a reason code.', 'error');
+                    return;
+                }
                 if (!reason) {
-                    showAlert('Required', 'Please provide a reason for resignation.', 'error');
+                    showAlert('Required', 'Please provide a comment for your resignation.', 'error');
                     return;
                 }
 
+                // Show loading
                 const btn = document.getElementById('btnConfirmResign');
-                const mainBtn = document.getElementById('btnResign');
-                
+                const originalText = btn.textContent;
                 btn.disabled = true;
-                btn.textContent = 'Processing...';
+                btn.textContent = 'Submitting...';
+
+                const formData = new FormData();
+                formData.append('action', 'requestResignation');
+                formData.append('employeeId', '<%= GetEmployeeId() %>');
+                formData.append('reason', reason);
+                formData.append('lastDay', lastDay);
+                formData.append('reasonCode', reasonCode);
+                formData.append('noticeDays', 30);
+                formData.append('shortfallDays', shortfall);
+                
+                if (fileInput.files.length > 0) {
+                    formData.append('file', fileInput.files[0]);
+                }
 
                 fetch('<%= ResolveUrl("~/webpage/api/AttendanceHandler.ashx") %>', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `action=requestResignation&employeeId=${employeeId}&reason=${encodeURIComponent(reason)}`
+                    body: formData
                 })
-                .then(res => res.json())
+                .then(response => response.json())
                 .then(data => {
-                    closeModal('resignationModal');
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                    
                     if (data.success) {
+                        closeModal('resignationModal');
                         showAlert('Success', 'Resignation request submitted successfully. HR will review it.', 'success');
-                        setTimeout(() => location.reload(), 1500);
+                        setTimeout(() => location.reload(), 2000);
                     } else {
-                        showAlert('Failed', data.message, 'error');
-                        btn.disabled = false;
-                        btn.textContent = 'Submit Request';
+                        showAlert('Error', data.message || 'Failed to submit request.', 'error');
                     }
                 })
-                .catch(err => {
-                    closeModal('resignationModal');
-                    showAlert('Error', 'Failed to submit request: ' + err.message, 'error');
+                .catch(error => {
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+                    console.error('Error:', error);
+                    showAlert('Error', 'An unexpected error occurred.', 'error');
                 });
+            }
+
+            function downloadCOEForm() {
+                try {
+                    if (typeof html2pdf === 'undefined') {
+                        alert('PDF library is loading. Please wait...');
+                        return;
+                    }
+
+                    const name = "<%= GetEmployeeName() %>";
+                    const dept = "<%= GetEmployeeDepartment() %>";
+                    const position = "<%= GetEmployeeRole() %>";
+                    const hireDate = "<%= GetHiredDate() %>";
+                    const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
+                    const element = document.createElement('div');
+                    element.innerHTML = `
+                        <div style="padding: 60px; font-family: 'Times New Roman', Times, serif; color: #000; width: 750px; margin: auto; line-height: 1.8;">
+                            <div style="text-align: center; margin-bottom: 40px;">
+                                <img src="/images/shessentials-logo.png" style="width: 120px; height: auto; margin-bottom: 10px;" alt="Logo" onerror="this.style.display='none'">
+                                <h2 style="margin: 0; font-size: 20px; letter-spacing: 1px;">SHESSENTIALS SKINCARE AND BEAUTY MANUFACTURING CO.</h2>
+                                <p style="margin: 5px 0; font-size: 12px;">Official Employment Certification</p>
+                            </div>
+
+                            <div style="text-align: right; margin-bottom: 30px;">
+                                <p>Date: <span style="display: inline-block; width: 180px; border-bottom: 1px solid #000;">&nbsp;</span></p>
+                            </div>
+
+                            <div style="text-align: center; margin-bottom: 40px;">
+                                <h1 style="font-size: 24px; font-weight: bold;">CERTIFICATE OF EMPLOYMENT</h1>
+                            </div>
+
+                            <p style="margin-bottom: 25px;">TO WHOM IT MAY CONCERN:</p>
+
+                            <p style="margin-bottom: 25px; text-align: justify;">
+                                This is to certify that <span style="display: inline-block; width: 300px; border-bottom: 1px solid #000;">&nbsp;</span> has been a bonafide employee of <strong>Shessentials Skincare and Beauty Manufacturing Co.</strong> under the following details:
+                            </p>
+
+                            <table style="width: 95%; margin: 0 auto 30px auto; font-size: 16px; border-collapse: collapse;">
+                                <tr>
+                                    <td style="padding: 12px; width: 35%;">Position:</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #000;">&nbsp;</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px;">Department:</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #000;">&nbsp;</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px;">Employment Type:</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #000;">
+                                        ☐ Regular &nbsp;&nbsp; ☐ Probationary &nbsp;&nbsp; ☐ Contractual
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px;">Date of Hire:</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #000;">&nbsp;</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding: 12px;">Employment Status:</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #000;">
+                                        ☐ Currently Employed &nbsp;&nbsp; ☐ Separated as of <span style="display: inline-block; width: 120px; border-bottom: 1px solid #000;">&nbsp;</span>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin-bottom: 40px; text-align: justify;">
+                                This certification is issued upon the request of the above-named employee for whatever legal purpose it may serve.
+                            </p>
+
+                            <div style="margin-top: 50px; page-break-inside: avoid;">
+                                <p style="margin-bottom: 10px;">Issued by:</p>
+                                <table style="width: 100%; border-collapse: collapse;">
+                                    <tr>
+                                        <td style="width: 45%; vertical-align: bottom; padding-right: 10%;">
+                                            <div style="height: 60px;"></div>
+                                            <div style="border-top: 1px solid #000; text-align: center;">
+                                                <p style="margin: 0; font-weight: bold; font-size: 16px;">Name</p>
+                                                <p style="margin: 0; font-size: 13px;">Position: HR Staff / HR Manager</p>
+                                            </div>
+                                        </td>
+                                        <td style="width: 45%; vertical-align: bottom;">
+                                            <div style="height: 60px;"></div>
+                                            <div style="border-top: 1px solid #000; text-align: center;">
+                                                <p style="margin: 0; font-size: 13px;">Signature over Printed Name</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    `;
+
+                    const opt = {
+                        margin: 0,
+                        filename: 'COE_Template.pdf',
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, scrollY: 0, useCORS: true },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+
+                    html2pdf().from(element).set(opt).save();
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
             }
 
             function downloadLoanForm() {
@@ -1927,6 +2177,198 @@
                         image: { type: 'jpeg', quality: 0.98 },
                         html2canvas: { scale: 2, scrollY: 0, useCORS: true },
                         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+
+                    html2pdf().from(element).set(opt).save();
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            }
+
+            function downloadClearanceForm() {
+                try {
+                    if (typeof html2pdf === 'undefined') {
+                        alert('PDF library is loading. Please wait...');
+                        return;
+                    }
+
+                    const element = document.createElement('div');
+                    element.innerHTML = `
+                        <div style="padding: 30px; font-family: 'Times New Roman', Times, serif; color: #000; width: 750px; margin: auto; line-height: 1.4;">
+                            <div style="text-align: center; margin-bottom: 15px; page-break-inside: avoid;">
+                                <img src="/images/shessentials-logo.png" style="width: 100px; height: auto; margin-bottom: 5px;" alt="Logo" onerror="this.style.display='none'">
+                                <h2 style="margin: 0; font-size: 16px; letter-spacing: 1px; font-weight: bold;">SHESSENTIALS SKINCARE AND BEAUTY MANUFACTURING CO.</h2>
+                                <h1 style="margin: 5px 0 0 0; font-size: 18px; font-weight: bold;">EMPLOYEE CLEARANCE FORM</h1>
+                            </div>
+
+                            <div style="margin-bottom: 15px; page-break-inside: avoid;">
+                                <h3 style="font-size: 14px; font-weight: bold; background-color: #f0f0f0; padding: 5px; border: 1px solid #000; margin-bottom: 10px;">EMPLOYEE INFORMATION</h3>
+                                <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+                                    <tr>
+                                        <td style="width: 25%; padding: 4px;">Name:</td>
+                                        <td style="width: 75%; border-bottom: 1px solid #000;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 4px;">Employee ID:</td>
+                                        <td style="border-bottom: 1px solid #000;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 4px;">Department:</td>
+                                        <td style="border-bottom: 1px solid #000;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 4px;">Position:</td>
+                                        <td style="border-bottom: 1px solid #000;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 4px;">Date of Hire:</td>
+                                        <td style="border-bottom: 1px solid #000;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 4px;">Last Day of Work:</td>
+                                        <td style="border-bottom: 1px solid #000;">&nbsp;</td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding: 4px;">Reason for Separation:</td>
+                                        <td style="padding: 4px;">☐ Resignation &nbsp;&nbsp; ☐ End of Contract &nbsp;&nbsp; ☐ Termination</td>
+                                    </tr>
+                                </table>
+                            </div>
+
+                            <div style="margin-bottom: 15px; page-break-inside: avoid;">
+                                <h3 style="font-size: 14px; font-weight: bold; background-color: #f0f0f0; padding: 5px; border: 1px solid #000; margin-bottom: 10px;">CLEARANCE CHECKLIST</h3>
+                                
+                                <p style="font-weight: bold; font-size: 13px; margin: 5px 0;">A. HR Department</p>
+                                <table style="width: 100%; font-size: 12px; border-collapse: collapse; border: 1px solid #000; text-align: left; margin-bottom: 10px;">
+                                    <tr>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 40%;">Item</th>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 25%;">Status</th>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 20%;">Remarks</th>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 15%;">Signature</th>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 5px;">Employment records completed and filed</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 5px;">Government contributions updated (SSS, Pag-IBIG, PhilHealth)</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 5px;">Certificate of Employment issued</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 5px;">Loan balances settled or endorsed to payroll for final pay deduction</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                    </tr>
+                                </table>
+                                <p style="font-size: 13px; margin: 0 0 15px 0;">HR Staff Name & Signature: <span style="display: inline-block; width: 250px; border-bottom: 1px solid #000;">&nbsp;</span> Date: <span style="display: inline-block; width: 100px; border-bottom: 1px solid #000;">&nbsp;</span></p>
+                            </div>
+
+                            <div style="margin-bottom: 15px; page-break-inside: avoid;">
+                                <p style="font-weight: bold; font-size: 13px; margin: 5px 0;">B. Finance / Payroll</p>
+                                <table style="width: 100%; font-size: 12px; border-collapse: collapse; border: 1px solid #000; text-align: left; margin-bottom: 10px;">
+                                    <tr>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 40%;">Item</th>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 25%;">Status</th>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 20%;">Remarks</th>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 15%;">Signature</th>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 5px;">No outstanding cash advances</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 5px;">Final pay computation completed</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 5px;">Loan deductions reflected in final pay</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                    </tr>
+                                </table>
+                                <p style="font-size: 13px; margin: 0 0 15px 0;">Finance / Payroll In-charge Name & Signature: <span style="display: inline-block; width: 200px; border-bottom: 1px solid #000;">&nbsp;</span> Date: <span style="display: inline-block; width: 100px; border-bottom: 1px solid #000;">&nbsp;</span></p>
+                            </div>
+
+                            <div style="margin-bottom: 15px; page-break-inside: avoid;">
+                                <p style="font-weight: bold; font-size: 13px; margin: 5px 0;">C. Immediate Supervisor / Department Head</p>
+                                <table style="width: 100%; font-size: 12px; border-collapse: collapse; border: 1px solid #000; text-align: left; margin-bottom: 10px;">
+                                    <tr>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 40%;">Item</th>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 25%;">Status</th>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 20%;">Remarks</th>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 15%;">Signature</th>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 5px;">Company ID returned</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 5px;">Uniform / equipment returned</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 5px;">Pending tasks properly turned over</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 5px;">No pending accountabilities</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                    </tr>
+                                </table>
+                                <p style="font-size: 13px; margin: 0 0 15px 0;">Supervisor Name & Signature: <span style="display: inline-block; width: 250px; border-bottom: 1px solid #000;">&nbsp;</span> Date: <span style="display: inline-block; width: 100px; border-bottom: 1px solid #000;">&nbsp;</span></p>
+                            </div>
+
+                            <div style="margin-top: 15px; border-top: 2px solid #000; padding-top: 10px; page-break-inside: avoid;">
+                                <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 10px;">FINAL APPROVAL</h3>
+                                <p style="font-size: 13px; margin-bottom: 20px;">This certifies that the above-named employee has been cleared of all accountabilities and is eligible for final pay processing.</p>
+                                
+                                <div style="display: flex; justify-content: space-between; font-size: 13px;">
+                                    <div style="width: 48%;">
+                                        <p style="margin: 0 0 5px 0;">HR Manager / Super Admin Signature:</p>
+                                        <div style="border-bottom: 1px solid #000; height: 30px; margin-bottom: 5px;"></div>
+                                        <p style="margin: 0;">Date: <span style="display: inline-block; width: 150px; border-bottom: 1px solid #000;">&nbsp;</span></p>
+                                    </div>
+                                    <div style="width: 48%;">
+                                        <p style="margin: 0 0 5px 0;">Employee Received By:</p>
+                                        <div style="border-bottom: 1px solid #000; height: 30px; margin-bottom: 5px;"></div>
+                                        <p style="margin: 0;">Date: <span style="display: inline-block; width: 150px; border-bottom: 1px solid #000;">&nbsp;</span></p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+
+                    const opt = {
+                        margin: 0,
+                        filename: 'Employee_Clearance_Form.pdf',
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, scrollY: 0, useCORS: true },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        pagebreak: { mode: ['css', 'legacy'] }
                     };
 
                     html2pdf().from(element).set(opt).save();

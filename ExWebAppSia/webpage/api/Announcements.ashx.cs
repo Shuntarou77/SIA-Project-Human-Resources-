@@ -251,24 +251,81 @@ namespace ExWebAppSia.webpage.api
 
 		private void HandleUpdate(HttpContext ctx)
 		{
-			var id = (ctx.Request["id"] ?? "").Trim();
-			var content = (ctx.Request["content"] ?? "").Trim();
-			var department = (ctx.Request["department"] ?? "").Trim();
+			string id = null;
+			string content = null;
+			string department = null;
+			string imagePath = null;
+			string videoPath = null;
 
-			if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(content))
+			if (ctx.Request.ContentType != null && ctx.Request.ContentType.Contains("multipart/form-data"))
+			{
+				id = ctx.Request.Form["id"];
+				content = ctx.Request.Form["content"];
+				department = ctx.Request.Form["department"];
+
+				// Handle image replacement
+				if (ctx.Request.Files["image"] != null && ctx.Request.Files["image"].ContentLength > 0)
+				{
+					var imageFile = ctx.Request.Files["image"];
+					var uploadDir = ctx.Server.MapPath("~/Uploads/Announcements/Images");
+					if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
+					
+					var fileName = Guid.NewGuid().ToString() + Path.GetExtension(imageFile.FileName);
+					var filePath = Path.Combine(uploadDir, fileName);
+					imageFile.SaveAs(filePath);
+					imagePath = "/Uploads/Announcements/Images/" + fileName;
+				}
+				
+				// Handle video replacement
+				if (ctx.Request.Files["video"] != null && ctx.Request.Files["video"].ContentLength > 0)
+				{
+					var videoFile = ctx.Request.Files["video"];
+					var uploadDir = ctx.Server.MapPath("~/Uploads/Announcements/Videos");
+					if (!Directory.Exists(uploadDir)) Directory.CreateDirectory(uploadDir);
+					
+					var fileName = Guid.NewGuid().ToString() + Path.GetExtension(videoFile.FileName);
+					var filePath = Path.Combine(uploadDir, fileName);
+					videoFile.SaveAs(filePath);
+					videoPath = "/Uploads/Announcements/Videos/" + fileName;
+				}
+			}
+			else
+			{
+				id = ctx.Request["id"];
+				content = ctx.Request["content"];
+				department = ctx.Request["department"];
+			}
+
+			if (string.IsNullOrEmpty(id))
 			{
 				ctx.Response.StatusCode = 400;
-				ctx.Response.Write("{\"error\":\"id and content are required\"}");
+				ctx.Response.Write("{\"error\":\"id is required\"}");
 				return;
 			}
 
-			var updates = new List<UpdateDefinition<Announcement>>
+			var updates = new List<UpdateDefinition<Announcement>>();
+			if (content != null) updates.Add(Builders<Announcement>.Update.Set(x => x.Content, content));
+			if (!string.IsNullOrEmpty(department)) updates.Add(Builders<Announcement>.Update.Set(x => x.Department, department));
+			
+			if (imagePath != null)
 			{
-				Builders<Announcement>.Update.Set(x => x.Content, content)
-			};
-			if (!string.IsNullOrEmpty(department))
+				updates.Add(Builders<Announcement>.Update.Set(x => x.HasImage, true));
+				updates.Add(Builders<Announcement>.Update.Set(x => x.ImagePath, imagePath));
+				// If we upload image, we usually clear the video if the user wants it replaced, 
+				// but let's assume they can have both or just replace what they uploaded.
+				// For simplicity, let's just add it.
+			}
+			
+			if (videoPath != null)
 			{
-				updates.Add(Builders<Announcement>.Update.Set(x => x.Department, department));
+				updates.Add(Builders<Announcement>.Update.Set(x => x.HasVideo, true));
+				updates.Add(Builders<Announcement>.Update.Set(x => x.VideoPath, videoPath));
+			}
+
+			if (updates.Count == 0)
+			{
+				ctx.Response.Write("{\"success\":true, \"message\":\"No changes\"}");
+				return;
 			}
 
 			var result = _col.UpdateOne(
@@ -277,10 +334,10 @@ namespace ExWebAppSia.webpage.api
 					Builders<Announcement>.Filter.Eq(x => x.IsActive, true)),
 				Builders<Announcement>.Update.Combine(updates));
 
-			if (result.ModifiedCount == 0)
+			if (result.MatchedCount == 0)
 			{
 				ctx.Response.StatusCode = 404;
-				ctx.Response.Write("{\"error\":\"Announcement not found or unchanged\"}");
+				ctx.Response.Write("{\"error\":\"Announcement not found\"}");
 				return;
 			}
 			ctx.Response.Write("{\"success\":true}");

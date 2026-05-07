@@ -196,6 +196,11 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         protected string GetPhilHealthNumber() => FormatGovNumber(CurrentEmployee?.PhilHealthNumber, "PhilHealth");
         protected string GetPagIbigNumber() => FormatGovNumber(CurrentEmployee?.PagIbigNumber, "Pag-IBIG");
 
+        protected string GetResignationStatus()
+        {
+            return CurrentEmployee?.ResignationStatus ?? "None";
+        }
+
         private async Task LoadAttendanceStatusAsync()
         {
             try

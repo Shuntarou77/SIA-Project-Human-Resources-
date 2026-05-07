@@ -827,6 +827,59 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         }
 
         [System.Web.Services.WebMethod]
+        public static string HardDeleteEmployee(string id)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(id)) return "{\"success\":false,\"message\":\"Employee ID is missing.\"}";
+
+                var employeeService = new EmployeeService();
+                bool success = Task.Run(() => employeeService.HardDeleteEmployeeAsync(id)).GetAwaiter().GetResult();
+
+                if (success)
+                {
+                    return "{\"success\":true}";
+                }
+                else
+                {
+                    return "{\"success\":false,\"message\":\"Could not delete employee record.\"}";
+                }
+            }
+            catch (Exception ex)
+            {
+                return "{\"success\":false,\"message\":\"Error: " + ex.Message + "\"}";
+            }
+        }
+
+        [System.Web.Services.WebMethod]
+        public static string UpdateEmployeeDetails(string id, string jsonData)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(id) || string.IsNullOrEmpty(jsonData))
+                    return "{\"success\":false,\"message\":\"Missing data.\"}";
+
+                var updatedData = JsonConvert.DeserializeObject<Employee>(jsonData);
+                var employeeService = new EmployeeService();
+                
+                bool success = Task.Run(() => employeeService.UpdateEmployeeDetailsAsync(id, updatedData)).GetAwaiter().GetResult();
+
+                if (success)
+                {
+                    return "{\"success\":true}";
+                }
+                else
+                {
+                    return "{\"success\":false,\"message\":\"Failed to update employee details.\"}";
+                }
+            }
+            catch (Exception ex)
+            {
+                return "{\"success\":false,\"message\":\"Error: " + ex.Message + "\"}";
+            }
+        }
+
+        [System.Web.Services.WebMethod]
         public static string ToggleEmployeeLeaveStatus(string id)
         {
             try

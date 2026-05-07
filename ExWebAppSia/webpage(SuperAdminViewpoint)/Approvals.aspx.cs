@@ -22,6 +22,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         private readonly EmployeeConcernService _concernService = new EmployeeConcernService();
         private readonly ManagerService _managerService = new ManagerService();
         private readonly ActivityLogService _activityLogService = new ActivityLogService();
+        private readonly AttendanceService _attendanceService = new AttendanceService();
 
         public List<OvertimeRequest> PendingOvertimeRequests { get; set; } = new List<OvertimeRequest>();
         public List<UndertimeRequest> PendingUndertimeRequests { get; set; } = new List<UndertimeRequest>();
@@ -39,6 +40,13 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         {
             if (!IsPostBack)
             {
+                // Only Super Admin can see report buttons
+                string userRole = Session["Role"] as string;
+                bool isSuperAdmin = (userRole == "Super Admin");
+                
+                if (btnLeaveBalanceReport != null) btnLeaveBalanceReport.Visible = isSuperAdmin;
+                if (btnLeaveHistoryReport != null) btnLeaveHistoryReport.Visible = isSuperAdmin;
+
                 RegisterAsyncTask(new PageAsyncTask(LoadEmployeesData));
             }
         }
@@ -175,8 +183,8 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
 
         private static bool IsHumanResourcesDepartment(string department)
         {
-            // Removed department restriction to allow seeing all employees as requested
-            return true;
+            if (string.IsNullOrEmpty(department)) return false;
+            return department.Trim().Equals("Human Resources", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsRestrictedExecutiveRole(string role)
@@ -222,12 +230,13 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                                             .ToList();
             var restrictedSet = new HashSet<string>(restrictedIds, StringComparer.OrdinalIgnoreCase);
 
-            // 2. Build the set of IDs that the Super Admin SHOULD see (all active employees except restricted executives)
+            // 2. Build the set of IDs that the Super Admin SHOULD see (Only HR Dept, except restricted executives)
             return new HashSet<string>(
                 (employees ?? Enumerable.Empty<Employee>())
                     .Where(e => e != null
                         && !string.IsNullOrEmpty(e.EmployeeId)
                         && e.IsActive
+                        && IsHumanResourcesDepartment(e.Department) // Filter for HR Department
                         && !IsRestrictedExecutiveRole(e.Role)
                         && !restrictedSet.Contains(e.EmployeeId))
                     .Select(e => e.EmployeeId),
@@ -241,7 +250,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             return days <= 1 ? "1 day" : $"{days} days";
         }
 
-        private static void LogActivity(string action, string targetInfo)
+        private static void LogActivity(string action, string targetInfo, string module = "Approvals")
         {
             try
             {
@@ -253,7 +262,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 string hrName = emp?.FullName ?? "Super Admin";
 
                 System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
-                    Task.Run(() => logService.LogActionAsync(username, hrName, action, "Approvals", targetInfo))
+                    Task.Run(() => logService.LogActionAsync(username, hrName, action, module ?? "Approvals", targetInfo))
                 );
             }
             catch { }
@@ -333,7 +342,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     }
 
                     var success = await leaveService.UpdateLeaveStatusAsync(leaveId, "Approved");
-                    if (success) LogActivity("Approved Leave", $"Approved leave for {leave.EmployeeName}");
+                    if (success) LogActivity("Approved Leave", $"Approved leave for {leave.EmployeeName}", "Leave Management");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
                 }).GetAwaiter().GetResult();
             } catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message + "\"}"; }
@@ -351,6 +360,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                         return "{\"success\":false,\"message\":\"You cannot process requests from Super Admin or President.\"}";
                     }
                     var success = await leaveService.UpdateLeaveStatusAsync(leaveId, "Rejected");
+                    if (success) LogActivity("Declined Leave", $"Declined leave for {leave.EmployeeName}", "Leave Management");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
                 }).GetAwaiter().GetResult();
             } catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message + "\"}"; }
@@ -376,7 +386,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     }
 
                     var success = await empService.ResignEmployeeAsync(id);
-                    if (success) LogActivity("Resigned Employee", $"Approved resignation for employee record {id}");
+                    if (success) LogActivity("Resigned Employee", $"Approved resignation for employee record {id}", "Employee Management");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
                 }).GetAwaiter().GetResult();
             } catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message + "\"}"; }
@@ -398,6 +408,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                         .Set(e => e.ResignationDate, (DateTime?)null)
                         .Set(e => e.ResignationReason, "");
                     var success = await empService.UpdateEmployeeFieldsAsync(id, update);
+                    if (success) LogActivity("Declined Resignation", $"Declined resignation for employee record {id}", "Employee Management");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
                 }).GetAwaiter().GetResult();
             } catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message + "\"}"; }
@@ -481,7 +492,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     }
 
                     var success = await otService.ApproveAsync(id);
-                    if (success) LogActivity("Approved OT", $"Approved OT request {id}");
+                    if (success) LogActivity("Approved OT", $"Approved OT request {id}", "Attendance");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
                 }).GetAwaiter().GetResult();
             } catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message + "\"}"; }
@@ -499,6 +510,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                         return "{\"success\":false,\"message\":\"You cannot process requests from Super Admin or President.\"}";
                     }
                     var success = await otService.RejectAsync(id);
+                    if (success) LogActivity("Rejected OT", $"Rejected OT request {id} for {req.EmployeeName}", "Attendance");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
                 }).GetAwaiter().GetResult();
             } catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message + "\"}"; }
@@ -523,7 +535,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     }
 
                     var success = await utService.ApproveRequestAsync(id);
-                    if (success) LogActivity("Approved UT", $"Approved UT request {id}");
+                    if (success) LogActivity("Approved UT", $"Approved UT request {id}", "Attendance");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
                 }).GetAwaiter().GetResult();
             } catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message + "\"}"; }
@@ -541,6 +553,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                         return "{\"success\":false,\"message\":\"You cannot process requests from Super Admin or President.\"}";
                     }
                     var success = await utService.RejectRequestAsync(id);
+                    if (success) LogActivity("Rejected UT", $"Rejected UT request {id} for {req.EmployeeName}", "Attendance");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
                 }).GetAwaiter().GetResult();
             } catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message + "\"}"; }
@@ -565,7 +578,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     }
 
                     var success = await service.UpdateConcernStatusAsync(id, "Resolved");
-                    if (success) LogActivity("Resolved Concern", $"Resolved concern {id}");
+                    if (success) LogActivity("Resolved Concern", $"Resolved concern {id}", "Employee Management");
                     return "{\"success\":" + success.ToString().ToLower() + "}";
                 }).GetAwaiter().GetResult();
             } catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message + "\"}"; }
@@ -627,6 +640,62 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             catch
             {
                 return new { success = false };
+            }
+        }
+
+        protected void btnLeaveBalanceReport_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var employees = Task.Run(async () => await _employeeService.GetAllEmployeesAsync()).Result;
+                var balances = new Dictionary<string, int>();
+
+                foreach (var emp in employees.Where(empItem => empItem.IsActive))
+                {
+                    var stats = Task.Run(async () => await _attendanceService.GetYearlyAttendanceStatsAsync(emp.EmployeeId, emp.HiredDate)).Result;
+                    balances[emp.EmployeeId] = stats.RemainingAbsences;
+                }
+
+                var pdfService = new LeaveReportPdfService();
+                byte[] pdfBytes = pdfService.GenerateLeaveBalanceReport(employees.Where(empItem => empItem.IsActive).ToList(), balances);
+
+                ServePdf(pdfBytes, "Leave_Balance_Report");
+            }
+            catch (Exception ex)
+            {
+                ScriptManager.RegisterStartupScript(this, GetType(), "error", $"alert('Error generating report: {ex.Message}');", true);
+            }
+        }
+
+        protected void btnLeaveHistoryReport_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var leaves = Task.Run(async () => await _leaveService.GetAllLeavesAsync()).Result;
+                
+                var pdfService = new LeaveReportPdfService();
+                byte[] pdfBytes = pdfService.GenerateLeaveHistoryReport(leaves);
+
+                ServePdf(pdfBytes, "Leave_Request_History");
+            }
+            catch (Exception ex)
+            {
+                ScriptManager.RegisterStartupScript(this, GetType(), "error", $"alert('Error generating report: {ex.Message}');", true);
+            }
+        }
+
+        private void ServePdf(byte[] pdfBytes, string fileNamePrefix)
+        {
+            if (pdfBytes != null)
+            {
+                Response.Clear();
+                Response.ContentType = "application/pdf";
+                Response.AddHeader("content-disposition", $"attachment;filename={fileNamePrefix}_{DateTime.Now:yyyyMMdd_HHmm}.pdf");
+                Response.Buffer = true;
+                Response.BinaryWrite(pdfBytes);
+                Response.Flush();
+                Response.SuppressContent = true;
+                HttpContext.Current.ApplicationInstance.CompleteRequest();
             }
         }
     }
