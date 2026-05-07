@@ -213,7 +213,7 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                 if (litFemaleCount != null) litFemaleCount.Text = femaleCount.ToString();
                 if (litMaleCount != null) litMaleCount.Text = maleCount.ToString();
                 
-                var recentEmployees = employees
+                var recentEmployees = countableEmployees
                     .Where(e => e.IsActive)
                     .OrderByDescending(e => e.HiredDate)
                     .Take(3)
@@ -310,7 +310,7 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                         }
                     }
                     
-                    string salary = netSalary > 0 ? $"&#8369;{netSalary:N2}" : "&#8369;0.00";
+                    string salary = emp.BaseSalary > 0 ? $"&#8369;{emp.BaseSalary:N2}" : "&#8369;0.00";
 
                     sb.Append($@"
                         <tr>
