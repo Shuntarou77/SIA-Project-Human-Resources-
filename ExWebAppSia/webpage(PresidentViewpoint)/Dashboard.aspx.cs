@@ -261,6 +261,11 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                 if (litAbsentCount != null) litAbsentCount.Text = absentCount.ToString();
                 if (litOnLeaveCount != null) litOnLeaveCount.Text = onLeaveCount.ToString();
                 if (litLateCount != null) litLateCount.Text = lateCount.ToString();
+
+                if (litPresentCountJS != null) litPresentCountJS.Text = presentCount.ToString();
+                if (litAbsentCountJS != null) litAbsentCountJS.Text = absentCount.ToString();
+                if (litOnLeaveCountJS != null) litOnLeaveCountJS.Text = onLeaveCount.ToString();
+                if (litLateCountJS != null) litLateCountJS.Text = lateCount.ToString();
             }
             catch (Exception ex)
             {

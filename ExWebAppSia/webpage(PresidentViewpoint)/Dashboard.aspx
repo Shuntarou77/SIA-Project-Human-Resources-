@@ -286,6 +286,18 @@
                         letter-spacing: 0.8px;
                     }
 
+                    .attendance-chart {
+                        height: 260px;
+                        background: #FCFAF9;
+                        border-radius: 16px;
+                        padding: 20px;
+                        position: relative;
+                    }
+
+                    #attendanceChartCanvas {
+                        max-height: 220px;
+                    }
+
                     .table-container {
                         overflow-x: auto;
                     }
@@ -640,7 +652,16 @@
                                         <div class="attendance-label">Late</div>
                                     </div>
                                 </div>
-                                <div style="text-align: right; font-size: 13px; color: #9B7D7B; font-weight: 600;">Click to view full report &rarr;</div>
+                                    <div class="attendance-chart">
+                                        <canvas id="attendanceChartCanvas"></canvas>
+                                    </div>
+                                    <div style="text-align: right; font-size: 13px; color: #9B7D7B; font-weight: 600; margin-top: 15px;">Click to view full report &rarr;</div>
+                                    <div style="display:none;">
+                                        <asp:Literal ID="litPresentCountJS" runat="server" Text="0"></asp:Literal>
+                                        <asp:Literal ID="litAbsentCountJS" runat="server" Text="0"></asp:Literal>
+                                        <asp:Literal ID="litOnLeaveCountJS" runat="server" Text="0"></asp:Literal>
+                                        <asp:Literal ID="litLateCountJS" runat="server" Text="0"></asp:Literal>
+                                    </div>
                             </div>
 
                             <div class="large-card">
@@ -709,6 +730,46 @@
                             else alert(result.message);
                         } catch (e) { console.error(e); }
                     }
+
+                    // Attendance Chart Logic
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const presentCount = parseInt(document.getElementById('<%= litPresentCountJS.ClientID %>').textContent) || 0;
+                        const absentCount = parseInt(document.getElementById('<%= litAbsentCountJS.ClientID %>').textContent) || 0;
+                        const onLeaveCount = parseInt(document.getElementById('<%= litOnLeaveCountJS.ClientID %>').textContent) || 0;
+                        const lateCount = parseInt(document.getElementById('<%= litLateCountJS.ClientID %>').textContent) || 0;
+
+                        const ctx = document.getElementById('attendanceChartCanvas');
+                        if (ctx) {
+                            new Chart(ctx, {
+                                type: 'bar',
+                                data: {
+                                    labels: ['Present', 'Absent', 'On Leave', 'Late'],
+                                    datasets: [{
+                                        label: 'Employees',
+                                        data: [presentCount, absentCount, onLeaveCount, lateCount],
+                                        backgroundColor: [
+                                            'rgba(163, 106, 102, 0.8)',
+                                            'rgba(163, 106, 102, 1)',
+                                            'rgba(163, 106, 102, 0.6)',
+                                            'rgba(163, 106, 102, 0.4)'
+                                        ],
+                                        borderColor: 'rgba(163, 106, 102, 1)',
+                                        borderWidth: 2,
+                                        borderRadius: 8
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    plugins: { legend: { display: false } },
+                                    scales: {
+                                        y: { beginAtZero: true, ticks: { stepSize: 1 } },
+                                        x: { grid: { display: false } }
+                                    }
+                                }
+                            });
+                        }
+                    });
                 </script>
                 <!-- FontAwesome for icons -->
                 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
