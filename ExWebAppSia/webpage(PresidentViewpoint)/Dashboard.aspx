@@ -656,12 +656,6 @@
                                         <canvas id="attendanceChartCanvas"></canvas>
                                     </div>
                                     <div style="text-align: right; font-size: 13px; color: #9B7D7B; font-weight: 600; margin-top: 15px;">Click to view full report &rarr;</div>
-                                    <div style="display:none;">
-                                        <asp:Literal ID="litPresentCountJS" runat="server" Text="0"></asp:Literal>
-                                        <asp:Literal ID="litAbsentCountJS" runat="server" Text="0"></asp:Literal>
-                                        <asp:Literal ID="litOnLeaveCountJS" runat="server" Text="0"></asp:Literal>
-                                        <asp:Literal ID="litLateCountJS" runat="server" Text="0"></asp:Literal>
-                                    </div>
                             </div>
 
                             <div class="large-card">
@@ -733,10 +727,10 @@
 
                     // Attendance Chart Logic
                     document.addEventListener('DOMContentLoaded', function () {
-                        const presentCount = parseInt(document.getElementById('<%= litPresentCountJS.ClientID %>').textContent) || 0;
-                        const absentCount = parseInt(document.getElementById('<%= litAbsentCountJS.ClientID %>').textContent) || 0;
-                        const onLeaveCount = parseInt(document.getElementById('<%= litOnLeaveCountJS.ClientID %>').textContent) || 0;
-                        const lateCount = parseInt(document.getElementById('<%= litLateCountJS.ClientID %>').textContent) || 0;
+                        const presentCount = parseInt('<asp:Literal ID="litPresentCountJS" runat="server" Text="0"></asp:Literal>') || 0;
+                        const absentCount = parseInt('<asp:Literal ID="litAbsentCountJS" runat="server" Text="0"></asp:Literal>') || 0;
+                        const onLeaveCount = parseInt('<asp:Literal ID="litOnLeaveCountJS" runat="server" Text="0"></asp:Literal>') || 0;
+                        const lateCount = parseInt('<asp:Literal ID="litLateCountJS" runat="server" Text="0"></asp:Literal>') || 0;
 
                         const ctx = document.getElementById('attendanceChartCanvas');
                         if (ctx) {
