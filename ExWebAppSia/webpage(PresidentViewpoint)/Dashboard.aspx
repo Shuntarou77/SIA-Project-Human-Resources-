@@ -645,8 +645,8 @@
 
                             <div class="large-card">
                                 <h2 class="card-title-main">
-                                    <i class="fas fa-history" style="color: #A36A66; margin-right: 10px;"></i>
-                                    Recent Hires
+                                    <i class="fas fa-user-friends" style="color: #A36A66; margin-right: 10px;"></i>
+                                    Employee Summary
                                 </h2>
                                 <div class="table-container">
                                     <table class="employee-table">
