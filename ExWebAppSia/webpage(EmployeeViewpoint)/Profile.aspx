@@ -1266,11 +1266,17 @@
                             <button type="button" class="action-button" onclick="openGovForm('<%= ResolveUrl("~/webpage/forms/MAT-1.pdf") %>')">Maternity Notification (MAT-1)</button>
                             <div style="height:10px;"></div>
                             <button type="button" class="action-button" onclick="openGovForm('<%= ResolveUrl("~/webpage/forms/MAT-2.pdf") %>')">Maternity Reimbursement (MAT-2)</button>
+                            <div style="height:10px;"></div>
+                            <button type="button" class="action-button" onclick="openGovForm('<%= ResolveUrl("~/webpage/forms/SIC-01841.pdf") %>')">Sickness Notification (SIC-01841)</button>
+                            <div style="height:10px;"></div>
+                            <button type="button" class="action-button" onclick="openGovForm('<%= ResolveUrl("~/webpage/forms/SIC-01842.pdf") %>')">Sickness Benefit Reimbursement (SIC-01842)</button>
                         </div>
                         <div style="border:1px solid var(--border-color); border-radius:14px; padding:16px;">
                             <h3 style="margin:0 0 6px 0; color:var(--text-primary);">Pag-IBIG</h3>
                             <p style="margin:0 0 12px 0; color:var(--text-secondary); font-size:13px;">Official Pag-IBIG downloadable forms (Direct PDF).</p>
                             <button type="button" class="action-button" onclick="openGovForm('<%= ResolveUrl("~/webpage/forms/PAG-iBIG-MPL.pdf") %>')">Multi-Purpose Loan (MPL - 09-2023)</button>
+                            <div style="height:10px;"></div>
+                            <button type="button" class="action-button" onclick="openGovForm('<%= ResolveUrl("~/webpage/forms/PAG-iBIG-MPL-09-2023 (1).pdf") %>')">Multi-Purpose Loan (Updated 09-2023)</button>
                         </div>
                         <div style="border:1px solid var(--border-color); border-radius:14px; padding:16px;">
                             <h3 style="margin:0 0 6px 0; color:var(--text-primary);">Other Forms</h3>
