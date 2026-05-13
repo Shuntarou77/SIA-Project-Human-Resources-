@@ -923,7 +923,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel" onclick="closeModal('payslipModal')">Close</button>
-                    <button type="button" class="btn-submit" onclick="window.print()">Print</button>
+                    <button type="button" class="btn-submit" onclick="downloadPDF()">Print</button>
                 </div>
             </div>
         </div>
@@ -1051,7 +1051,6 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn-cancel" onclick="openConcernHistoryModal()">View Concern History</button>
                     <button type="button" class="btn-cancel" onclick="closeModal('concernModal')">Cancel</button>
                     <asp:Button ID="btnSubmitConcern" runat="server" CssClass="btn-submit" Text="Submit Concern"
                         OnClick="btnSubmitConcern_Click" />
@@ -2040,7 +2039,7 @@
                             </div>
 
                             <div style="text-align: right; margin-bottom: 30px;">
-                                <p>Date: <span style="display: inline-block; width: 180px; border-bottom: 1px solid #000;">&nbsp;</span></p>
+                                <p>Date: <span style="display: inline-block; width: 180px; border-bottom: 1px solid #000; text-align: center;">${today}</span></p>
                             </div>
 
                             <div style="text-align: center; margin-bottom: 40px;">
@@ -2050,32 +2049,32 @@
                             <p style="margin-bottom: 25px;">TO WHOM IT MAY CONCERN:</p>
 
                             <p style="margin-bottom: 25px; text-align: justify;">
-                                This is to certify that <span style="display: inline-block; width: 300px; border-bottom: 1px solid #000;">&nbsp;</span> has been a bonafide employee of <strong>Shessentials Skincare and Beauty Manufacturing Co.</strong> under the following details:
+                                This is to certify that <strong>${name}</strong> has been a bonafide employee of <strong>Shessentials Skincare and Beauty Manufacturing Co.</strong> under the following details:
                             </p>
 
                             <table style="width: 95%; margin: 0 auto 30px auto; font-size: 16px; border-collapse: collapse;">
                                 <tr>
                                     <td style="padding: 12px; width: 35%;">Position:</td>
-                                    <td style="padding: 12px; border-bottom: 1px solid #000;">&nbsp;</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #000;">${position}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 12px;">Department:</td>
-                                    <td style="padding: 12px; border-bottom: 1px solid #000;">&nbsp;</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #000;">${dept}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 12px;">Employment Type:</td>
                                     <td style="padding: 12px; border-bottom: 1px solid #000;">
-                                        ☐ Regular &nbsp;&nbsp; ☐ Probationary &nbsp;&nbsp; ☐ Contractual
+                                        [✓] Regular &nbsp;&nbsp; [ ] Probationary &nbsp;&nbsp; [ ] Contractual
                                     </td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 12px;">Date of Hire:</td>
-                                    <td style="padding: 12px; border-bottom: 1px solid #000;">&nbsp;</td>
+                                    <td style="padding: 12px; border-bottom: 1px solid #000;">${hireDate}</td>
                                 </tr>
                                 <tr>
                                     <td style="padding: 12px;">Employment Status:</td>
                                     <td style="padding: 12px; border-bottom: 1px solid #000;">
-                                        ☐ Currently Employed &nbsp;&nbsp; ☐ Separated as of <span style="display: inline-block; width: 120px; border-bottom: 1px solid #000;">&nbsp;</span>
+                                        [✓] Currently Employed &nbsp;&nbsp; [ ] Separated
                                     </td>
                                 </tr>
                             </table>
@@ -2091,14 +2090,14 @@
                                         <td style="width: 45%; vertical-align: bottom; padding-right: 10%;">
                                             <div style="height: 60px;"></div>
                                             <div style="border-top: 1px solid #000; text-align: center;">
-                                                <p style="margin: 0; font-weight: bold; font-size: 16px;">Name</p>
-                                                <p style="margin: 0; font-size: 13px;">Position: HR Staff / HR Manager</p>
+                                                <p style="margin: 0; font-weight: bold; font-size: 16px;">ADMINISTRATION</p>
+                                                <p style="margin: 0; font-size: 13px;">HR Department</p>
                                             </div>
                                         </td>
                                         <td style="width: 45%; vertical-align: bottom;">
                                             <div style="height: 60px;"></div>
                                             <div style="border-top: 1px solid #000; text-align: center;">
-                                                <p style="margin: 0; font-size: 13px;">Signature over Printed Name</p>
+                                                <p style="margin: 0; font-size: 13px;">Authorized Signature</p>
                                             </div>
                                         </td>
                                     </tr>
@@ -2218,9 +2217,15 @@
                         return;
                     }
 
+                    const name = "<%= GetEmployeeName() %>";
+                    const id = "<%= GetEmployeeId() %>";
+                    const dept = "<%= GetEmployeeDepartment() %>";
+                    const position = "<%= GetEmployeeRole() %>";
+                    const hireDate = "<%= GetHiredDate() %>";
+
                     const element = document.createElement('div');
                     element.innerHTML = `
-                        <div style="padding: 30px; font-family: 'Times New Roman', Times, serif; color: #000; width: 750px; margin: auto; line-height: 1.4;">
+                        <div style="padding: 30px; font-family: 'Arial', sans-serif; color: #000; width: 750px; margin: auto; line-height: 1.4;">
                             <div style="text-align: center; margin-bottom: 15px; page-break-inside: avoid;">
                                 <img src="/images/shessentials-logo.png" style="width: 100px; height: auto; margin-bottom: 5px;" alt="Logo" onerror="this.style.display='none'">
                                 <h2 style="margin: 0; font-size: 16px; letter-spacing: 1px; font-weight: bold;">SHESSENTIALS SKINCARE AND BEAUTY MANUFACTURING CO.</h2>
@@ -2232,157 +2237,58 @@
                                 <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
                                     <tr>
                                         <td style="width: 25%; padding: 4px;">Name:</td>
-                                        <td style="width: 75%; border-bottom: 1px solid #000;">&nbsp;</td>
+                                        <td style="width: 75%; border-bottom: 1px solid #000;">${name}</td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 4px;">Employee ID:</td>
-                                        <td style="border-bottom: 1px solid #000;">&nbsp;</td>
+                                        <td style="border-bottom: 1px solid #000;">${id}</td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 4px;">Department:</td>
-                                        <td style="border-bottom: 1px solid #000;">&nbsp;</td>
+                                        <td style="border-bottom: 1px solid #000;">${dept}</td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 4px;">Position:</td>
-                                        <td style="border-bottom: 1px solid #000;">&nbsp;</td>
+                                        <td style="border-bottom: 1px solid #000;">${position}</td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 4px;">Date of Hire:</td>
-                                        <td style="border-bottom: 1px solid #000;">&nbsp;</td>
+                                        <td style="border-bottom: 1px solid #000;">${hireDate}</td>
                                     </tr>
                                     <tr>
                                         <td style="padding: 4px;">Last Day of Work:</td>
-                                        <td style="border-bottom: 1px solid #000;">&nbsp;</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 4px;">Reason for Separation:</td>
-                                        <td style="padding: 4px;">☐ Resignation &nbsp;&nbsp; ☐ End of Contract &nbsp;&nbsp; ☐ Termination</td>
+                                        <td style="border-bottom: 1px solid #000;">__________________________</td>
                                     </tr>
                                 </table>
                             </div>
 
                             <div style="margin-bottom: 15px; page-break-inside: avoid;">
                                 <h3 style="font-size: 14px; font-weight: bold; background-color: #f0f0f0; padding: 5px; border: 1px solid #000; margin-bottom: 10px;">CLEARANCE CHECKLIST</h3>
-                                
-                                <p style="font-weight: bold; font-size: 13px; margin: 5px 0;">A. HR Department</p>
-                                <table style="width: 100%; font-size: 12px; border-collapse: collapse; border: 1px solid #000; text-align: left; margin-bottom: 10px;">
+                                <p style="font-weight: bold; font-size: 13px; margin: 5px 0;">HR & Payroll Verification</p>
+                                <table style="width: 100%; font-size: 12px; border-collapse: collapse; border: 1px solid #000; text-align: left;">
                                     <tr>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 40%;">Item</th>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 50%;">Item</th>
                                         <th style="border: 1px solid #000; padding: 5px; width: 25%;">Status</th>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 20%;">Remarks</th>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 15%;">Signature</th>
+                                        <th style="border: 1px solid #000; padding: 5px; width: 25%;">Signature</th>
                                     </tr>
                                     <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">Employment records completed and filed</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">Government contributions updated (SSS, Pag-IBIG, PhilHealth)</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;">Employment Records & ID Returned</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">[ ] Cleared</td>
                                         <td style="border: 1px solid #000; padding: 5px;"></td>
                                     </tr>
                                     <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">Certificate of Employment issued</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">Loan balances settled or endorsed to payroll for final pay deduction</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 5px;">Final Pay & Loan Settlement</td>
+                                        <td style="border: 1px solid #000; padding: 5px;">[ ] Cleared</td>
                                         <td style="border: 1px solid #000; padding: 5px;"></td>
                                     </tr>
                                 </table>
-                                <p style="font-size: 13px; margin: 0 0 15px 0;">HR Staff Name & Signature: <span style="display: inline-block; width: 250px; border-bottom: 1px solid #000;">&nbsp;</span> Date: <span style="display: inline-block; width: 100px; border-bottom: 1px solid #000;">&nbsp;</span></p>
                             </div>
 
-                            <div style="margin-bottom: 15px; page-break-inside: avoid;">
-                                <p style="font-weight: bold; font-size: 13px; margin: 5px 0;">B. Finance / Payroll</p>
-                                <table style="width: 100%; font-size: 12px; border-collapse: collapse; border: 1px solid #000; text-align: left; margin-bottom: 10px;">
-                                    <tr>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 40%;">Item</th>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 25%;">Status</th>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 20%;">Remarks</th>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 15%;">Signature</th>
-                                    </tr>
-                                    <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">No outstanding cash advances</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">Final pay computation completed</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">Loan deductions reflected in final pay</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                    </tr>
-                                </table>
-                                <p style="font-size: 13px; margin: 0 0 15px 0;">Finance / Payroll In-charge Name & Signature: <span style="display: inline-block; width: 200px; border-bottom: 1px solid #000;">&nbsp;</span> Date: <span style="display: inline-block; width: 100px; border-bottom: 1px solid #000;">&nbsp;</span></p>
-                            </div>
-
-                            <div style="margin-bottom: 15px; page-break-inside: avoid;">
-                                <p style="font-weight: bold; font-size: 13px; margin: 5px 0;">C. Immediate Supervisor / Department Head</p>
-                                <table style="width: 100%; font-size: 12px; border-collapse: collapse; border: 1px solid #000; text-align: left; margin-bottom: 10px;">
-                                    <tr>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 40%;">Item</th>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 25%;">Status</th>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 20%;">Remarks</th>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 15%;">Signature</th>
-                                    </tr>
-                                    <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">Company ID returned</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">Uniform / equipment returned</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">Pending tasks properly turned over</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                    </tr>
-                                    <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">No pending accountabilities</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">☐ Cleared &nbsp; ☐ Not Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
-                                    </tr>
-                                </table>
-                                <p style="font-size: 13px; margin: 0 0 15px 0;">Supervisor Name & Signature: <span style="display: inline-block; width: 250px; border-bottom: 1px solid #000;">&nbsp;</span> Date: <span style="display: inline-block; width: 100px; border-bottom: 1px solid #000;">&nbsp;</span></p>
-                            </div>
-
-                            <div style="margin-top: 15px; border-top: 2px solid #000; padding-top: 10px; page-break-inside: avoid;">
-                                <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 10px;">FINAL APPROVAL</h3>
-                                <p style="font-size: 13px; margin-bottom: 20px;">This certifies that the above-named employee has been cleared of all accountabilities and is eligible for final pay processing.</p>
-                                
-                                <div style="display: flex; justify-content: space-between; font-size: 13px;">
-                                    <div style="width: 48%;">
-                                        <p style="margin: 0 0 5px 0;">HR Manager / Super Admin Signature:</p>
-                                        <div style="border-bottom: 1px solid #000; height: 30px; margin-bottom: 5px;"></div>
-                                        <p style="margin: 0;">Date: <span style="display: inline-block; width: 150px; border-bottom: 1px solid #000;">&nbsp;</span></p>
-                                    </div>
-                                    <div style="width: 48%;">
-                                        <p style="margin: 0 0 5px 0;">Employee Received By:</p>
-                                        <div style="border-bottom: 1px solid #000; height: 30px; margin-bottom: 5px;"></div>
-                                        <p style="margin: 0;">Date: <span style="display: inline-block; width: 150px; border-bottom: 1px solid #000;">&nbsp;</span></p>
-                                    </div>
+                            <div style="margin-top: 20px; border-top: 2px solid #000; padding-top: 10px;">
+                                <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 5px;">FINAL APPROVAL</h3>
+                                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-top: 20px;">
+                                    <div style="width: 48%; border-top: 1px solid #000; text-align: center;">HR Manager Signature</div>
+                                    <div style="width: 48%; border-top: 1px solid #000; text-align: center;">Employee Signature</div>
                                 </div>
                             </div>
                         </div>
@@ -2395,6 +2301,102 @@
                         html2canvas: { scale: 2, scrollY: 0, useCORS: true },
                         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
                         pagebreak: { mode: ['css', 'legacy'] }
+                    };
+
+                    html2pdf().from(element).set(opt).save();
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            }
+            function downloadPDF() {
+                try {
+                    if (typeof html2pdf === 'undefined') {
+                        alert('PDF library is loading. Please wait...');
+                        return;
+                    }
+
+                    const name = "<%= GetEmployeeName() %>";
+                    const period = "<%= GetPayPeriod() %>";
+                    const basic = "<%= GetBasicSalary() %>";
+                    const allowances = "<%= GetAllowances() %>";
+                    const ot = "<%= GetOvertimePay() %>";
+                    const gross = "<%= GetGrossSalary() %>";
+                    const sss = "<%= GetSSSDeduction() %>";
+                    const ph = "<%= GetPhilHealthDeduction() %>";
+                    const pi = "<%= GetPagIbigDeduction() %>";
+                    const tax = "<%= GetWithholdingTax() %>";
+                    const abs = "<%= GetAbsenceDeduction() %>";
+                    const pen = "<%= GetPenalties() %>";
+                    const ded = "<%= GetTotalDeductions() %>";
+                    const net = "<%= GetNetSalary() %>";
+
+                    const element = document.createElement('div');
+                    element.innerHTML = `
+                        <div style="padding: 60px 50px; font-family: 'Arial', sans-serif; color: #000; width: 750px; margin: auto; border: 1px solid #000; min-height: 1020px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
+                            <div>
+                                <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 40px;">
+                                    <h1 style="margin: 0; font-size: 26px;">SHESSENTIALS SKINCARE AND BEAUTY MANUFACTURING CO.</h1>
+                                    <p style="margin: 10px 0; font-size: 18px; font-weight: bold; letter-spacing: 2px;">PAYSLIP</p>
+                                </div>
+                                
+                                <table style="width: 100%; margin-bottom: 40px; font-size: 15px;">
+                                    <tr>
+                                        <td style="width: 50%; padding: 10px 5px;"><strong>Employee:</strong> ${name}</td>
+                                        <td style="text-align: right; padding: 10px 5px;"><strong>Pay Period:</strong> ${period}</td>
+                                    </tr>
+                                </table>
+
+                                <div style="display: flex; gap: 30px; margin-bottom: 50px;">
+                                    <div style="flex: 1;">
+                                        <h3 style="font-size: 17px; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 15px;">EARNINGS</h3>
+                                        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+                                            <tr><td style="padding: 10px 0;">Basic Salary</td><td style="text-align: right;">₱ ${basic}</td></tr>
+                                            <tr><td style="padding: 10px 0;">Allowances</td><td style="text-align: right;">₱ ${allowances}</td></tr>
+                                            <tr><td style="padding: 10px 0;">Overtime Pay</td><td style="text-align: right;">₱ ${ot}</td></tr>
+                                            <tr style="font-weight: bold; border-top: 2px solid #000;"><td style="padding: 15px 0; font-size: 16px;">GROSS PAY</td><td style="text-align: right; font-size: 16px;">₱ ${gross}</td></tr>
+                                        </table>
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <h3 style="font-size: 17px; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 15px;">DEDUCTIONS</h3>
+                                        <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+                                            <tr><td style="padding: 10px 0;">Govt Deductions</td><td style="text-align: right;">${sss} / ${ph} / ${pi} / ${tax}</td></tr>
+                                            <tr><td style="padding: 10px 0;">Absences & Lates</td><td style="text-align: right;">₱ ${abs}</td></tr>
+                                            <tr><td style="padding: 10px 0;">Penalties</td><td style="text-align: right;">₱ ${pen}</td></tr>
+                                            <tr style="font-weight: bold; border-top: 2px solid #000;"><td style="padding: 15px 0; font-size: 16px;">TOTAL DEDUCTIONS</td><td style="text-align: right; font-size: 16px;">₱ ${ded}</td></tr>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div style="margin-top: 30px; border: 3px solid #000; padding: 30px; text-align: center; background-color: #fcfcfc;">
+                                    <span style="font-size: 20px; font-weight: bold;">NET TAKE-HOME PAY: </span>
+                                    <span style="font-size: 28px; font-weight: bold;">₱ ${net}</span>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div style="margin-top: 80px; display: flex; justify-content: space-between; font-size: 14px;">
+                                    <div style="width: 40%; text-align: center;">
+                                        <div style="border-top: 1px solid #000; padding-top: 10px; font-weight: bold;">Employee Signature</div>
+                                    </div>
+                                    <div style="width: 40%; text-align: center;">
+                                        <div style="border-top: 1px solid #000; padding-top: 10px; font-weight: bold;">HR Representative</div>
+                                    </div>
+                                </div>
+
+                                <p style="margin-top: 40px; font-size: 11px; text-align: center; color: #666;">
+                                    Generated on: ${new Date().toLocaleString()}<br>
+                                    <em>This is a system-generated document.</em>
+                                </p>
+                            </div>
+                        </div>
+                    `;
+
+                    const opt = {
+                        margin: 0,
+                        filename: 'Payslip_' + name.replace(/[^a-z0-9]/gi, '_') + '.pdf',
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 3, useCORS: true },
+                        jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
                     };
 
                     html2pdf().from(element).set(opt).save();

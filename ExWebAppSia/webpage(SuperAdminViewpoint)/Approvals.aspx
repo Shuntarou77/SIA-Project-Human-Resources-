@@ -33,7 +33,7 @@
         .role-badge { background: #A36A66; color: white; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; box-shadow: 0 4px 10px rgba(163, 106, 102, 0.2); }
 
         /* Metrics Grid */
-        .metrics-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; margin-bottom: 35px; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 20px; margin-bottom: 35px; }
         .metric-card {
             background: white; padding: 20px; border-radius: 20px; border: 1px solid var(--border-soft); box-shadow: var(--shadow-soft);
             display: flex; flex-direction: column; gap: 15px; cursor: pointer; transition: var(--transition);
@@ -383,6 +383,13 @@
 
                 <!-- LOAN TAB -->
                 <div id="pane-loan" class="tab-pane">
+                    <!-- Reports Section -->
+                    <div class="report-controls">
+                        <asp:LinkButton ID="btnLoanReport" runat="server" OnClick="btnLoanReport_Click" CssClass="btn-report btn-report-primary">
+                            <i class="fas fa-file-pdf"></i> Export Loan Details Report (PDF)
+                        </asp:LinkButton>
+                    </div>
+
                     <div class="table-responsive">
                         <table class="premium-table">
                             <thead>

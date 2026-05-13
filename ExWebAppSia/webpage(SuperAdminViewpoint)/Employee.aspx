@@ -1275,11 +1275,11 @@
                         <button type="button" class="action-button" style='background: #3b82f6;'>Edit Employee</button>
                     </div>`;
 
-                    html += `<div class='action-card' onclick='deleteEmployee("${id}")'>
-                        <div class='action-icon' style='background: #ef4444;'><i class='fas fa-trash-alt'></i></div>
-                        <h3 class='action-title'>Delete Account</h3>
-                        <p class='action-description'>Permanently remove this employee's records from the system.</p>
-                        <button type="button" class="action-button" style='background: #ef4444;'>Delete Permanently</button>
+                    html += `<div class='action-card' onclick='resignEmployee("${id}")'>
+                        <div class='action-icon' style='background: #ef4444;'><i class='fas fa-user-slash'></i></div>
+                        <h3 class='action-title'>Resign this Employee</h3>
+                        <p class='action-description'>Mark this employee as resigned and deactivate their account records.</p>
+                        <button type="button" class="action-button" style='background: #ef4444;'>Process Resignation</button>
                     </div>`;
                 }
 
@@ -1359,37 +1359,7 @@
                 container.innerHTML = html;
             }
 
-            window.deleteEmployee = function (id) {
-                // Find employee name for the confirmation message
-                const row = document.querySelector(`.employee-row[data-id="${id}"]`);
-                const name = row ? `${row.getAttribute('data-fname')} ${row.getAttribute('data-lname')}` : "this employee";
 
-                showConfirmModal(
-                    "Delete Employee Account",
-                    `Are you sure you want to PERMANENTLY delete <strong>${name}</strong>? This action cannot be undone and will remove all their records and system access.`,
-                    function () {
-                        // Show loading
-                        document.getElementById('btnConfirmAction').innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
-                        document.getElementById('btnConfirmAction').disabled = true;
-
-                        PageMethods.HardDeleteEmployee(id, function (response) {
-                            const res = JSON.parse(response);
-                            closeConfirmModal();
-                            
-                            if (res.success) {
-                                showAlertModal("Success", "Employee has been permanently deleted.", "success");
-                                // Refresh the page or remove the row
-                                setTimeout(() => window.location.reload(), 1500);
-                            } else {
-                                showAlertModal("Error", res.message || "Failed to delete employee.", "error");
-                            }
-                        }, function (err) {
-                            closeConfirmModal();
-                            showAlertModal("Error", "A server error occurred during deletion.", "error");
-                        });
-                    }
-                );
-            };
 
             window.editEmployee = function (id) {
                 const row = document.querySelector(`.employee-row[data-id="${id}"]`);
@@ -2457,7 +2427,7 @@
                         </div>
                         <div class="form-group">
                             <label class="form-label">Base Salary</label>
-                            <input type="number" id="edit_salary" class="form-input" step="0.01" />
+                            <input type="number" id="edit_salary" class="form-input" step="0.01" readonly style="background-color: #f3f4f6; cursor: not-allowed;" title="Base salary can only be modified through payroll settings." />
                         </div>
                     </div>
                 </div>

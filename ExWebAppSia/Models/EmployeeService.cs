@@ -39,11 +39,30 @@ namespace ExWebAppSia.Models
             try
             {
                 if (_employees == null || string.IsNullOrEmpty(roleName)) return false;
+                
+                // Get all active employees in this role
                 var filter = Builders<Employee>.Filter.And(
                     Builders<Employee>.Filter.Eq(e => e.IsActive, true),
                     Builders<Employee>.Filter.Eq(e => e.Role, roleName)
                 );
-                return await _employees.Find(filter).AnyAsync();
+                var employeesInRole = await _employees.Find(filter).ToListAsync();
+                
+                if (!employeesInRole.Any()) return false;
+
+                // Check if any of these employees are NOT on leave
+                var leaveService = new LeaveService();
+                foreach (var emp in employeesInRole)
+                {
+                    bool isOnLeave = await leaveService.IsEmployeeOnLeaveAsync(emp.EmployeeId);
+                    if (!isOnLeave)
+                    {
+                        // Found at least one person who is NOT on leave and occupies this role
+                        return true;
+                    }
+                }
+                
+                // All employees in this role are currently on approved leave
+                return false;
             }
             catch { return false; }
         }

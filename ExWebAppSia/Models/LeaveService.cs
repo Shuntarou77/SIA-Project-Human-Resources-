@@ -218,5 +218,30 @@ namespace ExWebAppSia.Models
                 return new List<Leave>();
             }
         }
+        /// <summary>
+        /// Check if an employee is currently on an approved leave today.
+        /// </summary>
+        public async Task<bool> IsEmployeeOnLeaveAsync(string employeeId)
+        {
+            try
+            {
+                var today = DateTime.UtcNow.Date;
+                var filter = Builders<Leave>.Filter.And(
+                    Builders<Leave>.Filter.Eq(l => l.EmployeeId, employeeId),
+                    Builders<Leave>.Filter.Eq(l => l.IsActive, true),
+                    Builders<Leave>.Filter.Eq(l => l.Status, "Approved"),
+                    Builders<Leave>.Filter.Lte(l => l.StartDate, today),
+                    Builders<Leave>.Filter.Gte(l => l.EndDate, today)
+                );
+
+                var count = await _leaves.CountDocumentsAsync(filter).ConfigureAwait(false);
+                return count > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error checking leave status: {ex.Message}");
+                return false;
+            }
+        }
     }
 }

@@ -479,7 +479,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 {
                     sb.AppendFormat("<div class='action-card' onclick='resignEmployee(\"{0}\")'>", HttpUtility.HtmlEncode(employee.Id));
                     sb.Append("<div class='action-icon'>ðŸ‘‹</div>");
-                    sb.Append("<h3 class='action-title'>Resigned</h3>");
+                    sb.Append("<h3 class='action-title'>Resign this Employee</h3>");
                     sb.Append("<p class='action-description'>Mark this employee as resigned and deactivate their account.</p>");
                     sb.Append("<button class='action-button' style='background: #ef4444;'>Process Resignation</button>");
                     sb.Append("</div>");
@@ -826,30 +826,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             }
         }
 
-        [System.Web.Services.WebMethod]
-        public static string HardDeleteEmployee(string id)
-        {
-            try
-            {
-                if (string.IsNullOrEmpty(id)) return "{\"success\":false,\"message\":\"Employee ID is missing.\"}";
 
-                var employeeService = new EmployeeService();
-                bool success = Task.Run(() => employeeService.HardDeleteEmployeeAsync(id)).GetAwaiter().GetResult();
-
-                if (success)
-                {
-                    return "{\"success\":true}";
-                }
-                else
-                {
-                    return "{\"success\":false,\"message\":\"Could not delete employee record.\"}";
-                }
-            }
-            catch (Exception ex)
-            {
-                return "{\"success\":false,\"message\":\"Error: " + ex.Message + "\"}";
-            }
-        }
 
         [System.Web.Services.WebMethod]
         public static string UpdateEmployeeDetails(string id, string jsonData)

@@ -220,6 +220,7 @@
     <Content Include="LoginFolder\Login.aspx" />
     <Content Include="LoginFolder\ForgotPassword.aspx" />
     <Content Include="LoginFolder\ResetPassword.aspx" />
+    <Content Include="LoginFolder\Logout.ashx" />
     <Content Include="mongocrypt.dll" />
     <Content Include="PasswordHashGenerator.aspx" />
     <Content Include="Uploads\Announcements\Images\26d6b129-5566-4e30-8b93-82a0b9774f42.png" />
@@ -308,6 +309,9 @@
     <Compile Include="LoginFolder\ResetPassword.aspx.designer.cs">
       <DependentUpon>ResetPassword.aspx</DependentUpon>
     </Compile>
+    <Compile Include="LoginFolder\Logout.ashx.cs">
+      <DependentUpon>Logout.ashx</DependentUpon>
+    </Compile>
     <Compile Include="Models\AdminModels.cs" />
     <Compile Include="Models\Announcement.cs" />
     <Compile Include="Models\AnnouncementService.cs" />
@@ -335,6 +339,7 @@
     <Compile Include="Models\InterviewService.cs" />
     <Compile Include="Models\JournalEntry.cs" />
     <Compile Include="Models\LeaveReportPdfService.cs" />
+    <Compile Include="Models\LoanReportPdfService.cs" />
     <Compile Include="Models\Leave.cs" />
     <Compile Include="Models\LeaveService.cs" />
     <Compile Include="Models\Manager.cs" />

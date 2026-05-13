@@ -198,7 +198,7 @@
 
                     .bottom-section {
                         display: grid;
-                        grid-template-columns: 2fr 1fr;
+                        grid-template-columns: 1fr;
                         gap: 24px;
                         margin-bottom: 30px;
                     }
@@ -658,26 +658,7 @@
                                     <div style="text-align: right; font-size: 13px; color: #9B7D7B; font-weight: 600; margin-top: 15px;">Click to view full report &rarr;</div>
                             </div>
 
-                            <div class="large-card">
-                                <h2 class="card-title-main">
-                                    <i class="fas fa-user-friends" style="color: #A36A66; margin-right: 10px;"></i>
-                                    Employee Summary
-                                </h2>
-                                <div class="table-container">
-                                    <table class="employee-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Employee</th>
-                                                <th>Salary</th>
-                                                <th>Status</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <asp:PlaceHolder ID="phEmployeeSummary" runat="server" />
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
+
                         </div>
                     </div>
                 </div>

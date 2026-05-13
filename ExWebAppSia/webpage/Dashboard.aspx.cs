@@ -223,7 +223,7 @@ namespace ExWebAppSia.webpage
                     .OrderByDescending(e => e.HiredDate)
                     .Take(3)
                     .ToList();
-                await LoadEmployeeSummary(recentEmployees);
+
             }
             catch (Exception ex)
             {
@@ -279,72 +279,7 @@ namespace ExWebAppSia.webpage
             }
         }
 
-        private async Task LoadEmployeeSummary(List<Employee> employees)
-        {
-            var sb = new StringBuilder();
-            if (employees == null || employees.Count == 0)
-            {
-                sb.Append(@"<tr><td colspan='3' style='text-align:center; padding:20px; color:#999;'>No employees found</td></tr>");
-            }
-            else
-            {
-                var payRunService = new PayRunService();
-                
-                // Parallel fetching of payroll info for faster renders
-                var payrollTasks = employees.Select(async emp => {
-                    try {
-                        var latestPayRun = await payRunService.GetLatestPayRunForEmployeeAsync(emp.Id);
-                        return new { emp, latestPayRun };
-                    } catch {
-                        return new { emp, latestPayRun = (PayRun)null };
-                    }
-                }).ToList();
 
-                var results = await Task.WhenAll(payrollTasks);
-
-                foreach (var result in results)
-                {
-                    var emp = result.emp;
-                    string name = Server.HtmlEncode(emp.FullName ?? "N/A");
-                    string role = Server.HtmlEncode(emp.Role ?? "No Role");
-                    decimal netSalary = 0;
-                    string status = "Unpaid", statusClass = "unpaid";
-                    
-                    if (result.latestPayRun != null && result.latestPayRun.Items != null)
-                    {
-                        var payrollItem = result.latestPayRun.Items.FirstOrDefault(i => i.EmployeeId == emp.Id);
-                        if (payrollItem != null)
-                        {
-                            netSalary = payrollItem.NetSalary;
-                            if (result.latestPayRun.IsPaid) { status = "Paid"; statusClass = "paid"; }
-                            else if (result.latestPayRun.Status == "Approved") { status = "Approved"; statusClass = "approved"; }
-                            else { status = "Pending"; statusClass = "pending"; }
-                        }
-                    }
-                    
-                    string salary = emp.BaseSalary > 0 ? $"&#8369;{emp.BaseSalary:N2}" : "&#8369;0.00";
-
-                    sb.Append($@"
-                        <tr>
-                            <td>
-                                <div class='employee-img'></div>
-                                <div class='employee-info'>
-                                    <div class='employee-name'>{name}</div>
-                                    <div class='employee-role'>{role}</div>
-                                </div>
-                            </td>
-                            <td style='font-weight: 600;'>{salary}</td>
-                            <td><span class='status-badge status-{statusClass}'>{status}</span></td>
-                        </tr>");
-                }
-            }
-
-            if (phEmployeeSummary != null)
-            {
-                phEmployeeSummary.Controls.Clear();
-                phEmployeeSummary.Controls.Add(new LiteralControl(sb.ToString()));
-            }
-        }
 
         private async Task LoadRecentAnnouncementsAsync()
         {

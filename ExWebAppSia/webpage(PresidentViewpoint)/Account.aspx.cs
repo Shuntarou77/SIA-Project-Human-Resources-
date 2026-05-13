@@ -257,12 +257,14 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
             return employee.Gender;
         }
 
+        private bool _isOnLeave = false;
         protected string GetEmployeeStatus()
         {
             var employee = CurrentEmployee;
             if (employee == null) return "N/A";
-            // Return EmploymentStatus (Regular/Probationary based on 6 months rule)
-            return employee.EmploymentStatus;
+            string status = employee.EmploymentStatus;
+            if (_isOnLeave) status += " - On Leave";
+            return status;
         }
 
         protected string GetHiredDate()
@@ -318,6 +320,10 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                     _attendanceStatusJson = "{\"hasTimedIn\":false,\"hasTimedOut\":false,\"timeIn\":null,\"timeOut\":null}";
                     return;
                 }
+
+                // Check leave status
+                var leaveService = new LeaveService();
+                _isOnLeave = await leaveService.IsEmployeeOnLeaveAsync(employee.EmployeeId);
 
                 var attendance = await _attendanceService.GetTodayAttendanceAsync(employee.EmployeeId);
                 var status = new

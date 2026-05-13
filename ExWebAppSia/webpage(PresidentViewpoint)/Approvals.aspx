@@ -18,7 +18,7 @@
 
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(6, 1fr);
             gap: 20px;
             margin-bottom: 35px;
         }
@@ -110,6 +110,34 @@
 
         .empty-state { padding: 80px 20px; text-align: center; color: #94a3b8; }
         .auto-approve-notice { background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 12px 20px; border-radius: 12px; margin-bottom: 25px; font-size: 14px; display: flex; align-items: center; gap: 12px; }
+
+        /* Report Buttons Style */
+        .report-controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #fffcfb;
+            border-radius: 16px;
+            border: 1px solid #f1f5f9;
+        }
+        
+        .btn-report {
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+        
+        .btn-report-primary { background: var(--primary-color); color: white; }
+        .btn-report-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(164, 79, 86, 0.2); }
     </style>
 </asp:Content>
 
@@ -163,6 +191,13 @@
                     <div class="label">Concerns</div>
                 </div>
             </div>
+            <div class="metric-card" onclick="switchTab('loan-tab')">
+                <div class="metric-icon" style="background: #059669;"><i class="fas fa-hand-holding-usd"></i></div>
+                <div class="metric-info">
+                    <div class="count"><span id="cnt-loan">0</span></div>
+                    <div class="label">Loans</div>
+                </div>
+            </div>
         </div>
 
         <div class="dashboard-content">
@@ -172,6 +207,7 @@
                 <div id="btn-ut" class="tab-trigger" onclick="switchTab('ut-tab')">Undertime</div>
                 <div id="btn-resign" class="tab-trigger" onclick="switchTab('resign-tab')">Resignations</div>
                 <div id="btn-concern" class="tab-trigger" onclick="switchTab('concern-tab')">Concerns</div>
+                <div id="btn-loan" class="tab-trigger" onclick="switchTab('loan-tab')">Loans</div>
             </div>
 
             <div class="tab-body">
@@ -227,6 +263,23 @@
                         </table>
                     </div>
                 </div>
+                <div id="loan-tab" class="tab-content">
+                    <!-- Reports Section -->
+                    <div class="report-controls">
+                        <asp:LinkButton ID="btnLoanReport" runat="server" OnClick="btnLoanReport_Click" CssClass="btn-report btn-report-primary">
+                            <i class="fas fa-file-pdf"></i> Export Loan Details Report (PDF)
+                        </asp:LinkButton>
+                    </div>
+
+                    <div class="table-responsive">
+                        <table class="modern-table">
+                            <thead>
+                                <tr><th>Employee</th><th>Type</th><th>Agency</th><th>Requested</th><th>Status</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody id="loanBody"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -279,6 +332,7 @@
                 if (document.getElementById('cnt-ut')) document.getElementById('cnt-ut').textContent = res.ut.length;
                 if (document.getElementById('cnt-resign')) document.getElementById('cnt-resign').textContent = res.resign.length;
                 if (document.getElementById('cnt-concern')) document.getElementById('cnt-concern').textContent = res.concerns.length;
+                if (document.getElementById('cnt-loan')) document.getElementById('cnt-loan').textContent = res.loans ? res.loans.length : 0;
                 
                 // Build Leaves
                 document.getElementById('leaveBody').innerHTML = res.leaves.length ? res.leaves.map(l => {
@@ -367,6 +421,27 @@
                         <td>${actions}</td>
                     </tr>
                 `}).join('') : '<tr><td colspan="4" class="empty-state">No recent concerns.</td></tr>';
+
+                // Build Loan
+                if (res.loans) {
+                    document.getElementById('loanBody').innerHTML = res.loans.length ? res.loans.map(l => {
+                        const isSelf = (l.empId && res.currentAdminId && l.empId.toString().toLowerCase() === res.currentAdminId.toString().toLowerCase());
+                        const actions = isSelf ? '<span class="status-badge status-pending"><i class="fas fa-user-lock"></i> SELF-REQUEST</span>' :
+                                       `<div style="display:flex; gap:8px;">
+                                           <button type="button" class="btn-action-approve" onclick="approve('Loan', '${l.id}')">Approve</button>
+                                           <button type="button" class="btn-action-reject" onclick="reject('Loan', '${l.id}')">Reject</button>
+                                       </div>`;
+                        return `
+                        <tr>
+                            <td style="font-weight:700;">${l.name}</td>
+                            <td>${l.type}</td>
+                            <td>${l.agency}</td>
+                            <td>${l.date}</td>
+                            <td><span class="status-badge status-pending">Pending</span></td>
+                            <td>${actions}</td>
+                        </tr>
+                    `}).join('') : '<tr><td colspan="6" class="empty-state">No pending loan requests.</td></tr>';
+                }
             });
         }
 

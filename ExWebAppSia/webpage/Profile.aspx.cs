@@ -178,7 +178,15 @@ namespace ExWebAppSia.webpage
         protected string GetEmployeeBirthdate() => CurrentEmployee?.BirthDate?.ToLocalTime().ToString("MMM dd, yyyy") ?? "N/A";
         protected string GetEmployeeAge() => CurrentEmployee?.CalculatedAge?.ToString() ?? "N/A";
         protected string GetEmployeeSex() => CurrentEmployee?.Gender ?? "N/A";
-        protected string GetEmployeeStatus() => CurrentEmployee?.EmploymentStatus ?? "Regular";
+        private bool _isOnLeave = false;
+        protected string GetEmployeeStatus()
+        {
+            var employee = CurrentEmployee;
+            if (employee == null) return "N/A";
+            string status = employee.EmploymentStatus;
+            if (_isOnLeave) status += " - On Leave";
+            return status;
+        }
         protected string GetEmployeeSalary() => CurrentEmployee != null ? $"₱{CurrentEmployee.BaseSalary:N2}" : "₱0.00";
 
         protected string GetHiredDate()
@@ -245,6 +253,10 @@ namespace ExWebAppSia.webpage
                     _attendanceStatusJson = "{\"hasTimedIn\":false,\"hasTimedOut\":false,\"timeIn\":null,\"timeOut\":null}";
                     return;
                 }
+
+                // Check leave status
+                var leaveService = new LeaveService();
+                _isOnLeave = await leaveService.IsEmployeeOnLeaveAsync(employee.EmployeeId);
 
                 var attendance = await _attendanceService.GetTodayAttendanceAsync(employee.EmployeeId);
                 

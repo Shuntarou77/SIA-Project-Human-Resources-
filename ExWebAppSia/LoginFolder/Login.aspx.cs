@@ -141,6 +141,16 @@ namespace ExWebAppSia.LoginFolder
                                 System.Diagnostics.Debug.WriteLine($"[Login] WARNING: Identity mismatch detected during login! User={userEmail}, Employee={employee.FullName} ({empEmail})");
                             }
 
+                            // CHECK FOR ACTIVE LEAVE: Block login if on approved leave
+                            var leaveService = new LeaveService();
+                            bool isOnLeave = await leaveService.IsEmployeeOnLeaveAsync(employee.EmployeeId);
+                            if (isOnLeave)
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[Login] BLOCKED: Employee {employee.FullName} ({employee.EmployeeId}) is currently on leave.");
+                                ShowError("Access Denied: You are currently on leave. Access is restricted until your leave period ends.");
+                                return;
+                            }
+
                             Session["Employee"] = employee;
                             Session["EmployeeId"] = employee.EmployeeId; // Store explicit ID for secondary verification
 

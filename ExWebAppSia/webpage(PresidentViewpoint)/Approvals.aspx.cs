@@ -50,6 +50,7 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                 var utTask = _utService.GetAllPendingRequestsAsync();
                 var resignedTask = _employeeService.GetPendingResignationsAsync();
                 var concernsTask = _concernService.GetAllConcernsAsync();
+                var loanTask = new LoanService().GetAllLoansAsync();
                 
                 // Get Admin IDs from Users collection instead of Employee.Role
                 var usersCollection = MongoDBHelper.GetUsersCollection();
@@ -59,7 +60,7 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                 );
                 var adminIdsTask = usersCollection.Find(adminFilter).Project(u => u.EmployeeId).ToListAsync();
 
-                await Task.WhenAll(leavesTask, otTask, utTask, resignedTask, concernsTask, adminIdsTask).ConfigureAwait(false);
+                await Task.WhenAll(leavesTask, otTask, utTask, resignedTask, concernsTask, loanTask, adminIdsTask).ConfigureAwait(false);
 
                 var adminIds = adminIdsTask.Result ?? new List<string>();
 
@@ -69,6 +70,7 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                 var pUT = utTask.Result?.Where(u => adminIds.Contains(u.EmployeeId)).ToList() ?? new List<UndertimeRequest>();
                 var pResign = resignedTask.Result?.Where(e => adminIds.Contains(e.EmployeeId)).ToList() ?? new List<Employee>();
                 var pConcerns = concernsTask.Result?.Where(c => (string.Equals(c.Status, "Submitted", StringComparison.OrdinalIgnoreCase) || string.Equals(c.Status, "In Progress", StringComparison.OrdinalIgnoreCase)) && adminIds.Contains(c.EmployeeId)).OrderByDescending(c => c.SubmittedDate).ToList() ?? new List<EmployeeConcern>();
+                var pLoans = loanTask.Result?.Where(l => string.Equals(l.Status, "PENDING", StringComparison.OrdinalIgnoreCase) && adminIds.Contains(l.EmployeeId)).ToList() ?? new List<LoanRequest>();
 
                 // Bind Counts
                 litLeaveCount.Text = pLeaves.Count.ToString();
@@ -76,6 +78,9 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                 litUTCount.Text = pUT.Count.ToString();
                 litResignCount.Text = pResign.Count.ToString();
                 litConcernCount.Text = pConcerns.Count.ToString();
+                
+                var l_loan = Master.FindControl("ContentPlaceHolder1").FindControl("cnt-loan") as Literal; // Or handle via JS
+                // Actually JS handles the cnt-loan span, so we just need to ensure the data is in the GetSuperAdminRequests method.
             }
             catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"President Approvals Error: {ex.Message}"); }
         }
@@ -139,7 +144,13 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                             id = c.Id, empId = c.EmployeeId, name = c.EmployeeName, subject = c.Subject, type = c.ConcernType, date = c.SubmittedDate.ToString("MMM dd, yyyy")
                         }).ToList();
 
-                    return serializer.Serialize(new { success = true, leaves, ot, ut, resign, concerns, currentAdminId = currentAdminId });
+                    var loans = (await new LoanService().GetAllLoansAsync())
+                        .Where(l => string.Equals(l.Status, "PENDING", StringComparison.OrdinalIgnoreCase) && adminIds.Contains(l.EmployeeId))
+                        .Select(l => new {
+                            id = l.Id, empId = l.EmployeeId, name = l.EmployeeName, type = l.LoanType, agency = l.Agency, date = l.RequestDate.ToString("MMM dd, yyyy")
+                        }).ToList();
+
+                    return serializer.Serialize(new { success = true, leaves, ot, ut, resign, concerns, loans, currentAdminId = currentAdminId });
                 }).GetAwaiter().GetResult();
             }
             catch (Exception ex) { return serializer.Serialize(new { success = false, message = ex.Message }); }
@@ -181,6 +192,12 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                         if (concern != null && emp != null && string.Equals(concern.EmployeeId, emp.EmployeeId, StringComparison.OrdinalIgnoreCase)) return "{\"success\":false,\"message\":\"Self-approval not allowed\"}";
                         success = await new EmployeeConcernService().UpdateConcernStatusAsync(id, "Resolved");
                     }
+                    else if (type == "Loan") {
+                        var loan = await new LoanService().GetLoanByIdAsync(id);
+                        if (loan != null && emp != null && string.Equals(loan.EmployeeId, emp.EmployeeId, StringComparison.OrdinalIgnoreCase)) return "{\"success\":false,\"message\":\"Self-approval not allowed\"}";
+                        await new LoanService().UpdateLoanStatusAsync(id, status);
+                        success = true;
+                    }
 
                     if(success) {
                         var log = new ActivityLogService();
@@ -216,14 +233,16 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                     var leavesTask = leaveService.GetAllLeavesAsync();
                     var concernsTask = concernService.GetAllConcernsAsync();
                     var resignedTask = employeeService.GetPendingResignationsAsync();
+                    var loanTask = new LoanService().GetAllLoansAsync();
 
-                    await Task.WhenAll(otTask, utTask, leavesTask, concernsTask, resignedTask);
+                    await Task.WhenAll(otTask, utTask, leavesTask, concernsTask, resignedTask, loanTask);
 
                     var pLeaves = leavesTask.Result?.Where(l => string.Equals(l.Status, "Pending", StringComparison.OrdinalIgnoreCase) && adminIds.Contains(l.EmployeeId)).ToList() ?? new List<Leave>();
                     var pOT = otTask.Result?.Where(o => adminIds.Contains(o.EmployeeId)).ToList() ?? new List<OvertimeRequest>();
                     var pUT = utTask.Result?.Where(u => adminIds.Contains(u.EmployeeId)).ToList() ?? new List<UndertimeRequest>();
                     var pResign = resignedTask.Result?.Where(e => adminIds.Contains(e.EmployeeId)).ToList() ?? new List<Employee>();
                     var pConcerns = concernsTask.Result?.Where(c => (string.Equals(c.Status, "Submitted", StringComparison.OrdinalIgnoreCase) || string.Equals(c.Status, "In Progress", StringComparison.OrdinalIgnoreCase)) && adminIds.Contains(c.EmployeeId)).ToList() ?? new List<EmployeeConcern>();
+                    var pLoans = loanTask.Result?.Where(l => string.Equals(l.Status, "PENDING", StringComparison.OrdinalIgnoreCase) && adminIds.Contains(l.EmployeeId)).ToList() ?? new List<LoanRequest>();
 
                     return new {
                         success = true,
@@ -231,13 +250,47 @@ namespace ExWebAppSia.webpage_PresidentViewpoint_
                         otCount = pOT.Count,
                         utCount = pUT.Count,
                         resignCount = pResign.Count,
-                        concernCount = pConcerns.Count
+                        concernCount = pConcerns.Count,
+                        loanCount = pLoans.Count
                     };
                 }).GetAwaiter().GetResult();
             }
             catch
             {
                 return new { success = false };
+            }
+        }
+
+        protected void btnLoanReport_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var loanService = new LoanService();
+                var loans = Task.Run(async () => await loanService.GetAllLoansAsync()).Result;
+
+                var pdfService = new LoanReportPdfService();
+                byte[] pdfBytes = pdfService.GenerateLoanHistoryReport(loans);
+
+                ServePdf(pdfBytes, "Executive_Loan_Report");
+            }
+            catch (Exception ex)
+            {
+                ScriptManager.RegisterStartupScript(this, GetType(), "error", $"alert('Error generating report: {ex.Message}');", true);
+            }
+        }
+
+        private void ServePdf(byte[] pdfBytes, string fileNamePrefix)
+        {
+            if (pdfBytes != null)
+            {
+                Response.Clear();
+                Response.ContentType = "application/pdf";
+                Response.AddHeader("content-disposition", $"attachment;filename={fileNamePrefix}_{DateTime.Now:yyyyMMdd_HHmm}.pdf");
+                Response.Buffer = true;
+                Response.BinaryWrite(pdfBytes);
+                Response.Flush();
+                Response.SuppressContent = true;
+                HttpContext.Current.ApplicationInstance.CompleteRequest();
             }
         }
     }

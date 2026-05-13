@@ -684,6 +684,24 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             }
         }
 
+        protected void btnLoanReport_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var loanService = new LoanService();
+                var loans = Task.Run(async () => await loanService.GetAllLoansAsync()).Result;
+
+                var pdfService = new LoanReportPdfService();
+                byte[] pdfBytes = pdfService.GenerateLoanHistoryReport(loans);
+
+                ServePdf(pdfBytes, "Loan_Requests_Report");
+            }
+            catch (Exception ex)
+            {
+                ScriptManager.RegisterStartupScript(this, GetType(), "error", $"alert('Error generating report: {ex.Message}');", true);
+            }
+        }
+
         private void ServePdf(byte[] pdfBytes, string fileNamePrefix)
         {
             if (pdfBytes != null)

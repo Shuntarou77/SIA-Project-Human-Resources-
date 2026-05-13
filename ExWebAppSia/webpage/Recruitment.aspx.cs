@@ -500,6 +500,7 @@ namespace ExWebAppSia.webpage
                 }
 
                 // --- NEW: Contractual Replacement logic ---
+                var onLeaveEmployeeIds = new HashSet<string>();
                 int onLeaveCount = 0;
                 try {
                     var leaveCol = MongoDBHelper.GetLeavesCollection();
@@ -510,8 +511,10 @@ namespace ExWebAppSia.webpage
                         Builders<Leave>.Filter.Eq(l => l.IsActive, true)
                     );
                     var cursor = await leaveCol.FindAsync(filter);
-                    var leavesToday = await cursor.ToListAsync();
-                    onLeaveCount = leavesToday.Count(l => todayDate >= l.StartDate.Date && todayDate <= l.EndDate.Date);
+                    var leavesTodayList = await cursor.ToListAsync();
+                    var activeLeaves = leavesTodayList.Where(l => todayDate >= l.StartDate.Date && todayDate <= l.EndDate.Date).ToList();
+                    onLeaveCount = activeLeaves.Count;
+                    onLeaveEmployeeIds = new HashSet<string>(activeLeaves.Select(l => l.EmployeeId));
                 } catch { }
 
                 if (litAvailablePositionsList != null)
@@ -529,16 +532,14 @@ namespace ExWebAppSia.webpage
                                 // Exclude President from recruitment logic entirely
                                 if (r.ToLowerInvariant().Contains("president")) continue;
 
-                                if (!string.IsNullOrEmpty(emp.Role)) {
-                                    // Only count towards 'occupied' if they are NOT on leave
-                                    // If they are on leave, the slot is effectively vacant for a temp
-                                    if (onLeaveCount == 0) { // Simplified for this file's logic style
-                                        occupiedRoles.Add(r);
-                                    }
-                                    
-                                    if (!roleHeadcounts.ContainsKey(r)) roleHeadcounts[r] = 0;
-                                    roleHeadcounts[r]++;
+                                // Only count towards 'occupied' if they are NOT on leave
+                                // If they are on leave (including Maternity Leave), the slot is effectively vacant for a temp
+                                if (!onLeaveEmployeeIds.Contains(emp.EmployeeId)) {
+                                    occupiedRoles.Add(r);
                                 }
+                                
+                                if (!roleHeadcounts.ContainsKey(r)) roleHeadcounts[r] = 0;
+                                roleHeadcounts[r]++;
                             }
                         }
                     }
