@@ -860,6 +860,111 @@ namespace ExWebAppSia.Models
                 return new TeamAttendanceStats();
             }
         }
+        public async Task<int> DetectConsecutiveUnexcusedAbsencesAsync(string employeeId)
+        {
+            try
+            {
+                var now = DateTime.UtcNow.AddHours(8).Date;
+                int consecutiveAbsences = 0;
+                
+                // Check back up to 15 days to find a sequence of 5-7 days
+                for (int i = 0; i < 15; i++)
+                {
+                    var checkDate = now.AddDays(-i);
+                    
+                    // Skip Sundays (not business days in this system)
+                    if (checkDate.DayOfWeek == DayOfWeek.Sunday) continue;
+                    
+                    // 1. Check Attendance
+                    var attendance = await _attendance.Find(a => a.EmployeeId == employeeId && a.Date == checkDate && a.IsActive).FirstOrDefaultAsync();
+                    if (attendance != null && attendance.TimeIn.HasValue)
+                    {
+                        // They showed up, sequence broken
+                        break;
+                    }
+                    
+                    // 2. Check Approved Leave
+                    var leaveService = new LeaveService();
+                    var isOnLeave = await leaveService.IsEmployeeOnLeaveOnDateAsync(employeeId, checkDate);
+                    if (isOnLeave)
+                    {
+                        // They have a valid reason, sequence broken
+                        break;
+                    }
+                    
+                    // If no attendance and no leave, it's an unexcused absence
+                    consecutiveAbsences++;
+                    
+                    // We only care about 5-7 days for now
+                    if (consecutiveAbsences >= 7) break;
+                }
+                
+                return consecutiveAbsences;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error detecting consecutive absences: {ex.Message}");
+                return 0;
+            }
+        }
+
+        public async Task<List<ContractualHiringNeed>> GetContractualHiringNeedsAsync()
+        {
+            var needs = new List<ContractualHiringNeed>();
+            try
+            {
+                var empService = new EmployeeService();
+                var leaveService = new LeaveService();
+                
+                var employees = await empService.GetAllEmployeesAsync();
+                
+                foreach (var emp in employees.Where(e => e.IsActive))
+                {
+                    // Condition 1: 5 to 7 consecutive business days of unexcused absence
+                    int unexcusedDays = await DetectConsecutiveUnexcusedAbsencesAsync(emp.EmployeeId);
+                    if (unexcusedDays >= 5)
+                    {
+                        needs.Add(new ContractualHiringNeed
+                        {
+                            Id = emp.Id,
+                            EmployeeId = emp.EmployeeId,
+                            EmployeeName = emp.FullName,
+                            Position = emp.Position,
+                            Department = emp.Department,
+                            Reason = $"Unexcused Absence ({unexcusedDays} consecutive days)",
+                            Type = "Contractual",
+                            Priority = "High"
+                        });
+                    }
+                    
+                    // Condition 2: Permanent employee's leave spans at least 30 to 105 days
+                    var leaves = await leaveService.GetLeavesByEmployeeIdAsync(emp.EmployeeId);
+                    var longTermLeave = leaves?.FirstOrDefault(l => l.Status == "Approved" && 
+                        (l.EndDate - l.StartDate).TotalDays >= 30 && 
+                        (l.EndDate - l.StartDate).TotalDays <= 105);
+                        
+                    if (longTermLeave != null)
+                    {
+                        needs.Add(new ContractualHiringNeed
+                        {
+                            Id = emp.Id,
+                            EmployeeId = emp.EmployeeId,
+                            EmployeeName = emp.FullName,
+                            Position = emp.Position,
+                            Department = emp.Department,
+                            Reason = $"Long-term Leave ({(int)(longTermLeave.EndDate - longTermLeave.StartDate).TotalDays} days)",
+                            Type = "Fixed-term",
+                            Priority = "Medium"
+                        });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error getting contractual hiring needs: {ex.Message}");
+            }
+            return needs;
+        }
     }
 
     public class TeamAttendanceStats
@@ -878,5 +983,17 @@ namespace ExWebAppSia.Models
         public int WorkingDaysToDate { get; set; }
         public int RemainingAbsences { get; set; }
         public double AttendanceRate { get; set; }
+    }
+
+    public class ContractualHiringNeed
+    {
+        public string Id { get; set; } // MongoDB ID
+        public string EmployeeId { get; set; }
+        public string EmployeeName { get; set; }
+        public string Position { get; set; }
+        public string Department { get; set; }
+        public string Reason { get; set; }
+        public string Type { get; set; } // Contractual or Fixed-term
+        public string Priority { get; set; }
     }
 }

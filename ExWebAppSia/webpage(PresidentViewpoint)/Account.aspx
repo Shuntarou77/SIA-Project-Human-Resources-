@@ -906,11 +906,20 @@
                     <button type="button" onclick="window.closeCustomModal('leaveModal'); return false;" style="position:absolute;top:16px;right:20px;background:rgba(255,255,255,0.25);border:none;color:white;font-size:22px;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;font-weight:bold;z-index:10001;">&times;</button>
                     <h2 class="custom-modal-v2-title">📄 File Leave of Absence</h2>
                 </div>
-                <div class="custom-modal-v2-body">
+                    <div class="leave-balance-info" style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="font-size: 20px;">📊</span>
+                            <div>
+                                <div style="font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 600;">Available Leave Credits</div>
+                                <div style="font-size: 16px; font-weight: 700; color: #1e293b;"><%= GetRemainingAbsences() %> Days Remaining</div>
+                            </div>
+                        </div>
+                        <div style="font-size: 11px; color: #94a3b8; font-style: italic;">Reset every January 1st</div>
+                    </div>
                     <asp:Label ID="lblLeaveMessage" runat="server" style="display: none;"></asp:Label>
                     <div class="form-group">
                         <label class="form-label">Leave Type *</label>
-                        <asp:DropDownList ID="ddlLeaveType" runat="server" CssClass="form-select">
+                        <asp:DropDownList ID="ddlLeaveType" runat="server" CssClass="form-select" onchange="updateLeaveHint()">
                             <asp:ListItem Value="" Text="Select leave type"></asp:ListItem>
                             <asp:ListItem Value="sick" Text="Sick Leave"></asp:ListItem>
                             <asp:ListItem Value="vacation" Text="Vacation Leave"></asp:ListItem>
@@ -919,7 +928,41 @@
                             <asp:ListItem Value="maternity" Text="Maternity Leave"></asp:ListItem>
                             <asp:ListItem Value="paternity" Text="Paternity Leave"></asp:ListItem>
                         </asp:DropDownList>
+                        <div id="leaveHint" style="font-size: 11px; margin-top: 6px; padding: 8px; border-radius: 4px; display: none;"></div>
                     </div>
+                    <script type="text/javascript">
+                        function updateLeaveHint() {
+                            var ddl = document.getElementById('<%= ddlLeaveType.ClientID %>');
+                            var hint = document.getElementById('leaveHint');
+                            var attachmentLabel = document.getElementById('attachmentLabel');
+                            var type = ddl.value;
+                            
+                            hint.style.display = 'block';
+                            hint.style.background = '#f0f9ff';
+                            hint.style.color = '#0369a1';
+                            hint.style.border = '1px solid #bae6fd';
+                            
+                            if (type === 'sick') {
+                                hint.innerHTML = '<strong>Note:</strong> Medical proof is required. If credits are exhausted, the excess days will be unpaid.';
+                                if (attachmentLabel) attachmentLabel.innerHTML = 'Medical Certificate (Required) *';
+                            } else if (type === 'vacation' || type === 'personal') {
+                                hint.innerHTML = '<strong>Note:</strong> Requests cannot exceed your remaining leave credits.';
+                                if (attachmentLabel) attachmentLabel.innerHTML = 'Attachment (Optional)';
+                            } else if (type === 'emergency') {
+                                hint.innerHTML = '<strong>Note:</strong> Allowed up to 5 days even if credits are zero.';
+                                if (attachmentLabel) attachmentLabel.innerHTML = 'Attachment (Optional)';
+                            } else if (type === 'maternity') {
+                                hint.innerHTML = '<strong>Note:</strong> Allowed up to 105 days as per government policy.';
+                                if (attachmentLabel) attachmentLabel.innerHTML = 'Attachment (Optional)';
+                            } else if (type === 'paternity') {
+                                hint.innerHTML = '<strong>Note:</strong> Allowed up to 7 days as per government policy.';
+                                if (attachmentLabel) attachmentLabel.innerHTML = 'Attachment (Optional)';
+                            } else {
+                                hint.style.display = 'none';
+                                if (attachmentLabel) attachmentLabel.innerHTML = 'Attachment (Optional)';
+                            }
+                        }
+                    </script>
                     <div class="form-group">
                         <label class="form-label">Start Date *</label>
                         <asp:TextBox ID="txtStartDate" runat="server" CssClass="form-input" TextMode="Date"></asp:TextBox>
@@ -934,14 +977,14 @@
                             placeholder="Please provide details about your leave request..."></asp:TextBox>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Attachment (Optional)</label>
+                        <label id="attachmentLabel" class="form-label">Attachment (Optional)</label>
                         <asp:FileUpload ID="fileLeaveAttachment" runat="server" CssClass="form-input"
                             accept=".pdf,.jpg,.png,.doc,.docx" />
                     </div>
                 </div>
                 <div class="custom-modal-v2-footer">
                     <button class="btn-cancel" onclick="closeModal('leaveModal')">Cancel</button>
-                    <asp:Button ID="btnSubmitLeave" runat="server" CssClass="btn-submit" Text="Submit Leave Request"
+                    <asp:Button ID="btnSubmitLeave" runat="server" CssClass="btn-submit" Text="Confirm Leave Request"
                         OnClick="btnSubmitLeave_Click" />
                 </div>
             </div>
@@ -1572,7 +1615,7 @@
                     element.innerHTML = `
                         <div style="padding: 40px; font-family: 'Arial', sans-serif; color: #000; width: 700px; margin: auto; border: 1px solid #000;">
                             <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-                                <h1 style="margin: 0; font-size: 22px;">SHESSENTIALS SKINCARE AND BEAUTY MANUFACTURING CO.</h1>
+                                <h1 style="margin: 0; font-size: 22px;">SHEESSENTIALS SKINCARE AND BEAUTY MANUFACTURING CO.</h1>
                                 <p style="margin: 5px 0; font-size: 14px; font-weight: bold;">PAYSLIP</p>
                             </div>
                             
@@ -2017,98 +2060,70 @@
                         return;
                     }
 
-                    const name = "<%= GetEmployeeName() %>";
-                    const dept = "<%= GetEmployeeDepartment() %>";
-                    const position = "<%= GetEmployeeRole() %>";
-                    const hireDate = "<%= GetHiredDate() %>";
-                    const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-
                     const element = document.createElement('div');
+                    const logoUrl = '<%= ResolveUrl("~/images/shessentials-logo.png") %>';
                     element.innerHTML = `
-                        <div style="padding: 60px; font-family: 'Times New Roman', Times, serif; color: #000; width: 750px; margin: auto; line-height: 1.8;">
-                            <div style="text-align: center; margin-bottom: 40px;">
-                                <img src="/images/shessentials-logo.png" style="width: 120px; height: auto; margin-bottom: 10px;" alt="Logo" onerror="this.style.display='none'">
-                                <h2 style="margin: 0; font-size: 20px; letter-spacing: 1px;">SHESSENTIALS SKINCARE AND BEAUTY MANUFACTURING CO.</h2>
-                                <p style="margin: 5px 0; font-size: 12px;">Official Employment Certification</p>
-                            </div>
-
-                            <div style="text-align: right; margin-bottom: 30px;">
-                                <p>Date: <span style="display: inline-block; width: 180px; border-bottom: 1px solid #000; text-align: center;">${today}</span></p>
+                        <div style="padding: 60px; font-family: 'Times New Roman', Times, serif; color: #000; width: 750px; margin: auto; line-height: 1.6;">
+                            <div style="text-align: center; margin-bottom: 30px;">
+                                <img src="${logoUrl}" style="width: 100px; height: auto; margin-bottom: 10px;" alt="Logo" crossorigin="anonymous" onerror="this.style.display='none'">
+                                <h2 style="margin: 0; font-size: 18px; font-weight: bold;">SHEESSENTIALS SKINCARE AND BEAUTY MANUFACTURING CO.</h2>
+                                <p style="margin: 2px 0; font-size: 12px;">[Company Address]</p>
+                                <p style="margin: 2px 0; font-size: 12px;">[Company Contact Number]</p>
+                                <p style="margin: 2px 0; font-size: 12px;">[Company Email]</p>
                             </div>
 
                             <div style="text-align: center; margin-bottom: 40px;">
-                                <h1 style="font-size: 24px; font-weight: bold;">CERTIFICATE OF EMPLOYMENT</h1>
+                                <h1 style="font-size: 24px; font-weight: bold; text-decoration: underline;">CERTIFICATE OF EMPLOYMENT</h1>
                             </div>
 
-                            <p style="margin-bottom: 25px;">TO WHOM IT MAY CONCERN:</p>
+                            <div style="margin-bottom: 20px;">
+                                Date: _________________
+                            </div>
 
-                            <p style="margin-bottom: 25px; text-align: justify;">
-                                This is to certify that <strong>${name}</strong> has been a bonafide employee of <strong>Shessentials Skincare and Beauty Manufacturing Co.</strong> under the following details:
+                            <p style="margin-bottom: 20px;">TO WHOM IT MAY CONCERN:</p>
+
+                            <p style="margin-bottom: 30px; text-align: justify;">
+                                This is to certify that _____________________________ has been a bonafide employee of Sheessentials Skincare and Beauty Manufacturing Co. under the following details:
                             </p>
 
-                            <table style="width: 95%; margin: 0 auto 30px auto; font-size: 16px; border-collapse: collapse;">
-                                <tr>
-                                    <td style="padding: 12px; width: 35%;">Position:</td>
-                                    <td style="padding: 12px; border-bottom: 1px solid #000;">${position}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 12px;">Department:</td>
-                                    <td style="padding: 12px; border-bottom: 1px solid #000;">${dept}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 12px;">Employment Type:</td>
-                                    <td style="padding: 12px; border-bottom: 1px solid #000;">
-                                        [✓] Regular &nbsp;&nbsp; [ ] Probationary &nbsp;&nbsp; [ ] Contractual
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 12px;">Date of Hire:</td>
-                                    <td style="padding: 12px; border-bottom: 1px solid #000;">${hireDate}</td>
-                                </tr>
-                                <tr>
-                                    <td style="padding: 12px;">Employment Status:</td>
-                                    <td style="padding: 12px; border-bottom: 1px solid #000;">
-                                        [✓] Currently Employed &nbsp;&nbsp; [ ] Separated
-                                    </td>
-                                </tr>
-                            </table>
+                            <div style="margin-left: 20px; margin-bottom: 30px;">
+                                <p style="margin-bottom: 15px;">Position: _____________________________</p>
+                                <p style="margin-bottom: 15px;">Department: _____________________________</p>
+                                <p style="margin-bottom: 15px;">Employment Type: ☐ Regular &nbsp; ☐ Probationary &nbsp; ☐ Contractual</p>
+                                <p style="margin-bottom: 15px;">Date of Hire: _____________________________</p>
+                                <p style="margin-bottom: 15px;">Employment Status: ☐ Currently Employed &nbsp; ☐ Separated as of _____________</p>
+                            </div>
 
                             <p style="margin-bottom: 40px; text-align: justify;">
                                 This certification is issued upon the request of the above-named employee for whatever legal purpose it may serve.
                             </p>
 
-                            <div style="margin-top: 50px; page-break-inside: avoid;">
-                                <p style="margin-bottom: 10px;">Issued by:</p>
-                                <table style="width: 100%; border-collapse: collapse;">
-                                    <tr>
-                                        <td style="width: 45%; vertical-align: bottom; padding-right: 10%;">
-                                            <div style="height: 60px;"></div>
-                                            <div style="border-top: 1px solid #000; text-align: center;">
-                                                <p style="margin: 0; font-weight: bold; font-size: 16px;">ADMINISTRATION</p>
-                                                <p style="margin: 0; font-size: 13px;">HR Department</p>
-                                            </div>
-                                        </td>
-                                        <td style="width: 45%; vertical-align: bottom;">
-                                            <div style="height: 60px;"></div>
-                                            <div style="border-top: 1px solid #000; text-align: center;">
-                                                <p style="margin: 0; font-size: 13px;">Authorized Signature</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                </table>
+                            <div style="margin-top: 50px;">
+                                <p style="margin-bottom: 15px; font-weight: bold;">Issued by:</p>
+                                <div style="margin-left: 20px;">
+                                    <p style="margin-bottom: 10px;">Name: _____________________________</p>
+                                    <p style="margin-bottom: 10px;">Position: HR Staff / HR Manager</p>
+                                    <p style="margin-bottom: 10px;">Signature: _____________________________</p>
+                                    <p style="margin-bottom: 10px;">Date: _____________________________</p>
+                                </div>
                             </div>
                         </div>
                     `;
 
                     const opt = {
                         margin: 0,
-                        filename: 'COE_Template.pdf',
+                        filename: 'COE_Form.pdf',
                         image: { type: 'jpeg', quality: 0.98 },
                         html2canvas: { scale: 2, scrollY: 0, useCORS: true },
                         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                     };
 
-                    html2pdf().from(element).set(opt).save();
+                    html2pdf().from(element).set(opt).save().then(() => {
+                        console.log('COE Downloaded successfully');
+                    }).catch(err => {
+                        console.error('PDF Error:', err);
+                        alert('Failed to generate PDF: ' + err.message);
+                    });
                 } catch (err) {
                     alert('Error: ' + err.message);
                 }
@@ -2198,7 +2213,12 @@
                         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                     };
 
-                    html2pdf().from(element).set(opt).save();
+                    html2pdf().from(element).set(opt).save().then(() => {
+                        console.log('Loan Form Downloaded successfully');
+                    }).catch(err => {
+                        console.error('PDF Error:', err);
+                        alert('Failed to generate PDF: ' + err.message);
+                    });
                 } catch (err) {
                     alert('Error: ' + err.message);
                 }
@@ -2212,71 +2232,127 @@
                     }
 
                     const element = document.createElement('div');
+                    const logoUrl = '<%= ResolveUrl("~/images/shessentials-logo.png") %>';
                     element.innerHTML = `
-                        <div style="padding: 30px; font-family: 'Arial', sans-serif; color: #000; width: 750px; margin: auto; line-height: 1.4;">
-                            <div style="text-align: center; margin-bottom: 15px; page-break-inside: avoid;">
-                                <img src="/images/shessentials-logo.png" style="width: 100px; height: auto; margin-bottom: 5px;" alt="Logo" onerror="this.style.display='none'">
-                                <h2 style="margin: 0; font-size: 16px; letter-spacing: 1px; font-weight: bold;">SHESSENTIALS SKINCARE AND BEAUTY MANUFACTURING CO.</h2>
-                                <h1 style="margin: 5px 0 0 0; font-size: 18px; font-weight: bold;">EMPLOYEE CLEARANCE FORM</h1>
+                        <div style="padding: 30px; font-family: Arial, sans-serif; color: #000; width: 750px; margin: auto; line-height: 1.3; font-size: 11.5px;">
+                            <div style="text-align: center; margin-bottom: 15px;">
+                                <img src="${logoUrl}" style="width: 80px; height: auto; margin-bottom: 5px;" alt="Logo" crossorigin="anonymous" onerror="this.style.display='none'">
+                                <h2 style="margin: 0; font-size: 15px; font-weight: bold;">SHEESSENTIALS SKINCARE AND BEAUTY MANUFACTURING CO.</h2>
+                                <h1 style="margin: 5px 0 0 0; font-size: 17px; font-weight: bold;">EMPLOYEE CLEARANCE FORM</h1>
                             </div>
 
-                            <div style="margin-bottom: 15px; page-break-inside: avoid;">
-                                <h3 style="font-size: 14px; font-weight: bold; background-color: #f0f0f0; padding: 5px; border: 1px solid #000; margin-bottom: 10px;">EMPLOYEE INFORMATION</h3>
-                                <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-                                    <tr>
-                                        <td style="width: 25%; padding: 4px;">Name:</td>
-                                        <td style="width: 75%; border-bottom: 1px solid #000;">${name}</td>
+                            <div style="margin-bottom: 15px;">
+                                <h3 style="font-size: 13px; font-weight: bold; background-color: #f0f0f0; padding: 4px; border: 1px solid #000; margin: 0 0 8px 0;">EMPLOYEE INFORMATION</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                                    <div>Name: ___________________________________</div>
+                                    <div>Employee ID: _____________________________</div>
+                                    <div>Department: _____________________________</div>
+                                    <div>Position: _____________________________</div>
+                                    <div>Date of Hire: _____________________________</div>
+                                    <div>Last Day of Work: _____________________________</div>
+                                </div>
+                                <div style="margin-top: 8px;">
+                                    Reason for Separation: ☐ Resignation &nbsp; ☐ End of Contract &nbsp; ☐ Termination
+                                </div>
+                            </div>
+
+                            <div style="margin-bottom: 12px;">
+                                <h3 style="font-size: 13px; font-weight: bold; background-color: #f0f0f0; padding: 4px; border: 1px solid #000; margin: 0 0 8px 0;">CLEARANCE CHECKLIST</h3>
+                                
+                                <p style="font-weight: bold; margin: 0 0 5px 0;">A. HR Department</p>
+                                <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 5px;">
+                                    <tr style="background-color: #f9f9f9;">
+                                        <th style="border: 1px solid #000; padding: 4px; text-align: left; width: 45%;">Item</th>
+                                        <th style="border: 1px solid #000; padding: 4px; text-align: center; width: 20%;">Status</th>
+                                        <th style="border: 1px solid #000; padding: 4px; text-align: center; width: 20%;">Remarks</th>
+                                        <th style="border: 1px solid #000; padding: 4px; text-align: center; width: 15%;">Signature</th>
                                     </tr>
                                     <tr>
-                                        <td style="padding: 4px;">Employee ID:</td>
-                                        <td style="border-bottom: 1px solid #000;">${id}</td>
+                                        <td style="border: 1px solid #000; padding: 4px;">Employment records completed and filed</td>
+                                        <td style="border: 1px solid #000; padding: 4px; text-align: center;">☐ Cleared &nbsp; ☐ Not</td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
                                     </tr>
                                     <tr>
-                                        <td style="padding: 4px;">Department:</td>
-                                        <td style="border-bottom: 1px solid #000;">${dept}</td>
+                                        <td style="border: 1px solid #000; padding: 4px;">Government contributions updated (SSS, Pag-IBIG, PhilHealth)</td>
+                                        <td style="border: 1px solid #000; padding: 4px; text-align: center;">☐ Cleared &nbsp; ☐ Not</td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
                                     </tr>
                                     <tr>
-                                        <td style="padding: 4px;">Position:</td>
-                                        <td style="border-bottom: 1px solid #000;">${position}</td>
+                                        <td style="border: 1px solid #000; padding: 4px;">Certificate of Employment issued</td>
+                                        <td style="border: 1px solid #000; padding: 4px; text-align: center;">☐ Cleared &nbsp; ☐ Not</td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
                                     </tr>
                                     <tr>
-                                        <td style="padding: 4px;">Date of Hire:</td>
-                                        <td style="border-bottom: 1px solid #000;">${hireDate}</td>
-                                    </tr>
-                                    <tr>
-                                        <td style="padding: 4px;">Last Day of Work:</td>
-                                        <td style="border-bottom: 1px solid #000;">__________________________</td>
+                                        <td style="border: 1px solid #000; padding: 4px;">Loan balances settled or endorsed to payroll</td>
+                                        <td style="border: 1px solid #000; padding: 4px; text-align: center;">☐ Cleared &nbsp; ☐ Not</td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
                                     </tr>
                                 </table>
-                            </div>
+                                <div style="font-size: 11px; margin-bottom: 10px;">HR Staff Name & Signature: ______________________ &nbsp; Date: _________</div>
 
-                            <div style="margin-bottom: 15px; page-break-inside: avoid;">
-                                <h3 style="font-size: 14px; font-weight: bold; background-color: #f0f0f0; padding: 5px; border: 1px solid #000; margin-bottom: 10px;">CLEARANCE CHECKLIST</h3>
-                                <p style="font-weight: bold; font-size: 13px; margin: 5px 0;">HR & Payroll Verification</p>
-                                <table style="width: 100%; font-size: 12px; border-collapse: collapse; border: 1px solid #000; text-align: left;">
+                                <p style="font-weight: bold; margin: 5px 0 5px 0;">B. Finance / Payroll</p>
+                                <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 5px;">
                                     <tr>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 50%;">Item</th>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 25%;">Status</th>
-                                        <th style="border: 1px solid #000; padding: 5px; width: 25%;">Signature</th>
+                                        <td style="border: 1px solid #000; padding: 4px; width: 45%;">No outstanding cash advances</td>
+                                        <td style="border: 1px solid #000; padding: 4px; width: 20%; text-align: center;">☐ Cleared &nbsp; ☐ Not</td>
+                                        <td style="border: 1px solid #000; padding: 4px; width: 20%;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px; width: 15%;"></td>
                                     </tr>
                                     <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">Employment Records & ID Returned</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">[ ] Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px;">Final pay computation completed</td>
+                                        <td style="border: 1px solid #000; padding: 4px; text-align: center;">☐ Cleared &nbsp; ☐ Not</td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
                                     </tr>
                                     <tr>
-                                        <td style="border: 1px solid #000; padding: 5px;">Final Pay & Loan Settlement</td>
-                                        <td style="border: 1px solid #000; padding: 5px;">[ ] Cleared</td>
-                                        <td style="border: 1px solid #000; padding: 5px;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px;">Loan deductions reflected in final pay</td>
+                                        <td style="border: 1px solid #000; padding: 4px; text-align: center;">☐ Cleared &nbsp; ☐ Not</td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
                                     </tr>
                                 </table>
+                                <div style="font-size: 11px; margin-bottom: 10px;">Finance / Payroll In-charge Name & Signature: ______________________ &nbsp; Date: _________</div>
+
+                                <p style="font-weight: bold; margin: 5px 0 5px 0;">C. Immediate Supervisor / Department Head</p>
+                                <table style="width: 100%; border-collapse: collapse; border: 1px solid #000; margin-bottom: 5px;">
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 4px; width: 45%;">Company ID returned</td>
+                                        <td style="border: 1px solid #000; padding: 4px; width: 20%; text-align: center;">☐ Cleared &nbsp; ☐ Not</td>
+                                        <td style="border: 1px solid #000; padding: 4px; width: 20%;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px; width: 15%;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 4px;">Uniform / equipment returned</td>
+                                        <td style="border: 1px solid #000; padding: 4px; text-align: center;">☐ Cleared &nbsp; ☐ Not</td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 4px;">Pending tasks properly turned over</td>
+                                        <td style="border: 1px solid #000; padding: 4px; text-align: center;">☐ Cleared &nbsp; ☐ Not</td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
+                                    </tr>
+                                    <tr>
+                                        <td style="border: 1px solid #000; padding: 4px;">No pending accountabilities</td>
+                                        <td style="border: 1px solid #000; padding: 4px; text-align: center;">☐ Cleared &nbsp; ☐ Not</td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
+                                        <td style="border: 1px solid #000; padding: 4px;"></td>
+                                    </tr>
+                                </table>
+                                <div style="font-size: 11px;">Supervisor Name & Signature: ______________________ &nbsp; Date: _________</div>
                             </div>
 
-                            <div style="margin-top: 20px; border-top: 2px solid #000; padding-top: 10px;">
-                                <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 5px;">FINAL APPROVAL</h3>
-                                <div style="display: flex; justify-content: space-between; font-size: 13px; margin-top: 20px;">
-                                    <div style="width: 48%; border-top: 1px solid #000; text-align: center;">HR Manager Signature</div>
-                                    <div style="width: 48%; border-top: 1px solid #000; text-align: center;">Employee Signature</div>
+                            <div style="margin-top: 15px; border-top: 1px solid #000; padding-top: 8px;">
+                                <h3 style="font-size: 13px; font-weight: bold; margin: 0 0 5px 0;">FINAL APPROVAL</h3>
+                                <p style="font-style: italic; margin: 0 0 15px 0;">This certifies that the above-named employee has been cleared of all accountabilities and is eligible for final pay processing.</p>
+                                <div style="display: flex; justify-content: space-between; gap: 20px;">
+                                    <div style="flex: 1; text-align: center; border-top: 1px solid #000; padding-top: 5px;">HR Manager / Super Admin Signature / Date</div>
+                                    <div style="flex: 1; text-align: center; border-top: 1px solid #000; padding-top: 5px;">Employee Received By / Date</div>
                                 </div>
                             </div>
                         </div>
@@ -2291,7 +2367,32 @@
                         pagebreak: { mode: ['css', 'legacy'] }
                     };
 
-                    html2pdf().from(element).set(opt).save();
+                    html2pdf().from(element).set(opt).save().then(() => {
+                        console.log('Clearance Form Downloaded successfully');
+                    }).catch(err => {
+                        console.error('PDF Error:', err);
+                        alert('Failed to generate PDF: ' + err.message);
+                    });
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            }
+
+                    const opt = {
+                        margin: 0,
+                        filename: 'Employee_Clearance_Form.pdf',
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, scrollY: 0, useCORS: true },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                        pagebreak: { mode: ['css', 'legacy'] }
+                    };
+
+                    html2pdf().from(element).set(opt).save().then(() => {
+                        console.log('Clearance Form Downloaded successfully');
+                    }).catch(err => {
+                        console.error('PDF Error:', err);
+                        alert('Failed to generate PDF: ' + err.message);
+                    });
                 } catch (err) {
                     alert('Error: ' + err.message);
                 }
@@ -2323,7 +2424,7 @@
                         <div style="padding: 60px 50px; font-family: 'Arial', sans-serif; color: #000; width: 750px; margin: auto; border: 1px solid #000; min-height: 1020px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box;">
                             <div>
                                 <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 40px;">
-                                    <h1 style="margin: 0; font-size: 26px;">SHESSENTIALS SKINCARE AND BEAUTY MANUFACTURING CO.</h1>
+                                    <h1 style="margin: 0; font-size: 26px;">SHEESSENTIALS SKINCARE AND BEAUTY MANUFACTURING CO.</h1>
                                     <p style="margin: 10px 0; font-size: 18px; font-weight: bold; letter-spacing: 2px;">PAYSLIP</p>
                                 </div>
                                 
@@ -2387,7 +2488,12 @@
                         jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' }
                     };
 
-                    html2pdf().from(element).set(opt).save();
+                    html2pdf().from(element).set(opt).save().then(() => {
+                        console.log('Payslip Downloaded successfully');
+                    }).catch(err => {
+                        console.error('PDF Error:', err);
+                        alert('Failed to generate PDF: ' + err.message);
+                    });
                 } catch (err) {
                     alert('Error: ' + err.message);
                 }

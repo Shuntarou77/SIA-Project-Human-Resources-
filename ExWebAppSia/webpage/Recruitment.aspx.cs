@@ -325,12 +325,12 @@ namespace ExWebAppSia.webpage
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666; width: 35%;'>Dept (Position):</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.AppliedPosition ?? ""));
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Role / Job Title:</td><td style='padding: 8px;'><mark style='background: #fff3cd; padding: 2px 6px;'>{0}</mark></td></tr>", Server.HtmlEncode(applicant.Role ?? ""));
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Contract Type:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.ContractType ?? ""));
-            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Starting Salary:</td><td style='padding: 8px;'>₱{0:N2}</td></tr>", applicant.StartingSalary > 0 ? applicant.StartingSalary : 18000);
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Starting Salary:</td><td style='padding: 8px;'>&#8369;{0:N2}</td></tr>", applicant.StartingSalary > 0 ? applicant.StartingSalary : 18000);
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Status:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.Status ?? ""));
             
             // Govt. Contributions
-            string checkIcon = "<span style='color: #28a745; margin-right: 5px;'>✔</span>";
-            string xIcon = "<span style='color: #dc3545; margin-right: 5px;'>✘</span>";
+            string checkIcon = "<span style='color: #28a745; margin-right: 5px;'>&#10004;</span>";
+            string xIcon = "<span style='color: #dc3545; margin-right: 5px;'>&#10006;</span>";
 
             sb.Append("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Govt. Contributions:</td><td style='padding: 8px;'>");
             sb.AppendFormat("<span style='margin-right: 15px;'>{0} SSS</span>", applicant.HasSSS ? checkIcon : xIcon);

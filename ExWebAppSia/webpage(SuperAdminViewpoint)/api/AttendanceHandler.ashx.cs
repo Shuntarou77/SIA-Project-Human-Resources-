@@ -1,11 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.IO;
 using ExWebAppSia.Models;
-
+using MongoDB.Driver;
 using System.Web.SessionState;
 
 namespace ExWebAppSia.webpage_SuperAdminViewpoint_.api
@@ -425,6 +426,113 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_.api
                             message = result ? "Undertime rejected successfully" : "Failed to reject undertime";
                         }
                         break;
+
+                    case "seedattendance":
+                    {
+                        // REPLACE attendance for May 1-15, 2026. Deletes existing first, then re-inserts fresh randomized records.
+                        // Skips Sundays and May 1 (Labour Day). Weights: 60% Present, 25% Late, 15% Absent
+                        try
+                        {
+                            var rng = new Random();
+                            var employeeService2 = new EmployeeService();
+                            var allEmps = Task.Run(async () => await employeeService2.GetAllEmployeesAsync().ConfigureAwait(false)).GetAwaiter().GetResult();
+
+                            var seedableEmps = allEmps
+                                .Where(e => e.IsActive && e.Role != "Super Admin")
+                                .ToList();
+
+                            var collection = MongoDBHelper.GetAttendanceCollection();
+
+                            var startDate = new DateTime(2026, 5, 1);
+                            var endDate   = new DateTime(2026, 5, 15);
+
+                            int insertedCount = 0;
+                            // Step 1: Delete all existing attendance records for May 1-15
+                            var deleteFilter = Builders<Attendance>.Filter.And(
+                                Builders<Attendance>.Filter.Gte(a => a.Date, startDate),
+                                Builders<Attendance>.Filter.Lte(a => a.Date, endDate)
+                            );
+                            var delResult = Task.Run(async () => await collection.DeleteManyAsync(deleteFilter).ConfigureAwait(false)).GetAwaiter().GetResult();
+                            long deletedCount = delResult.DeletedCount;
+
+                            // Step 2: Build working days list (Mon-Sat, skip Labour Day May 1)
+                            var holidays = new HashSet<DateTime> { new DateTime(2026, 5, 1) };
+                            var workingDays = new List<DateTime>();
+                            for (var d = startDate; d <= endDate; d = d.AddDays(1))
+                            {
+                                if (d.DayOfWeek != DayOfWeek.Sunday && !holidays.Contains(d))
+                                    workingDays.Add(d);
+                            }
+
+                            // Step 3: Insert fresh randomized records for every employee x every working day
+                            var allToInsert = new List<Attendance>();
+                            foreach (var emp in seedableEmps)
+                            {
+                                foreach (var day in workingDays)
+                                {
+                                    var phDate = DateTime.SpecifyKind(day.Date, DateTimeKind.Utc);
+
+                                    // HR Manager and President are always Present — no Late, no Absent
+                                    bool isManager = emp.Role == "HR Manager" || emp.Role == "President";
+
+                                    int roll = rng.Next(100);
+                                    bool isAbsent = !isManager && roll < 15;
+                                    bool isLate   = !isManager && !isAbsent && roll < 40;
+
+                                    if (isAbsent)
+                                    {
+                                        allToInsert.Add(new Attendance
+                                        {
+                                            EmployeeId   = emp.EmployeeId,
+                                            EmployeeName = emp.FullName,
+                                            Department   = emp.Department,
+                                            Date         = phDate,
+                                            TimeIn       = null,
+                                            TimeOut      = null,
+                                            LateTime     = null,
+                                            IsActive     = true,
+                                            CreatedAt    = DateTime.UtcNow
+                                        });
+                                    }
+                                    else
+                                    {
+                                        int lateMinutes = isLate ? rng.Next(17, 60) : 0;
+                                        // UTC midnight = 8:00 AM PH; UTC midnight + lateMinutes = 8:lateMin PH
+                                        var timeInUtc  = DateTime.SpecifyKind(day.Date.AddMinutes(lateMinutes), DateTimeKind.Utc);
+                                        var timeOutUtc = DateTime.SpecifyKind(day.Date.AddHours(9).AddMinutes(rng.Next(0, 30)), DateTimeKind.Utc); // 09:xx UTC = 17:xx PH
+                                        string lateStr = isLate ? $"00:{lateMinutes:D2}" : null;
+
+                                        allToInsert.Add(new Attendance
+                                        {
+                                            EmployeeId   = emp.EmployeeId,
+                                            EmployeeName = emp.FullName,
+                                            Department   = emp.Department,
+                                            Date         = phDate,
+                                            TimeIn       = timeInUtc,
+                                            TimeOut      = timeOutUtc,
+                                            LateTime     = lateStr,
+                                            IsActive     = true,
+                                            CreatedAt    = DateTime.UtcNow
+                                        });
+                                    }
+                                    insertedCount++;
+                                }
+                            }
+
+                            if (allToInsert.Count > 0)
+                                Task.Run(async () => await collection.InsertManyAsync(allToInsert).ConfigureAwait(false)).GetAwaiter().GetResult();
+
+                            var seedResp = new { success = true, message = $"Deleted {deletedCount} old records. Inserted {insertedCount} fresh records for May 1-15, 2026." };
+                            context.Response.Write(serializer.Serialize(seedResp));
+                            return;
+                        }
+                        catch (Exception seedEx)
+                        {
+                            var seedErr = new { success = false, message = "Seed error: " + seedEx.Message };
+                            context.Response.Write(serializer.Serialize(seedErr));
+                            return;
+                        }
+                    }
                     
                     case "requestresignation":
                         string resignReason = context.Request["reason"] ?? "";

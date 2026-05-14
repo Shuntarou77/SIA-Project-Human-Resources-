@@ -133,6 +133,7 @@
         
         .btn-report-secondary { background: white; color: #A36A66; border: 1px solid #fceceb; }
         .btn-report-secondary:hover { background: #fff1f0; transform: translateY(-2px); }
+
     </style>
 </asp:Content>
 
@@ -436,6 +437,32 @@
         </div>
     </div>
 
+    <!-- Termination Modal -->
+    <div id="terminationModal" class="page-modal" style="display:none; position:fixed; z-index:10002; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px);">
+        <div class="modal-card" style="background:white; margin:10vh auto; max-width:550px; border-radius:28px; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.4); animation: slideUp 0.3s ease;">
+            <div style="background: #ef4444; padding: 20px 30px; color: white; display: flex; align-items: center; gap: 12px;">
+                <i class="fas fa-user-check" style="font-size: 20px;"></i>
+                <h2 style="margin: 0; font-size: 20px; font-weight: 800;">Approve Resignation Request</h2>
+            </div>
+            <div style="padding: 30px;">
+                <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 15px; border-radius: 12px; margin-bottom: 25px;">
+                    <p style="margin: 0; font-size: 13px; color: #065f46; font-weight: 600; line-height: 1.5;">
+                        <i class="fas fa-info-circle" style="margin-right: 5px;"></i>
+                        Action: Approving this request will notify the employee to perform their clearance process. The account will remain active until clearance is completed.
+                    </p>
+                </div>
+
+                <input type="hidden" name="termType" value="Standard">
+
+                <!-- No file upload here; employee handles it in profile after approval -->
+            </div>
+            <div style="padding: 20px 30px; background: #f8fafc; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" onclick="closeTermModal()" style="background:#e2e8f0; border:none; padding:12px 24px; border-radius:12px; cursor:pointer; font-weight:700; color: #475569; transition: all 0.2s;">Cancel</button>
+                <button type="button" id="btnConfirmTermination" style="background:#10b981; color:white; border:none; padding:12px 28px; border-radius:12px; cursor:pointer; font-weight:800; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); transition: all 0.2s;">Approve & Notify</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             loadPendingLeaveRequests();
@@ -600,15 +627,40 @@
             });
         }
 
+        let currentResignId = null;
+
         function approveResign(id) {
-            showConfirm("Approve Resignation", "This will move the employee to the resigned registry and deactivate their account. Proceed?", function() {
-                PageMethods.ApproveResignation(id, function(r) {
-                    var res = typeof r === 'string' ? JSON.parse(r) : r;
-                    if(res.success) { showAlert("Processed", "Employee has been successfully resigned.", "success"); loadPendingResignations(); refreshCounts(); }
-                    else showAlert("Error", res.message, "error");
-                });
-            });
+            currentResignId = id;
+            const modal = document.getElementById('terminationModal');
+            modal.style.display = 'block';
         }
+
+        function closeTermModal() {
+            document.getElementById('terminationModal').style.display = 'none';
+        }
+
+        document.getElementById('btnConfirmTermination').onclick = function() {
+            const type = 'Standard';
+            const reason = '';
+            const btn = this;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Approving...';
+
+            PageMethods.FinalizeResignation(currentResignId, type, reason, null, function(r) {
+                const res = typeof r === 'string' ? JSON.parse(r) : r;
+                if (res.success) {
+                    closeTermModal();
+                    showAlert("Resignation Approved", "Employee has been notified to complete their clearance.", "success");
+                    loadPendingResignations();
+                    refreshCounts();
+                } else {
+                    showAlert("Approval Failed", res.message, "error");
+                }
+                btn.disabled = false;
+                btn.textContent = 'Approve & Notify';
+            });
+        };
 
         function declineResign(id) {
             showConfirm("Decline Resignation", "Cancel this resignation request and keep the employee active?", function() {

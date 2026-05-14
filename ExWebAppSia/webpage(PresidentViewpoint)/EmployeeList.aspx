@@ -358,6 +358,9 @@
                 <asp:ListItem Text="R&D" Value="R&D" />
                 <asp:ListItem Text="Inventory" Value="Inventory" />
             </asp:DropDownList>
+            <button type="button" class="btn-export-pdf" onclick="exportDepartmentReport()" style="background: #A36A66; color: white; border: none; padding: 12px 20px; border-radius: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; transition: all 0.2s;">
+                <i class="fas fa-file-pdf" style="margin-right: 6px;"></i> Export Report
+            </button>
         </div>
 
         <!-- Employee Grid -->
@@ -509,6 +512,16 @@
 
             var myModal = new bootstrap.Modal(document.getElementById('employeeDetailModal'));
             myModal.show();
+        }
+
+        function exportDepartmentReport() {
+            var dept = document.getElementById('<%= ddlDepartment.ClientID %>').value;
+            if (!dept || dept === '') {
+                dept = 'All';
+            }
+            const encoded = encodeURIComponent(dept);
+            const url = '<%= ResolveUrl("~/Handler/ExportDepartmentReport.ashx") %>?department=' + encoded + '&format=html';
+            window.open(url, '_blank');
         }
     </script>
 </asp:Content>

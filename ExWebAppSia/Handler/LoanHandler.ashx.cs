@@ -50,6 +50,11 @@ namespace ExWebAppSia.Handler
         {
             var loans = await _loanService.GetAllLoansAsync();
 
+            var currentAdmin = context.Session["Employee"] as Employee;
+            bool isCurrentAdminHR = currentAdmin != null && 
+                (string.Equals(currentAdmin.Department, "Human Resources", StringComparison.OrdinalIgnoreCase) || 
+                 string.Equals(currentAdmin.Department, "HR", StringComparison.OrdinalIgnoreCase));
+
             // Filter out Super Admin and President roles
             var empService = new EmployeeService();
             var allEmps = await empService.GetAllEmployeesAsync();
@@ -64,7 +69,12 @@ namespace ExWebAppSia.Handler
             // Add any additional employees whose record role contains restricted terms
             foreach (var e in allEmps.Where(e => {
                 var r = (e.Role ?? "").ToLowerInvariant().Trim();
-                return r.Contains("super admin") || r.Contains("superadmin") || r.Contains("president");
+                var d = (e.Department ?? "").ToLowerInvariant().Trim();
+                
+                bool isExecutive = r.Contains("super admin") || r.Contains("superadmin") || r.Contains("president");
+                bool isHRStaff = d == "human resources" || d == "hr";
+                
+                return isExecutive || (isCurrentAdminHR && isHRStaff);
             }))
             {
                 restrictedIds.Add(e.EmployeeId);
@@ -75,6 +85,11 @@ namespace ExWebAppSia.Handler
             {
                 if (!string.IsNullOrEmpty(loan.EmployeeId) && !restrictedIds.Contains(loan.EmployeeId))
                 {
+                    // Restrict self-requests
+                    if (currentAdmin != null && string.Equals(loan.EmployeeId, currentAdmin.EmployeeId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
                     filteredLoans.Add(loan);
                 }
             }

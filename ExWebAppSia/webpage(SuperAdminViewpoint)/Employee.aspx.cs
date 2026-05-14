@@ -10,6 +10,7 @@ using ExWebAppSia.Models;
 using Newtonsoft.Json;
 using MongoDB.Driver;
 using MongoDB.Bson;
+using System.IO;
 
 namespace ExWebAppSia.webpage_SuperAdminViewpoint_
 {
@@ -755,78 +756,99 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         }
 
 
+        [System.Web.Services.WebMethod(EnableSession = true)]
+        public static string FinalizeResignation(string id, string type, string forcedReason, string clearanceBase64)
+        {
+            var admin = HttpContext.Current?.Session["Employee"] as Employee;
+            try
+            {
+                return Task.Run(async () => {
+                    var empService = new EmployeeService();
+                    var target = await empService.GetEmployeeByIdAsync(id);
+                    if (target == null) return "{\"success\":false,\"message\":\"Employee not found or already inactive\"}";
+
+                    if (IsRestrictedExecutiveRole(target.Role))
+                    {
+                        return "{\"success\":false,\"message\":\"You cannot process terminations for Super Admin or President.\"}";
+                    }
+
+                    string filePath = null;
+                    if (type == "Standard" && !string.IsNullOrEmpty(clearanceBase64))
+                    {
+                        try {
+                            byte[] bytes = Convert.FromBase64String(clearanceBase64);
+                            string folder = HttpContext.Current.Server.MapPath("~/Uploads/ClearanceForms/");
+                            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+                            string fileName = $"Clearance_{target.EmployeeId}_{DateTime.Now:yyyyMMddHHmm}.pdf";
+                            filePath = "/Uploads/ClearanceForms/" + fileName;
+                            File.WriteAllBytes(folder + fileName, bytes);
+                        } catch (Exception ex) {
+                            return "{\"success\":false,\"message\":\"File upload failed: " + ex.Message + "\"}";
+                        }
+                    }
+
+                    var update = Builders<Employee>.Update
+                        .Set(e => e.ResignationStatus, "Approved")
+                        .Set(e => e.IsActive, type == "Forced" ? false : true)
+                        .Set(e => e.TerminationType, type)
+                        .Set(e => e.ClearanceFormPath, filePath)
+                        .Set(e => e.TerminationReason, type == "Forced" ? forcedReason : null)
+                        .Set(e => e.ResignationLastDay, DateTime.UtcNow);
+
+                    bool success = await empService.UpdateEmployeeFieldsAsync(id, update);
+                    
+                    if (success)
+                    {
+                        // 3. ONE-CLICK INSTANT SYSTEM LOCKOUT (Conditional)
+                        // If it's a Forced termination, lockout is instant.
+                        // If it's Standard but NO file was uploaded (Approval phase), we DON'T lockout yet 
+                        // so they can download the form from their profile.
+                        if (type == "Forced" || !string.IsNullOrEmpty(filePath))
+                        {
+                            var users = MongoDBHelper.GetUsersCollection();
+                            await users.UpdateOneAsync(u => u.EmployeeId == target.EmployeeId, Builders<User>.Update.Set(u => u.IsActive, false));
+                        }
+
+                        // Log Activity to Audit Trail
+                        var log = new ActivityLogService();
+                        string actionDetail = type == "Standard" ? "Standard Termination with Clearance Form" : $"Forced Termination. Reason: {forcedReason}";
+                        await log.LogActionAsync(admin?.Email ?? "Super Admin", admin?.FullName ?? "Super Admin", "Employee Terminated", "Resignation", $"Employee {target.FullName} ({target.EmployeeId}) status set to INACTIVE. {actionDetail}");
+
+                        // Notify the employee
+                        try {
+                            var notifService = new NotificationService();
+                            await notifService.CreateNotificationAsync(new Notification {
+                                RecipientId = target.EmployeeId,
+                                Title = "Resignation Approved",
+                                Message = "Your resignation has been approved. Please download and complete your clearance form in the profile page.",
+                                Type = "System",
+                                IsRead = false,
+                                Timestamp = DateTime.UtcNow
+                            });
+                        } catch (Exception ex) {
+                            System.Diagnostics.Debug.WriteLine($"Error sending notification: {ex.Message}");
+                        }
+                    }
+
+                    return "{\"success\":" + success.ToString().ToLower() + "}";
+                }).GetAwaiter().GetResult();
+            }
+            catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message.Replace("\"", "'") + "\"}"; }
+        }
+
+        private static bool IsRestrictedExecutiveRole(string role)
+        {
+            if (string.IsNullOrEmpty(role)) return false;
+            var r = role.Trim().ToLowerInvariant();
+            return r.Contains("super admin") || r.Contains("superadmin") || r.Contains("president");
+        }
+
         [System.Web.Services.WebMethod]
         public static string ResignEmployee(string id)
         {
-            System.Diagnostics.Debug.WriteLine("==============================================");
-            System.Diagnostics.Debug.WriteLine("[ResignEmployee] WebMethod CALLED");
-            System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Received ID: '{id}'");
-            System.Diagnostics.Debug.WriteLine("==============================================");
-
-            try
-            {
-                if (string.IsNullOrEmpty(id))
-                {
-                    System.Diagnostics.Debug.WriteLine("[ResignEmployee] ERROR: ID is null or empty!");
-                    return "{\"success\":false,\"message\":\"Employee ID is missing.\"}";
-                }
-
-                var employeeService = new EmployeeService();
-                var emailService = new EmailService();
-
-                // Use Task.Run to avoid deadlock on Async="true" page
-                System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Step 1: Looking up employee with ID: {id}");
-                var employee = Task.Run(() => employeeService.GetEmployeeByIdAsync(id)).GetAwaiter().GetResult();
-
-                if (employee == null)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[ResignEmployee] ERROR: No employee found for ID: {id}");
-                    return "{\"success\":false,\"message\":\"Employee not found.\"}";
-                }
-
-                System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Employee found: {employee.FullName}, IsActive: {employee.IsActive}");
-
-                string toEmail = employee.Email;
-                string fullName = (employee.FullName ?? "").Replace("\"", "'");
-
-                System.Diagnostics.Debug.WriteLine("[ResignEmployee] Step 2: Calling ResignEmployeeAsync...");
-                bool success = Task.Run(() => employeeService.ResignEmployeeAsync(id)).GetAwaiter().GetResult();
-                System.Diagnostics.Debug.WriteLine($"[ResignEmployee] ResignEmployeeAsync result: {success}");
-
-                if (success)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Step 3: Sending email to {toEmail}...");
-                    try { 
-                        System.Web.Hosting.HostingEnvironment.QueueBackgroundWorkItem(ct => 
-                            Task.Run(() => emailService.SendAccountStatusEmailAsync(toEmail, fullName, "Resignation Approved"))
-                        ); 
-                    }
-                    catch (Exception emailEx) { System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Email error: {emailEx.Message}"); }
-
-                    System.Diagnostics.Debug.WriteLine("[ResignEmployee] SUCCESS");
-                    LogActivity("Resigned Employee", $"Resigned {fullName} ({id})");
-                    return "{\"success\":true,\"message\":\"Employee resigned successfully.\"}";
-                }
-
-                System.Diagnostics.Debug.WriteLine("[ResignEmployee] FAILED - ResignEmployeeAsync returned false.");
-                return "{\"success\":false,\"message\":\"Failed to process resignation.\"}";
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine("==============================================");
-                System.Diagnostics.Debug.WriteLine($"[ResignEmployee] EXCEPTION: {ex.GetType().FullName}");
-                System.Diagnostics.Debug.WriteLine($"[ResignEmployee] Message: {ex.Message}");
-                System.Diagnostics.Debug.WriteLine($"[ResignEmployee] StackTrace: {ex.StackTrace}");
-                if (ex.InnerException != null)
-                    System.Diagnostics.Debug.WriteLine($"[ResignEmployee] InnerException: {ex.InnerException.Message}");
-                System.Diagnostics.Debug.WriteLine("==============================================");
-
-                string msg = (ex.Message ?? "Unknown error").Replace("\"", "'");
-                return "{\"success\":false,\"message\":\"" + msg + "\"}";
-            }
+            // Keeping for backward compatibility but redirecting to secured logic if possible
+            return "{\"success\":false,\"message\":\"Please use the secured termination workflow.\"}";
         }
-
-
 
         [System.Web.Services.WebMethod]
         public static string UpdateEmployeeDetails(string id, string jsonData)

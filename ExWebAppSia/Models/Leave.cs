@@ -40,6 +40,12 @@ namespace ExWebAppSia.Models
         [BsonElement("attachmentPath")]
         public string AttachmentPath { get; set; }
 
+        [BsonElement("isUnpaid")]
+        public bool IsUnpaid { get; set; }
+
+        [BsonElement("requestedDays")]
+        public int RequestedDays { get; set; }
+
         [BsonElement("isActive")]
         public bool IsActive { get; set; } = true;
     }

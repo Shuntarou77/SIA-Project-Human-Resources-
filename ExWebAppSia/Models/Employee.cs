@@ -161,6 +161,15 @@ namespace ExWebAppSia.Models
         [BsonElement("resignationReason")]
         public string ResignationReason { get; set; }
 
+        [BsonElement("terminationType")]
+        public string TerminationType { get; set; } // Standard, Forced
+
+        [BsonElement("clearanceFormPath")]
+        public string ClearanceFormPath { get; set; }
+
+        [BsonElement("terminationReason")]
+        public string TerminationReason { get; set; } // For Forced termination
+
         [BsonElement("availabilityStatus")]
         public string AvailabilityStatus { get; set; } = "Available"; // "Available", "Unavailable"
 

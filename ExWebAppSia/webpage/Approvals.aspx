@@ -127,6 +127,25 @@
         
         .btn-report-secondary { background: white; color: #A36A66; border: 1px solid #fceceb; }
         .btn-report-secondary:hover { background: #fff1f0; transform: translateY(-2px); }
+
+        /* Termination Modal Enhancements */
+        .term-type-label {
+            flex: 1; border: 2px solid #e2e8f0; padding: 15px; border-radius: 12px; 
+            cursor: pointer; display: flex; align-items: center; gap: 12px; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background: white;
+            text-align: left;
+        }
+        .term-type-label:hover { border-color: #cbd5e1; transform: translateY(-2px); }
+        .term-type-label input[type="radio"] { width: 18px; height: 18px; accent-color: #ef4444; }
+        
+        .upload-dropzone {
+            position: relative; border: 2px dashed #cbd5e1; border-radius: 16px; 
+            padding: 30px 20px; text-align: center; background: #f8fafc; 
+            transition: all 0.3s ease;
+        }
+        .upload-dropzone:hover { border-color: #ef4444; background: #fff1f2; }
+        .upload-dropzone.active { border-color: #10b981; background: #f0fdf4; }
     </style>
 </asp:Content>
 
@@ -420,6 +439,64 @@
         </div>
     </div>
 
+    <!-- Termination Modal -->
+    <div id="terminationModal" class="page-modal" style="display:none; position:fixed; z-index:10002; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.6); backdrop-filter:blur(10px);">
+        <div class="modal-card" style="background:white; margin:10vh auto; max-width:550px; border-radius:28px; overflow:hidden; box-shadow:0 25px 50px -12px rgba(0,0,0,0.4); animation: slideUp 0.3s ease;">
+            <div style="background: #ef4444; padding: 20px 30px; color: white; display: flex; align-items: center; gap: 12px;">
+                <i class="fas fa-user-times" style="font-size: 20px;"></i>
+                <h2 style="margin: 0; font-size: 20px; font-weight: 800;">Finalize Termination</h2>
+            </div>
+            <div style="padding: 30px;">
+                <div style="background: #fff1f2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 12px; margin-bottom: 25px;">
+                    <p style="margin: 0; font-size: 13px; color: #991b1b; font-weight: 600; line-height: 1.5;">
+                        <i class="fas fa-exclamation-triangle" style="margin-right: 5px;"></i>
+                        Critical: This action will permanently deactivate the employee's account and revoke all system access tokens immediately.
+                    </p>
+                </div>
+
+                <div style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #475569; font-size: 14px;">Termination Type</label>
+                    <div style="display: flex; gap: 15px;">
+                        <label class="term-type-label">
+                            <input type="radio" name="termType" value="Standard" checked onchange="toggleTermFields()">
+                            <div>
+                                <div style="font-weight: 700; font-size: 14px; color: #1e293b;">Standard</div>
+                                <div style="font-size: 11px; color: #64748b;">Requires Clearance</div>
+                            </div>
+                        </label>
+                        <label class="term-type-label">
+                            <input type="radio" name="termType" value="Forced" onchange="toggleTermFields()">
+                            <div>
+                                <div style="font-weight: 700; font-size: 14px; color: #1e293b;">Forced / Immediate</div>
+                                <div style="font-size: 11px; color: #64748b;">AWOL / Disciplinary</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Option 1: Clearance Upload -->
+                <div id="clearanceField" style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #475569; font-size: 14px;">Upload Signed Clearance Form *</label>
+                    <div class="upload-dropzone" id="dropZone">
+                        <i class="fas fa-file-upload" style="font-size: 28px; color: #94a3b8; margin-bottom: 10px;"></i>
+                        <div id="fileName" style="font-size: 13px; color: #64748b; font-weight: 600;">Click to select signed clearance (PDF)</div>
+                        <input type="file" id="clearanceUpload" accept=".pdf" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;" onchange="handleFileSelect(this)">
+                    </div>
+                </div>
+
+                <!-- Option 2: Forced Reason -->
+                <div id="forcedField" style="margin-bottom: 25px; display: none;">
+                    <label style="display: block; font-weight: 700; margin-bottom: 12px; color: #475569; font-size: 14px;">Immediate Termination Reason *</label>
+                    <textarea id="forcedReason" style="width: 100%; padding: 15px; border: 1.5px solid #e2e8f0; border-radius: 12px; font-size: 14px; min-height: 120px; resize: vertical; background: #f8fafc;" placeholder="Type the reason (e.g., AWOL, policy violation)..." oninput="validateTermForm()"></textarea>
+                </div>
+            </div>
+            <div style="padding: 20px 30px; background: #f8fafc; border-top: 1px solid #f1f5f9; display: flex; justify-content: flex-end; gap: 12px;">
+                <button type="button" onclick="closeTermModal()" style="background:#e2e8f0; border:none; padding:12px 24px; border-radius:12px; cursor:pointer; font-weight:700; color: #475569; transition: all 0.2s;">Cancel</button>
+                <button type="button" id="btnConfirmTermination" disabled style="background:#ef4444; color:white; border:none; padding:12px 28px; border-radius:12px; cursor:pointer; font-weight:800; opacity: 0.5; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2); transition: all 0.2s;">Confirm Termination</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             loadPendingLeaveRequests();
@@ -584,15 +661,112 @@
             });
         }
 
+        let currentResignId = null;
+        let clearanceBase64 = null;
+
         function approveResign(id) {
-            showConfirm("Approve Resignation", "This will move the employee to the resigned registry and deactivate their account. Proceed?", function() {
-                PageMethods.ApproveResignation(id, function(r) {
-                    var res = typeof r === 'string' ? JSON.parse(r) : r;
-                    if(res.success) { showAlert("Processed", "Employee has been successfully resigned.", "success"); loadPendingResignations(); refreshCounts(); }
-                    else showAlert("Error", res.message, "error");
-                });
-            });
+            currentResignId = id;
+            clearanceBase64 = null;
+            document.getElementById('clearanceUpload').value = '';
+            document.getElementById('fileName').textContent = 'Click to select signed clearance (PDF)';
+            document.getElementById('forcedReason').value = '';
+            document.getElementById('dropZone').classList.remove('active');
+            
+            const modal = document.getElementById('terminationModal');
+            modal.style.display = 'block';
+            toggleTermFields();
         }
+
+        function closeTermModal() {
+            document.getElementById('terminationModal').style.display = 'none';
+        }
+
+        function toggleTermFields() {
+            const type = document.querySelector('input[name="termType"]:checked').value;
+            const labels = document.querySelectorAll('.term-type-label');
+            
+            labels.forEach(l => {
+                const radio = l.querySelector('input');
+                if (radio.checked) {
+                    l.style.borderColor = '#ef4444';
+                    l.style.background = '#fff1f2';
+                    l.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.1)';
+                } else {
+                    l.style.borderColor = '#e2e8f0';
+                    l.style.background = 'white';
+                    l.style.boxShadow = 'none';
+                }
+            });
+
+            if (type === 'Standard') {
+                document.getElementById('clearanceField').style.display = 'block';
+                document.getElementById('forcedField').style.display = 'none';
+            } else {
+                document.getElementById('clearanceField').style.display = 'none';
+                document.getElementById('forcedField').style.display = 'block';
+            }
+            validateTermForm();
+        }
+
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            const dropZone = document.getElementById('dropZone');
+            if (!file) return;
+            
+            if (file.type !== 'application/pdf') {
+                showAlert('Invalid File', 'Please upload a PDF clearance form.', 'error');
+                input.value = '';
+                return;
+            }
+
+            document.getElementById('fileName').textContent = file.name;
+            dropZone.classList.add('active');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                clearanceBase64 = e.target.result.split(',')[1];
+                validateTermForm();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function validateTermForm() {
+            const type = document.querySelector('input[name="termType"]:checked').value;
+            const btn = document.getElementById('btnConfirmTermination');
+            let isValid = false;
+
+            if (type === 'Standard') {
+                isValid = clearanceBase64 !== null;
+            } else {
+                isValid = document.getElementById('forcedReason').value.trim().length > 0;
+            }
+
+            btn.disabled = !isValid;
+            btn.style.opacity = isValid ? '1' : '0.5';
+        }
+
+        document.getElementById('btnConfirmTermination').onclick = function() {
+            const type = document.querySelector('input[name="termType"]:checked').value;
+            const reason = document.getElementById('forcedReason').value;
+            const btn = this;
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+            PageMethods.FinalizeResignation(currentResignId, type, reason, clearanceBase64, function(r) {
+                const res = typeof r === 'string' ? JSON.parse(r) : r;
+                if (res.success) {
+                    closeTermModal();
+                    showAlert("Employee Terminated", "Account deactivated and status updated immediately.", "success");
+                    loadPendingResignations();
+                    refreshCounts();
+                } else {
+                    showAlert("Termination Failed", res.message, "error");
+                }
+                btn.disabled = false;
+                btn.textContent = 'Confirm Termination';
+            });
+        };
 
         function declineResign(id) {
             showConfirm("Decline Resignation", "Cancel this resignation request and keep the employee active?", function() {

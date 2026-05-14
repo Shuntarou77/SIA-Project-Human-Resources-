@@ -707,16 +707,116 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                     return;
                 }
 
+                DateTime startDate = DateTime.Parse(txtStartDate.Text);
+                DateTime endDate = DateTime.Parse(txtEndDate.Text);
+
+                if (endDate < startDate)
+                {
+                    lblLeaveMessage.Text = "End date cannot be earlier than start date.";
+                    lblLeaveMessage.Style["display"] = "block";
+                    lblLeaveMessage.Style["color"] = "#721c24";
+                    lblLeaveMessage.Style["backgroundColor"] = "#f8d7da";
+                    lblLeaveMessage.Style["border"] = "1px solid #f5c6cb";
+                    lblLeaveMessage.Style["padding"] = "10px";
+                    lblLeaveMessage.Style["borderRadius"] = "5px";
+                    return;
+                }
+
+                // 1. Calculate requested business days (excluding Sundays)
+                int requestedDays = AttendanceService.GetWorkingDaysCount(startDate, endDate);
+
+                // 2. Get available leave credits
+                int availableCredits = 0;
+                int.TryParse(GetRemainingAbsences(), out availableCredits);
+
+                string leaveType = ddlLeaveType.SelectedValue; // "sick", "vacation", etc.
+                bool isUnpaid = false;
+
+                // 3. APPLY RULES BASED ON LEAVE TYPE
+                if (leaveType == "vacation" || leaveType == "personal")
+                {
+                    if (requestedDays > availableCredits)
+                    {
+                        lblLeaveMessage.Text = $"⚠️ {ddlLeaveType.SelectedItem.Text} cannot exceed your available credits ({availableCredits} days).";
+                        ShowErrorStyles();
+                        return;
+                    }
+                }
+                else if (leaveType == "sick")
+                {
+                    // Mandatory attachment for Sick Leave
+                    if (!fileLeaveAttachment.HasFile)
+                    {
+                        lblLeaveMessage.Text = "⚠️ Medical proof (attachment) is required for Sick Leave.";
+                        ShowErrorStyles();
+                        return;
+                    }
+                    
+                    // Can exceed credits, but excess is unpaid
+                    if (requestedDays > availableCredits)
+                    {
+                        isUnpaid = true;
+                    }
+                }
+                else if (leaveType == "emergency")
+                {
+                    // Can exceed credits, but capped at 5 days
+                    if (requestedDays > 5)
+                    {
+                        lblLeaveMessage.Text = "⚠️ Emergency Leave is capped at a maximum of 5 days.";
+                        ShowErrorStyles();
+                        return;
+                    }
+                }
+                else if (leaveType == "maternity")
+                {
+                    if (requestedDays > 105)
+                    {
+                        lblLeaveMessage.Text = "⚠️ Maternity Leave cannot exceed 105 days.";
+                        ShowErrorStyles();
+                        return;
+                    }
+                }
+                else if (leaveType == "paternity")
+                {
+                    if (requestedDays > 7)
+                    {
+                        lblLeaveMessage.Text = "⚠️ Paternity Leave cannot exceed 7 days.";
+                        ShowErrorStyles();
+                        return;
+                    }
+                }
+
+                // Handle Attachment Upload
+                string attachmentPath = "";
+                if (fileLeaveAttachment.HasFile)
+                {
+                    try
+                    {
+                        string fileName = Guid.NewGuid().ToString() + "_" + System.IO.Path.GetFileName(fileLeaveAttachment.FileName);
+                        string uploadDir = Server.MapPath("~/Uploads/Leaves/");
+                        if (!System.IO.Directory.Exists(uploadDir)) System.IO.Directory.CreateDirectory(uploadDir);
+                        string fullPath = System.IO.Path.Combine(uploadDir, fileName);
+                        fileLeaveAttachment.SaveAs(fullPath);
+                        attachmentPath = "~/Uploads/Leaves/" + fileName;
+                    }
+                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Upload error: {ex.Message}"); }
+                }
+
                 // Create leave object
                 var leave = new Leave
                 {
                     EmployeeId = employee.EmployeeId,
                     EmployeeName = employee.FullName,
+                    Department = employee.Department,
                     LeaveType = ddlLeaveType.SelectedItem.Text,
-                    StartDate = DateTime.Parse(txtStartDate.Text),
-                    EndDate = DateTime.Parse(txtEndDate.Text),
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    RequestedDays = requestedDays,
                     Reason = txtLeaveReason.Text.Trim(),
                     Status = "Pending",
+                    AttachmentPath = attachmentPath,
+                    IsUnpaid = isUnpaid,
                     SubmittedDate = DateTime.UtcNow,
                     IsActive = true
                 };
@@ -806,6 +906,16 @@ namespace ExWebAppSia.webpage_EmployeeViewpoint_
                 lblLeaveMessage.Style["backgroundColor"] = "#fff3cd";
                 lblLeaveMessage.Style["border"] = "1px solid #ffc107";
             }
+        }
+        private void ShowErrorStyles()
+        {
+            lblLeaveMessage.Style["display"] = "block";
+            lblLeaveMessage.Style["color"] = "#721c24";
+            lblLeaveMessage.Style["backgroundColor"] = "#f8d7da";
+            lblLeaveMessage.Style["border"] = "1px solid #f5c6cb";
+            lblLeaveMessage.Style["padding"] = "15px";
+            lblLeaveMessage.Style["borderRadius"] = "8px";
+            lblLeaveMessage.Style["fontWeight"] = "600";
         }
     }
 }

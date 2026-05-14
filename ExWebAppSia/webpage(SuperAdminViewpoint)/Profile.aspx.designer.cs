@@ -10,6 +10,7 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         protected global::System.Web.UI.WebControls.TextBox txtStartDate;
         protected global::System.Web.UI.WebControls.TextBox txtEndDate;
         protected global::System.Web.UI.WebControls.TextBox txtLeaveReason;
+        protected global::System.Web.UI.WebControls.FileUpload fileLeaveAttachment;
         protected global::System.Web.UI.WebControls.Button btnSubmitLeave;
         protected global::System.Web.UI.WebControls.Label lblConcernMessage;
         protected global::System.Web.UI.WebControls.DropDownList ddlConcernType;

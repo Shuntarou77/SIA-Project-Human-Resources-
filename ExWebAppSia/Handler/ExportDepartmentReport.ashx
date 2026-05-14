@@ -51,7 +51,9 @@ public class ExportDepartmentReport : HttpTaskAsyncHandler
 
             List<Employee> employees;
             string reportTitle = "Department Attendance Audit";
-            if (department.Equals("All", StringComparison.OrdinalIgnoreCase) || department.Equals("Company", StringComparison.OrdinalIgnoreCase))
+            if (department.Equals("All", StringComparison.OrdinalIgnoreCase) || 
+                department.Equals("Company", StringComparison.OrdinalIgnoreCase) ||
+                department.Equals("Development Report (All Employees)", StringComparison.OrdinalIgnoreCase))
             {
                 employees = await employeeService.GetAllEmployeesAsync();
                 department = "Development Report (All Employees)";

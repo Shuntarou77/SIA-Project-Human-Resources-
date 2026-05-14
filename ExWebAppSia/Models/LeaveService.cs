@@ -223,15 +223,23 @@ namespace ExWebAppSia.Models
         /// </summary>
         public async Task<bool> IsEmployeeOnLeaveAsync(string employeeId)
         {
+            return await IsEmployeeOnLeaveOnDateAsync(employeeId, DateTime.UtcNow.Date);
+        }
+
+        /// <summary>
+        /// Check if an employee was on an approved leave on a specific date.
+        /// </summary>
+        public async Task<bool> IsEmployeeOnLeaveOnDateAsync(string employeeId, DateTime date)
+        {
             try
             {
-                var today = DateTime.UtcNow.Date;
+                var targetDate = date.Date;
                 var filter = Builders<Leave>.Filter.And(
                     Builders<Leave>.Filter.Eq(l => l.EmployeeId, employeeId),
                     Builders<Leave>.Filter.Eq(l => l.IsActive, true),
                     Builders<Leave>.Filter.Eq(l => l.Status, "Approved"),
-                    Builders<Leave>.Filter.Lte(l => l.StartDate, today),
-                    Builders<Leave>.Filter.Gte(l => l.EndDate, today)
+                    Builders<Leave>.Filter.Lte(l => l.StartDate, targetDate),
+                    Builders<Leave>.Filter.Gte(l => l.EndDate, targetDate)
                 );
 
                 var count = await _leaves.CountDocumentsAsync(filter).ConfigureAwait(false);
@@ -239,7 +247,7 @@ namespace ExWebAppSia.Models
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error checking leave status: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Error checking leave status on date: {ex.Message}");
                 return false;
             }
         }

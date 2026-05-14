@@ -10,6 +10,7 @@ using ExWebAppSia.Models;
 using Newtonsoft.Json;
 using MongoDB.Driver;
 using MongoDB.Bson;
+using System.IO;
 
 namespace ExWebAppSia.webpage
 {
@@ -151,7 +152,8 @@ namespace ExWebAppSia.webpage
 
         private static bool IsHumanResourcesDepartment(string department)
         {
-            return true;
+            if (string.IsNullOrEmpty(department)) return false;
+            return department.Equals("Human Resources", StringComparison.OrdinalIgnoreCase) || department.Equals("HR", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsRestrictedExecutiveRole(string role)
@@ -166,7 +168,7 @@ namespace ExWebAppSia.webpage
             if (string.IsNullOrWhiteSpace(employeeId)) return false;
             var empService = new EmployeeService();
             var emp = await empService.GetByEmployeeIdAsync(employeeId);
-            return emp != null && IsRestrictedExecutiveRole(emp.Role);
+            return emp != null && (IsRestrictedExecutiveRole(emp.Role) || IsHumanResourcesDepartment(emp.Department));
         }
 
         private static bool IsSelfRequest(string requestEmployeeId, string requestEmployeeName, string currentAdminId, string currentAdminName)
@@ -201,7 +203,8 @@ namespace ExWebAppSia.webpage
                         && !string.IsNullOrEmpty(e.EmployeeId)
                         && e.IsActive
                         && !IsRestrictedExecutiveRole(e.Role)
-                        && !restrictedSet.Contains(e.EmployeeId))
+                        && !restrictedSet.Contains(e.EmployeeId)
+                        && !IsHumanResourcesDepartment(e.Department))
                     .Select(e => e.EmployeeId),
                 StringComparer.OrdinalIgnoreCase
             );
@@ -329,27 +332,68 @@ namespace ExWebAppSia.webpage
         }
 
         [System.Web.Services.WebMethod(EnableSession = true)]
-        public static string ApproveResignation(string id)
+        public static string FinalizeResignation(string id, string type, string forcedReason, string clearanceBase64)
         {
-            var currentAdmin = HttpContext.Current?.Session["Employee"] as Employee;
-            try {
+            var admin = HttpContext.Current?.Session["Employee"] as Employee;
+            try
+            {
                 return Task.Run(async () => {
                     var empService = new EmployeeService();
-                    var targetEmp = await empService.GetEmployeeByIdAsync(id);
-                    if (targetEmp != null && IsRestrictedExecutiveRole(targetEmp.Role))
+                    var target = await empService.GetEmployeeByIdAsync(id);
+                    if (target == null) return "{\"success\":false,\"message\":\"Employee not found or already inactive\"}";
+
+                    if (IsRestrictedExecutiveRole(target.Role))
                     {
-                        return "{\"success\":false,\"message\":\"You cannot approve requests from Super Admin or President.\"}";
-                    }
-                    if (targetEmp != null && currentAdmin != null && string.Equals(targetEmp.EmployeeId, currentAdmin.EmployeeId, StringComparison.OrdinalIgnoreCase))
-                    {
-                        return "{\"success\":false,\"message\":\"You cannot approve your own resignation request.\"}";
+                        return "{\"success\":false,\"message\":\"You cannot process terminations for Super Admin or President.\"}";
                     }
 
-                    var success = await empService.ResignEmployeeAsync(id);
-                    if (success) LogActivity("Resigned Employee", $"Approved resignation for employee record {id}");
+                    string filePath = null;
+                    if (type == "Standard" && !string.IsNullOrEmpty(clearanceBase64))
+                    {
+                        try {
+                            byte[] bytes = Convert.FromBase64String(clearanceBase64);
+                            string folder = HttpContext.Current.Server.MapPath("~/Uploads/ClearanceForms/");
+                            if (!Directory.Exists(folder)) Directory.CreateDirectory(folder);
+                            string fileName = $"Clearance_{target.EmployeeId}_{DateTime.Now:yyyyMMddHHmm}.pdf";
+                            filePath = "/Uploads/ClearanceForms/" + fileName;
+                            File.WriteAllBytes(folder + fileName, bytes);
+                        } catch (Exception ex) {
+                            return "{\"success\":false,\"message\":\"File upload failed: " + ex.Message + "\"}";
+                        }
+                    }
+
+                    var update = Builders<Employee>.Update
+                        .Set(e => e.ResignationStatus, "Approved")
+                        .Set(e => e.IsActive, type == "Forced" ? false : true)
+                        .Set(e => e.TerminationType, type)
+                        .Set(e => e.ClearanceFormPath, filePath)
+                        .Set(e => e.TerminationReason, type == "Forced" ? forcedReason : null)
+                        .Set(e => e.ResignationLastDay, DateTime.UtcNow);
+
+                    bool success = await empService.UpdateEmployeeFieldsAsync(id, update);
+                    
+                    if (success)
+                    {
+                        // 3. ONE-CLICK INSTANT SYSTEM LOCKOUT (Conditional)
+                        // If it's a Forced termination, lockout is instant.
+                        // If it's Standard but NO file was uploaded (Approval phase), we DON'T lockout yet 
+                        // so they can download the form from their profile.
+                        if (type == "Forced" || !string.IsNullOrEmpty(filePath))
+                        {
+                            var users = MongoDBHelper.GetUsersCollection();
+                            await users.UpdateOneAsync(u => u.EmployeeId == target.EmployeeId, Builders<User>.Update.Set(u => u.IsActive, false));
+                        }
+
+                        // Log Activity to Audit Trail
+                        var log = new ActivityLogService();
+                        string actionDetail = type == "Standard" ? "Standard Termination with Clearance Form" : $"Forced Termination. Reason: {forcedReason}";
+                        await log.LogActionAsync(admin?.Email ?? "HR Admin", admin?.FullName ?? "HR Admin", "Employee Terminated", "Resignation", $"Employee {target.FullName} ({target.EmployeeId}) status set to INACTIVE. {actionDetail}");
+                    }
+
                     return "{\"success\":" + success.ToString().ToLower() + "}";
                 }).GetAwaiter().GetResult();
-            } catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message + "\"}"; }
+            }
+            catch (Exception ex) { return "{\"success\":false,\"message\":\"" + ex.Message.Replace("\"", "'") + "\"}"; }
         }
 
         [System.Web.Services.WebMethod(EnableSession = true)]

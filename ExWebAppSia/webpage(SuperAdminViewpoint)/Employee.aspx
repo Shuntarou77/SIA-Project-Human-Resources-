@@ -1720,31 +1720,87 @@
             }
 
             // New Employee Action Functions
-            function resignEmployee(id) {
-                console.log("Resignation initiated for ID:", id);
-                showConfirm("Confirm Resignation", "Are you sure you want to mark this employee as Resigned? This will deactivate their account and notify them via email.", function () {
-                    console.log("Resignation confirmed, calling server...");
-                    PageMethods.ResignEmployee(id, function (r) {
-                        console.log("Server raw response:", r);
+            window.resignEmployee = function(id) {
+                document.getElementById('resign_emp_id').value = id;
+                document.getElementById('resign_type').value = 'Standard';
+                document.getElementById('resign_clearance').value = '';
+                document.getElementById('resign_reason').value = '';
+                toggleResignType();
+                document.getElementById('resignEmployeeModal').style.display = 'block';
+            };
+
+            window.closeResignModal = function() {
+                document.getElementById('resignEmployeeModal').style.display = 'none';
+            };
+
+            window.toggleResignType = function() {
+                const type = document.getElementById('resign_type').value;
+                document.getElementById('standard_fields').style.display = type === 'Standard' ? 'block' : 'none';
+                document.getElementById('forced_fields').style.display = type === 'Forced' ? 'block' : 'none';
+                validateResignForm();
+            };
+
+            window.validateResignForm = function() {
+                const type = document.getElementById('resign_type').value;
+                const btn = document.getElementById('btnConfirmResign');
+                let isValid = false;
+
+                if (type === 'Standard') {
+                    isValid = document.getElementById('resign_clearance').files.length > 0;
+                } else {
+                    isValid = document.getElementById('resign_reason').value.trim().length > 0;
+                }
+
+                btn.disabled = !isValid;
+                btn.style.opacity = isValid ? '1' : '0.5';
+                btn.style.cursor = isValid ? 'pointer' : 'not-allowed';
+            };
+
+            window.submitResignProcess = function() {
+                const id = document.getElementById('resign_emp_id').value;
+                const type = document.getElementById('resign_type').value;
+                const reason = document.getElementById('resign_reason').value;
+                const fileInput = document.getElementById('resign_clearance');
+
+                const btn = document.getElementById('btnConfirmResign');
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing Lockout...';
+
+                const process = (base64) => {
+                    PageMethods.FinalizeResignation(id, type, reason, base64, function(r) {
                         try {
-                            var result = (typeof r === 'string') ? JSON.parse(r) : r;
-                            closeEmployeeDetailsModal(); // Close details modal first
-                            if (result.success) {
-                                showAlert("Success", result.message, "success");
-                                setTimeout(function () { window.location.reload(); }, 700);
+                            const res = (typeof r === 'string') ? JSON.parse(r) : r;
+                            if (res.success) {
+                                showAlert("Account Locked", "Employee has been terminated and system access revoked.", "success");
+                                closeResignModal();
+                                closeEmployeeDetailsModal();
+                                setTimeout(() => location.reload(), 1500);
                             } else {
-                                showAlert("Process Failed", result.message, "error");
+                                showAlert("Error", res.message, "error");
+                                btn.disabled = false;
+                                btn.innerHTML = originalText;
                             }
-                        } catch (pe) {
-                            console.error("Parse error:", pe);
-                            showAlert("Error", "Unexpected response from server.", "error");
+                        } catch (e) {
+                            showAlert("Error", "Unexpected server response.", "error");
+                            btn.disabled = false;
+                            btn.innerHTML = originalText;
                         }
-                    }, function (e) {
-                        console.error("Server error:", e);
-                        showAlert("Error", e.get_message ? e.get_message() : "Server error.", "error");
+                    }, function(err) {
+                        showAlert("Error", "Server error during lockout: " + (err.get_message ? err.get_message() : "Unknown error"), "error");
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
                     });
-                });
-            }
+                };
+
+                if (type === 'Standard' && fileInput.files.length > 0) {
+                    const reader = new FileReader();
+                    reader.onload = e => process(e.target.result.split(',')[1]);
+                    reader.readAsDataURL(fileInput.files[0]);
+                } else {
+                    process(null);
+                }
+            };
 
             function rehireEmployee(id) {
                 console.log("Rehire initiated for ID:", id);
@@ -2181,6 +2237,24 @@
                     });
                 });
             }
+
+            // Auto-open employee details if targetId is in the URL
+            document.addEventListener('DOMContentLoaded', function() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const targetId = urlParams.get('targetId');
+                if (targetId) {
+                    console.log("Auto-opening details for targetId:", targetId);
+                    // Give the table a moment to render
+                    setTimeout(() => {
+                        const row = document.querySelector(`.employee-row[data-id="${targetId}"]`);
+                        if (row) {
+                            viewEmployeeDetails(row);
+                        } else {
+                            console.warn("Employee row not found for ID:", targetId);
+                        }
+                    }, 800);
+                }
+            });
         </script>
 
         <!-- Hidden fields and buttons for postback -->
@@ -2434,6 +2508,52 @@
                 <div class="modal-footer">
                     <button type="button" class="btn-cancel" onclick="closeEditModal()">Cancel</button>
                     <button type="button" class="btn-submit" onclick="saveEmployeeChanges()" style="background: #3b82f6;">Save Changes</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resign Employee Modal -->
+        <div id="resignEmployeeModal" class="page-modal">
+            <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-header" style="background: #ef4444;">
+                    <h2 class="modal-title">🚨 Terminate Employment</h2>
+                    <span class="close" onclick="closeResignModal()">&times;</span>
+                </div>
+                <div class="modal-body" style="padding: 30px;">
+                    <input type="hidden" id="resign_emp_id" />
+                    
+                    <div class="form-group">
+                        <label class="form-label">Termination Type</label>
+                        <select id="resign_type" class="form-select" onchange="toggleResignType()">
+                            <option value="Standard">Standard Termination (Resignation)</option>
+                            <option value="Forced">Forced / Immediate Termination</option>
+                        </select>
+                    </div>
+
+                    <div id="standard_fields">
+                        <div class="form-group">
+                            <label class="form-label">Upload Signed Clearance Form (Required) *</label>
+                            <input type="file" id="resign_clearance" class="form-input" accept=".pdf,.jpg,.jpeg,.png" onchange="validateResignForm()" />
+                            <p style="font-size: 11px; color: #666; margin-top: 5px;">Upload the final signed document for the audit trail.</p>
+                        </div>
+                    </div>
+
+                    <div id="forced_fields" style="display: none;">
+                        <div class="form-group">
+                            <label class="form-label">Reason for Immediate Termination *</label>
+                            <textarea id="resign_reason" class="form-textarea" placeholder="e.g. Employee went AWOL, Gross Misconduct..." onkeyup="validateResignForm()"></textarea>
+                        </div>
+                    </div>
+
+                    <div style="background: #fef2f2; border-left: 4px solid #ef4444; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                        <p style="color: #991b1b; font-size: 13px; font-weight: 600; margin: 0;">
+                            ⚠️ System Lockout: Clicking confirm will instantly deactivate this account across all modules.
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancel" onclick="closeResignModal()">Cancel</button>
+                    <button type="button" id="btnConfirmResign" class="btn-submit" style="background: #ef4444; opacity: 0.5; cursor: not-allowed;" disabled onclick="submitResignProcess()">Confirm Deactivation</button>
                 </div>
             </div>
         </div>

@@ -138,6 +138,24 @@
         
         .btn-report-primary { background: var(--primary-color); color: white; }
         .btn-report-primary:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(164, 79, 86, 0.2); }
+
+        /* Termination Modal Enhancements */
+        .term-type-label {
+            flex: 1; border: 2px solid #e2e8f0; padding: 15px; border-radius: 12px; 
+            cursor: pointer; display: flex; align-items: center; gap: 12px; 
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background: white;
+        }
+        .term-type-label:hover { border-color: #cbd5e1; transform: translateY(-2px); }
+        .term-type-label input[type="radio"] { width: 18px; height: 18px; accent-color: #ef4444; }
+        
+        .upload-dropzone {
+            position: relative; border: 2px dashed #cbd5e1; border-radius: 16px; 
+            padding: 30px 20px; text-align: center; background: #f8fafc; 
+            transition: all 0.3s ease;
+        }
+        .upload-dropzone:hover { border-color: #ef4444; background: #fff1f2; }
+        .upload-dropzone.active { border-color: #10b981; background: #f0fdf4; }
     </style>
 </asp:Content>
 
@@ -280,6 +298,62 @@
                         </table>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Termination Modal -->
+    <div id="terminationModal" class="page-modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header" style="background: #ef4444;">
+                <i class="fas fa-user-times" style="margin-right: 10px;"></i> Finalize Termination
+            </div>
+            <div class="modal-body">
+                <div style="background: #fff1f2; border-left: 4px solid #ef4444; padding: 12px; border-radius: 4px; margin-bottom: 20px;">
+                    <p style="margin: 0; font-size: 13px; color: #991b1b; font-weight: 600;">
+                        Warning: This action will permanently deactivate the employee's account and terminate all system access immediately.
+                    </p>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 700; margin-bottom: 8px; color: #475569;">Termination Type</label>
+                    <div style="display: flex; gap: 15px;">
+                        <label class="term-type-label">
+                            <input type="radio" name="termType" value="Standard" checked onchange="toggleTermFields()">
+                            <div>
+                                <div style="font-weight: 700; font-size: 14px;">Standard</div>
+                                <div style="font-size: 11px; color: #64748b;">Requires Clearance</div>
+                            </div>
+                        </label>
+                        <label class="term-type-label">
+                            <input type="radio" name="termType" value="Forced" onchange="toggleTermFields()">
+                            <div>
+                                <div style="font-weight: 700; font-size: 14px;">Forced / Immediate</div>
+                                <div style="font-size: 11px; color: #64748b;">AWOL / Disciplinary</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Option 1: Clearance Upload -->
+                <div id="clearanceField" style="margin-bottom: 20px;">
+                    <label style="display: block; font-weight: 700; margin-bottom: 8px; color: #475569;">Upload Signed Clearance Form *</label>
+                    <div class="upload-dropzone" id="dropZone">
+                        <i class="fas fa-file-upload" style="font-size: 24px; color: #94a3b8; margin-bottom: 8px;"></i>
+                        <div id="fileName" style="font-size: 13px; color: #64748b; font-weight: 600;">Click to select signed clearance (PDF)</div>
+                        <input type="file" id="clearanceUpload" accept=".pdf" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer;" onchange="handleFileSelect(this)">
+                    </div>
+                </div>
+
+                <!-- Option 2: Forced Reason -->
+                <div id="forcedField" style="margin-bottom: 20px; display: none;">
+                    <label style="display: block; font-weight: 700; margin-bottom: 8px; color: #475569;">Immediate Termination Reason *</label>
+                    <textarea id="forcedReason" style="width: 100%; padding: 12px; border: 1.5px solid #eee; border-radius: 10px; font-size: 14px; min-height: 100px; resize: vertical;" placeholder="Type the reason (e.g., AWOL, policy violation)..." oninput="validateTermForm()"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer" style="background: #f8fafc;">
+                <button type="button" onclick="closeTermModal()" style="background:#e2e8f0; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:600; color: #475569;">Cancel</button>
+                <button type="button" id="btnConfirmTermination" disabled style="background:#ef4444; color:white; border:none; padding:10px 25px; border-radius:8px; cursor:pointer; font-weight:700; opacity: 0.5;">Confirm Termination</button>
             </div>
         </div>
     </div>
@@ -446,6 +520,10 @@
         }
 
         function approve(type, id) {
+            if (type === 'Resign') {
+                showTerminationModal(id);
+                return;
+            }
             document.getElementById('confirmMsg').textContent = `Are you sure you want to approve this ${type} request?`;
             document.getElementById('btnConfirm').onclick = function() {
                 PageMethods.ProcessApproval(type, id, true, function(r) {
@@ -461,6 +539,118 @@
                 });
             };
             document.getElementById('confirmModal').style.display = 'block';
+        }
+
+        // --- Termination Modal Logic ---
+        let currentResignId = null;
+        let clearanceBase64 = null;
+
+        function showTerminationModal(id) {
+            currentResignId = id;
+            document.getElementById('terminationModal').style.display = 'block';
+            resetTermForm();
+        }
+
+        function closeTermModal() {
+            document.getElementById('terminationModal').style.display = 'none';
+        }
+
+        function toggleTermFields() {
+            const type = document.querySelector('input[name="termType"]:checked').value;
+            const labels = document.querySelectorAll('.term-type-label');
+            
+            labels.forEach(l => {
+                const radio = l.querySelector('input');
+                if (radio.checked) {
+                    l.style.borderColor = '#ef4444';
+                    l.style.background = '#fff1f2';
+                    l.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.1)';
+                } else {
+                    l.style.borderColor = '#e2e8f0';
+                    l.style.background = 'white';
+                    l.style.boxShadow = 'none';
+                }
+            });
+
+            if (type === 'Standard') {
+                document.getElementById('clearanceField').style.display = 'block';
+                document.getElementById('forcedField').style.display = 'none';
+            } else {
+                document.getElementById('clearanceField').style.display = 'none';
+                document.getElementById('forcedField').style.display = 'block';
+            }
+            validateTermForm();
+        }
+
+        function handleFileSelect(input) {
+            const file = input.files[0];
+            const dropZone = document.getElementById('dropZone');
+            if (!file) return;
+            
+            if (file.type !== 'application/pdf') {
+                showAlert('Invalid File', 'Please upload a PDF clearance form.', 'error');
+                input.value = '';
+                return;
+            }
+
+            document.getElementById('fileName').textContent = file.name;
+            dropZone.classList.add('active');
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                clearanceBase64 = e.target.result.split(',')[1];
+                validateTermForm();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function validateTermForm() {
+            const type = document.querySelector('input[name="termType"]:checked').value;
+            const btn = document.getElementById('btnConfirmTermination');
+            let isValid = false;
+
+            if (type === 'Standard') {
+                isValid = !!clearanceBase64;
+            } else {
+                isValid = document.getElementById('forcedReason').value.trim().length > 0;
+            }
+
+            btn.disabled = !isValid;
+            btn.style.opacity = isValid ? '1' : '0.5';
+            btn.onclick = isValid ? finalizeTermination : null;
+        }
+
+        function resetTermForm() {
+            document.querySelector('input[name="termType"][value="Standard"]').checked = true;
+            document.getElementById('forcedReason').value = '';
+            document.getElementById('clearanceUpload').value = '';
+            document.getElementById('fileName').textContent = 'Click to select signed clearance (PDF)';
+            document.getElementById('dropZone').style.borderColor = '#cbd5e1';
+            document.getElementById('dropZone').style.background = '#f8fafc';
+            clearanceBase64 = null;
+            toggleTermFields();
+        }
+
+        function finalizeTermination() {
+            const type = document.querySelector('input[name="termType"]:checked').value;
+            const reason = document.getElementById('forcedReason').value.trim();
+            
+            const btn = document.getElementById('btnConfirmTermination');
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+
+            PageMethods.FinalizeResignation(currentResignId, type, reason, clearanceBase64, function(r) {
+                const res = typeof r === 'string' ? JSON.parse(r) : r;
+                closeTermModal();
+                if (res && res.success) {
+                    loadRequests();
+                    showAlert('Termination Confirmed', 'Employee status updated to Inactive. All access revoked.', 'success');
+                } else {
+                    showAlert('Error', (res && res.message) ? res.message : 'Failed to finalize termination.', 'error');
+                }
+                btn.disabled = false;
+                btn.textContent = 'Confirm Termination';
+            });
         }
 
         function reject(type, id) {

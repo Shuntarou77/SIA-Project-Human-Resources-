@@ -1210,6 +1210,48 @@
                 document.getElementById('addApplicantModal').style.display = 'block';
             }
 
+            function openModalWithData(position, type) {
+                document.getElementById('addApplicantModal').style.display = 'block';
+                
+                // Set Position Dropdown
+                var ddl = document.getElementById('<%= ddlAppliedPosition.ClientID %>');
+                if (ddl) {
+                    for (var i = 0; i < ddl.options.length; i++) {
+                        // Check both text and value as the position name might be in either
+                        if (ddl.options[i].text.includes(position) || ddl.options[i].value === position) {
+                            ddl.selectedIndex = i;
+                            // Trigger any change listeners
+                            if (typeof updateSelectedRole === 'function') {
+                                updateSelectedRole(ddl);
+                            }
+                            break;
+                        }
+                    }
+                }
+
+                // Set Contract Type Radio Button
+                var rbl = document.getElementById('<%= rblContractType.ClientID %>');
+                if (rbl) {
+                    var inputs = rbl.getElementsByTagName('input');
+                    for (var i = 0; i < inputs.length; i++) {
+                        if (inputs[i].value === type) {
+                            inputs[i].checked = true;
+                        } else if (type === "Fixed-term" && inputs[i].value === "Probationary") {
+                            // Map Fixed-term replacement to Probationary path
+                            inputs[i].checked = true;
+                        }
+                    }
+                }
+                
+                // Show info message in modal
+                var msgDiv = document.getElementById('messageDiv');
+                if (msgDiv) {
+                    msgDiv.style.display = 'block';
+                    msgDiv.className = 'message success';
+                    msgDiv.innerHTML = '<span style="font-weight:700;">📌 PRE-FILLED:</span> Hiring ' + type + ' replacement for ' + position;
+                }
+            }
+
             function closeModal() {
                 document.getElementById('addApplicantModal').style.display = 'none';
                 document.getElementById('messageDiv').style.display = 'none';
@@ -1908,6 +1950,44 @@
 
     <asp:Content ID="Content2" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
         <div class="recruitment-container">
+            <!-- Urgent Coverage Section (New Feature) -->
+            <asp:PlaceHolder ID="phUrgentHiring" runat="server" Visible="false">
+                <div class="urgent-hiring-section" style="margin-bottom: 32px; background: #fff1f2; border: 1px solid #fecaca; border-radius: 16px; padding: 24px; box-shadow: var(--shadow-md);">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                        <span style="font-size: 24px; background: #ef4444; color: white; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 10px; box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);">⚠️</span>
+                        <div>
+                            <h3 style="font-size: 18px; color: #991b1b; font-weight: 700; margin-bottom: 2px;">Urgent Coverage Required</h3>
+                            <p style="font-size: 13px; color: #b91c1c; opacity: 0.8;">Positions flagged for immediate replacement due to AWOL or long-term leave.</p>
+                        </div>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 16px;">
+                        <asp:Repeater ID="rptUrgentHiring" runat="server">
+                            <ItemTemplate>
+                                <div class="urgent-card" style="background: white; border: 1px solid #fee2e2; padding: 20px; border-radius: 12px; position: relative; transition: all 0.2s ease;">
+                                    <div style="display: flex; justify-content: flex-end; align-items: flex-start; margin-bottom: 12px;">
+                                        <div style='<%# "color:" + (Eval("Priority").ToString() == "High" ? "#dc2626" : "#d97706") + "; font-size: 12px; font-weight: 700;" %>'>
+                                            <%# Eval("Priority") %> Priority
+                                        </div>
+                                    </div>
+                                    <h4 style="font-size: 16px; font-weight: 700; color: #1e293b; margin-bottom: 4px;"><%# Eval("Position") %></h4>
+                                    <div style="font-size: 13px; color: #64748b; margin-bottom: 12px;"><%# Eval("Department") %></div>
+                                    <div style="background: #f8fafc; padding: 10px; border-radius: 8px; border-left: 3px solid #cbd5e1;">
+                                        <div style="font-size: 11px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Reason for replacement</div>
+                                        <div style="font-size: 13px; color: #334155; font-weight: 500;"><%# Eval("Reason") %> for <strong><a href='Employee.aspx?targetId=<%# Eval("Id") %>' style="color: #1e293b; text-decoration: underline; cursor: pointer;"><%# Eval("EmployeeName") %></a></strong></div>
+                                    </div>
+                                    <div style="margin-top: 15px; display: flex; gap: 8px;">
+                                        <button type="button" class="btn-primary" style="padding: 8px 16px; font-size: 12px; width: 100%;" 
+                                            onclick='<%# "openModalWithData(\"" + Eval("Position") + "\", \"" + Eval("Type") + "\")" %>'>
+                                            Hire Replacement
+                                        </button>
+                                    </div>
+                                </div>
+                            </ItemTemplate>
+                        </asp:Repeater>
+                    </div>
+                </div>
+            </asp:PlaceHolder>
 
             <!-- Modern Add Button with Icon -->
             <button type="button" class="add-applicant-button" onclick="openModal()">

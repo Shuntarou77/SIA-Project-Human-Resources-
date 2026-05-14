@@ -19,6 +19,8 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
         private readonly InterviewService _interviewService = new InterviewService();
         protected global::System.Web.UI.WebControls.Literal litContractualCount;
         protected global::System.Web.UI.HtmlControls.HtmlGenericControl contractualTableBody;
+        protected global::System.Web.UI.WebControls.PlaceHolder phUrgentHiring;
+        protected global::System.Web.UI.WebControls.Repeater rptUrgentHiring;
 
         private readonly EmployeeService _employeeService = new EmployeeService();
         private readonly ManagerService _managerService = new ManagerService();
@@ -327,12 +329,12 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666; width: 35%;'>Dept (Position):</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.AppliedPosition ?? ""));
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Role / Job Title:</td><td style='padding: 8px;'><mark style='background: #fff3cd; padding: 2px 6px;'>{0}</mark></td></tr>", Server.HtmlEncode(applicant.Role ?? ""));
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Contract Type:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.ContractType ?? ""));
-            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Starting Salary:</td><td style='padding: 8px;'>â‚±{0:N2}</td></tr>", applicant.StartingSalary > 0 ? applicant.StartingSalary : 18000);
+            sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Starting Salary:</td><td style='padding: 8px;'>&#8369;{0:N2}</td></tr>", applicant.StartingSalary > 0 ? applicant.StartingSalary : 18000);
             sb.AppendFormat("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Status:</td><td style='padding: 8px;'>{0}</td></tr>", Server.HtmlEncode(applicant.Status ?? ""));
             
             // Govt. Contributions
-            string checkIcon = "<span style='color: #28a745; margin-right: 5px;'>âœ”</span>";
-            string xIcon = "<span style='color: #dc3545; margin-right: 5px;'>âœ˜</span>";
+            string checkIcon = "<span style='color: #28a745; margin-right: 5px;'>&#10004;</span>";
+            string xIcon = "<span style='color: #dc3545; margin-right: 5px;'>&#10006;</span>";
 
             sb.Append("<tr><td style='padding: 8px; font-weight: 700; color: #666;'>Govt. Contributions:</td><td style='padding: 8px;'>");
             sb.AppendFormat("<span style='margin-right: 15px;'>{0} SSS</span>", applicant.HasSSS ? checkIcon : xIcon);
@@ -448,6 +450,20 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                 PopulateForViewingApplicantsTable(forViewingApplicants);
                 PopulateApprovedApplicantsTable(approvedApplicants);
                 PopulateDeclinedApplicantsTable(declinedApplicants);
+
+                // NEW: Load Urgent Hiring Needs (AWOL/Long-term Leave)
+                var attendanceService = new AttendanceService();
+                var urgentNeeds = await attendanceService.GetContractualHiringNeedsAsync();
+                if (urgentNeeds != null && urgentNeeds.Count > 0)
+                {
+                    phUrgentHiring.Visible = true;
+                    rptUrgentHiring.DataSource = urgentNeeds;
+                    rptUrgentHiring.DataBind();
+                }
+                else
+                {
+                    phUrgentHiring.Visible = false;
+                }
                 await PopulateInProgressTablesAsync(inProgressApplicants);
                 await PopulateOnboardingTableAsync(onboardingApplicants);
                 PopulateRehiringTable(probationaryEmployees);
@@ -491,33 +507,16 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     litAvailablePositions.Text = Math.Max(0, totalCapacity - totalOccupied).ToString();
                 }
 
-                // --- NEW: Contractual Replacement logic ---
-                int onLeaveCount = 0;
+                // --- NEW: Contractual Replacement logic (Synced with Urgent Coverage) ---
+                int onLeaveCount = urgentNeeds != null ? urgentNeeds.Count : 0;
                 HashSet<string> onLeaveIds = new HashSet<string>();
-                try {
-                    // Method 1: Check Employees marked "On Leave" manually
-                    int manualOnLeave = allEmployees.Where(e => e.IsActive && e.AvailabilityStatus == "On Leave").Select(e => e.EmployeeId).Distinct().Count();
-                    
-                    // Method 2: Check approved leaves in DB for today
-                    var leaveCol = MongoDBHelper.GetLeavesCollection();
-                    var todayDate = DateTime.UtcNow.AddHours(8).Date;
-                    var filter = Builders<Leave>.Filter.And(
-                        Builders<Leave>.Filter.Eq(l => l.Status, "Approved"),
-                        Builders<Leave>.Filter.Eq(l => l.IsActive, true)
-                    );
-                    var leavesToday = await (await leaveCol.FindAsync(filter)).ToListAsync();
-                    int automaticOnLeave = leavesToday.Count(l => todayDate >= l.StartDate.Date && todayDate <= l.EndDate.Date);
-                    
-                    // Total unique employees on leave
-                    onLeaveCount = Math.Max(manualOnLeave, automaticOnLeave);
-                    
-                    // Logic refinement: If we have multiple overlaps, count unique employee IDs
-                    onLeaveIds = new HashSet<string>(allEmployees.Where(e => e.IsActive && e.AvailabilityStatus == "On Leave").Select(e => e.EmployeeId));
-                    foreach(var l in leavesToday) {
-                        if (todayDate >= l.StartDate.Date && todayDate <= l.EndDate.Date) onLeaveIds.Add(l.EmployeeId);
+                if (urgentNeeds != null)
+                {
+                    foreach (var need in urgentNeeds)
+                    {
+                        onLeaveIds.Add(need.EmployeeId);
                     }
-                    onLeaveCount = onLeaveIds.Count;
-                } catch { }
+                }
 
                 if (litAvailablePositionsList != null)
                 {
@@ -529,16 +528,14 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     {
                         foreach (var emp in allEmployees)
                         {
-                            if (!string.IsNullOrEmpty(emp.Role)) {
+                            if (!string.IsNullOrEmpty(emp.Role) && emp.IsActive) {
                                 string r = emp.Role.Trim();
                                 // Exclude President from recruitment logic entirely
                                 if (r.ToLowerInvariant().Contains("president")) continue;
 
-                                // Only count towards 'occupied' if they are NOT on leave
-                                // If they are on leave, the slot is effectively vacant for a temp
-                                if (onLeaveIds == null || !onLeaveIds.Contains(emp.EmployeeId)) {
-                                    occupiedRoles.Add(r);
-                                }
+                                // A role is permanently occupied even if the person is on leave.
+                                // The temporary vacancy is handled separately by Contractual Replacement.
+                                occupiedRoles.Add(r);
                                 
                                 if (!roleHeadcounts.ContainsKey(r)) roleHeadcounts[r] = 0;
                                 roleHeadcounts[r]++;
@@ -593,17 +590,21 @@ namespace ExWebAppSia.webpage_SuperAdminViewpoint_
                     // Display Contractual Replacement if needed
                     if (onLeaveCount > 0)
                     {
-                        sbPos.AppendFormat("<div class='pos-item' style='display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; padding: 6px 12px; background: #fff7ed; border-radius: 8px; border: 1px solid #fed7aa; margin-bottom: 12px; filter: drop-shadow(0 2px 4px rgba(249, 115, 22, 0.1));' onclick=\"filterByPosition('Contractual')\">" +
+                        sbPos.AppendFormat("<div style='grid-column: span 2;'>" + 
+                            "<div class='pos-item' style='display: flex; align-items: center; gap: 8px; cursor: pointer; transition: all 0.2s; padding: 6px 12px; background: #fff7ed; border-radius: 8px; border: 1px solid #fed7aa; margin-bottom: 8px; filter: drop-shadow(0 2px 4px rgba(249, 115, 22, 0.1));' onclick=\"filterByPosition('Contractual')\">" +
                             "<svg style='width:16px; height:16px; color:#f97316;' fill='currentColor' viewBox='0 0 20 20'><path d='M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM5.884 6.607a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zm2.12 8.485a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm7.071-7.071a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zm-1.414 8.485a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414l-.707-.707a1 1 0 010-1.414zM9 11a1 1 0 102 0V9a1 1 0 10-2 0v2z' /></svg>" +
                             "<div style='flex:1;'><span style='font-weight:700; color:#c2410c;'>Contractual Replacement</span> <span style='font-size:11px; color:#f97316; font-weight:600;'>({0} SLOTS)</span></div>" +
-                            "</div>", onLeaveCount);
+                            "</div></div>", onLeaveCount);
                         visibleCount++;
 
-                        // List specific replacement roles
+                        // List specific replacement roles in the grid layout below the header
                         foreach(var rv in replacementVacancies.Distinct()) {
                              sbPos.AppendFormat("<div class='pos-item' style='display: flex; align-items: center; gap: 12px; cursor: pointer; transition: all 0.2s; padding: 6px 0; margin-left: 12px; font-size: 14px; color: #c2410c;' onclick=\"filterByPosition('{0}')\" onmouseover=\"this.style.color='#f97316'\" onmouseout=\"this.style.color='#c2410c'\" ><svg style='width:14px; height:14px; color:#f97316;' fill='currentColor' viewBox='0 0 20 20'><path fill-rule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z' clip-rule='evenodd'></path></svg>{0}</div>", Server.HtmlEncode(rv));
-                             visibleCount++;
                         }
+
+                        // Add separator
+                        sbPos.Append("<div style='grid-column: span 2; border-bottom: 1px solid rgba(107, 114, 128, 0.15); margin: 12px 0 4px 0;'></div>");
+                        sbPos.Append("<div style='grid-column: span 2; font-size: 12px; font-weight: 800; color: #6b7280; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 1px;'>Permanent Vacancies</div>");
                     }
 
                     // Display RoleSalary-sourced available positions
